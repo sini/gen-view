@@ -1,0 +1,342 @@
+# THE VIEW RELATION — a view definition and a scope graph become THE NAMED RESULT.
+#
+# Manchanda & Warren, Minker 1988 ch. 10, printed 381, names both ends of this: the "view
+# definition" is the declaration and the "view relation" is the result. The ACT between them has
+# no term at any held primary and so has no identifier here — the two named things are enough, and
+# inventing a third name for the arrow would be presenting an unacquired term as acquired.
+#
+# ── WHAT THE MATERIALIZATION DOES, IN ORDER ─────────────────────────────────────────────────
+#  1. direction — a LABELLED transpose for the inbound arm. Transpose reverses direction rather
+#     than erasing it; reaching the plain transpose through a label-forgetting projection would
+#     erase precisely the component the walk reads.
+#  2. effective E = NODE MARKS ∩ DECLARED ADMISSION. The marks are applied AT THE ACCESSOR, which
+#     is where the calculus puts them, so the construction only ever REMOVES edges: WIDENING IS
+#     NOT FORBIDDEN, IT IS UNSAYABLE — intersection has no inverse the author can reach, and there
+#     is no global dial to disagree with the derivation because the mark IS an input to it.
+#  3. the walk — a witness-carrying enumeration constrained by E, so `WFL ⊢ p ok` holds of every
+#     answer by construction.
+#  4. the projection — a MIN-FOLD OVER `distance` WITHIN EACH ⟨node, derivative-state⟩ CLASS.
+#     ★ A CARRIER KEYED FINER THAN THE DECLARATION IS NOT A MISMATCH, because the projection is
+#     part of the materialization and not a chore left to a consumer. The converse does not hold:
+#     A DECLARATION MAY NEVER KEY FINER THAN ITS CARRIER, and cannot, since no projection can
+#     un-merge what the carrier has already merged.
+#  5. (NR-Rel) — at each surviving scope the relation is reached ONCE, AT THE END OF THE PATH,
+#     and the datum is filtered by WFD. The gather reads the WALK-INDEPENDENT data component
+#     (`arrival.nix`), so a walk-emitted value's participation is inexpressible here rather than
+#     filtered out downstream.
+#  6. competition — contributions are grouped by k and the surviving-maximal set of each group is
+#     taken under the label order's lexicographic lift.
+#  7. the tie-set disposition — `union`, `refuse` or `orderedFold`, named by the declaration.
+#  8. dedup — declared, and EVERY DROP IS A RECORD.
+#  9. the fold — ASSOCIATIVE-ONLY, WITH NO REORDER AND NO DEDUP BY RANK. The lawful shape states
+#     it in its own words: "NOTHING IS SORTED, DEDUPED OR FILTERED BY RANK. The list's order IS
+#     the authority." ★ A fold over the SORTED answer set requiring a commutative-idempotent
+#     monoid is NOT a successor to this and must not be reached for — it is the exact
+#     reorder-and-dedup this step forbids.
+#
+# ── WHAT IS DELIBERATELY NOT A DECLARATION FIELD ────────────────────────────────────────────
+# Boundary marks belong to the NODE: a declaration CONSUMES marks and never sets, waives or names
+# them, which is why they are an argument to this function and not a field of the definition. And
+# placement, the terminal sink and content transformation are not fields either — folding those in
+# would reconstruct the released edge grammar under new names. They live in their own construct
+# families (`placement.nix`, `transform.nix`), reachable and separate.
+{ prelude, graph }:
+let
+  inherit (prelude)
+    concatMap
+    elem
+    filter
+    foldl'
+    head
+    length
+    map
+    sort
+    ;
+  refusal = import ./refusal.nix { inherit prelude; };
+  carrierLib = import ./carrier.nix { inherit prelude graph; };
+  arrival = import ./arrival.nix { inherit prelude graph; };
+  inherit (refusal) refuse fields quote;
+  inherit (carrierLib) elementOf;
+
+  indexOf =
+    xs: x:
+    let
+      n = length xs;
+      go =
+        i:
+        if i >= n then
+          null
+        else if builtins.elemAt xs i == x then
+          i
+        else
+          go (i + 1);
+    in
+    go 0;
+
+  # `groupsInWalkOrder keyOf xs` — `builtins.groupBy` keyed by `keyOf`, with the GROUPS returned in
+  # order of first appearance rather than in attribute-name order.
+  #
+  # ★ THE DISTINCTION IS THE WHOLE OF STEP 9's LAW SEEN ONE LEVEL UP. `attrNames` sorts
+  # lexicographically, so concatenating groups by name would make the result's order a fact about
+  # KEY SPELLING and not about the walk. Within a group the order is already the walk's; across
+  # groups it has to be too, or the fold's "the list's order is the authority" is authority over
+  # an order nobody chose.
+  groupsInWalkOrder =
+    keyOf: xs:
+    let
+      grouped = builtins.groupBy keyOf xs;
+      seen = foldl' (
+        acc: x:
+        let
+          k = keyOf x;
+        in
+        if elem k acc then acc else acc ++ [ k ]
+      ) [ ] xs;
+    in
+    map (k: {
+      key = k;
+      members = grouped.${k};
+    }) seen;
+
+  viewRelation =
+    args:
+    let
+      a = fields "viewRelation" [
+        "definition"
+        "graph"
+        # REQUIRED, and "no marks" is `_: [ ]` written down. A defaulted mark accessor would make
+        # the unmarked case a decision nobody made, on the one axis where silence must never read
+        # as access.
+        "marks"
+      ] args;
+      def = elementOf "viewRelation" "definition" "viewDefinition" a.definition;
+      g = elementOf "viewRelation" "graph" "scopeGraph" a.graph;
+
+      # 1 — direction.
+      directed = if def.direction == "inbound" then graph.labeledTranspose g.labeled else g.labeled;
+
+      # 2 — effective E. `boundedBy` removes edges AT THE ACCESSOR and reports what it removed;
+      # the companion diagnostic is never empty where it fires, so silence and a boundary are
+      # never the same reading.
+      bounded = graph.boundedBy directed a.marks;
+
+      # 3 — the walk. WFD does NOT run here: under (NR-Rel) the path is constrained by WFL and the
+      # DATUM by WFD, and collapsing the two would filter scopes by a predicate written for data
+      # terms. The walk's own predicate is therefore total.
+      answers = graph.query {
+        mode = "paths";
+        graph = bounded;
+        from = def.root;
+        follow = def.admission.expr;
+      };
+
+      # Distance and residual derivative state, folded along each witness. The residual state is
+      # the admission policy still in force at the arrival — the component the ⟨node,
+      # derivative-state⟩ collapse is keyed on.
+      measured = map (
+        ans:
+        let
+          walked =
+            foldl'
+              (acc: step: {
+                distance = def.distance {
+                  inherit (acc) distance;
+                  inherit (step) label from to;
+                };
+                state = def.admission.step step.label acc.state;
+              })
+              {
+                distance = 0;
+                state = def.admission.expr;
+              }
+              ans.path;
+        in
+        {
+          inherit (ans) node path;
+          inherit (walked) distance;
+          admission = def.admission.stateKey walked.state;
+        }
+      ) answers;
+
+      # 4 — the projection. Min over `distance` within each ⟨node, derivative-state⟩ class; a tie
+      # in distance keeps the first arrival in walk order, because the walk's order is the only
+      # order this step has any business pinning.
+      projected =
+        map
+          (
+            cls:
+            let
+              best = foldl' (acc: m: if m.distance < acc.distance then m else acc) (head cls.members) (
+                builtins.tail cls.members
+              );
+            in
+            best
+          )
+          (
+            groupsInWalkOrder (
+              m:
+              builtins.toJSON [
+                m.node
+                m.admission
+              ]
+            ) measured
+          );
+
+      # 5 — (NR-Rel), over the WALK-INDEPENDENT data component.
+      contributions = concatMap (
+        m:
+        map (datum: {
+          scope = m.node;
+          inherit (m) distance path admission;
+          inherit (def) relation;
+          inherit datum;
+          channel = def.name;
+        }) (relationAt m.node)
+      ) projected;
+
+      relationAt =
+        scope:
+        map (entry: entry.datum) (
+          filter (entry: entry.relation == def.relation && def.wellFormed entry.datum) (
+            arrival.authoredAt g scope
+          )
+        );
+
+      # 6 — competition. The lift is a TOTAL PREORDER on rank words (two words compare less,
+      # greater, or neither), so "minimal" reduces to "not beaten by the minimum" and the group
+      # needs one pass rather than a pairwise sweep.
+      competed = map (
+        grp:
+        let
+          ordered = sort (x: y: def.order.pathPrecedes x.path y.path) grp.members;
+          best = head ordered;
+          survives = c: !(def.order.pathPrecedes best.path c.path);
+        in
+        {
+          inherit (grp) key;
+          visible = filter survives grp.members;
+          shadowed = filter (c: !(survives c)) grp.members;
+        }
+      ) (groupsInWalkOrder (c: def.channel.keyOf c) contributions);
+
+      # 7 — the tie-set disposition.
+      disposed = map (
+        grp:
+        if def.tieSet.arm == "union" then
+          # The papers' own arm: the surviving-maximal set IS the answer, in walk order.
+          grp
+        else if def.tieSet.arm == "refuse" then
+          (
+            if length grp.visible > 1 then
+              refuse "viewRelation" "channel '${def.name}' declares tieSet 'refuse' and the competition key ${builtins.toJSON grp.key} survives with ${toString (length grp.visible)} contributions, from scopes ${
+                quote (map (c: c.scope) grp.visible)
+              }; the declaration asked for exactly one"
+            else
+              grp
+          )
+        else
+          # orderedFold — the surviving set is disposed by the DECLARED contribution order over
+          # the contributing scopes. A list is invariant under presentation order by construction,
+          # where a comparator over arrival position is not; and the order is TOTAL over the
+          # survivors, so a scope it does not name is refused by name rather than sorted to an end
+          # nobody declared.
+          let
+            unranked = filter (c: indexOf def.tieSet.order c.scope == null) grp.visible;
+          in
+          if unranked != [ ] then
+            refuse "viewRelation" "channel '${def.name}' declares tieSet 'orderedFold' whose declared order (${quote def.tieSet.order}) does not rank the contributing scope '${(head unranked).scope}'; the order is total over the surviving set"
+          else
+            grp
+            // {
+              visible = sort (
+                x: y: indexOf def.tieSet.order x.scope < indexOf def.tieSet.order y.scope
+              ) grp.visible;
+            }
+      ) competed;
+
+      surviving = concatMap (grp: grp.visible) disposed;
+      shadowed = concatMap (grp: grp.shadowed) disposed;
+
+      # 8 — dedup, with EVERY DROP A RECORD. The surface this replaces declared a dedup and
+      # enumerated no drops, so an answer that came back short could not be told from a
+      # contribution that was never made.
+      dedupKey =
+        c:
+        if def.dedup.arm == "byDatum" then
+          builtins.toJSON c.datum
+        else if def.dedup.arm == "byKey" then
+          def.dedup.keyOf c
+        else
+          null;
+      deduped =
+        if def.dedup.arm == "none" then
+          {
+            kept = surviving;
+            dropped = [ ];
+          }
+        else
+          # The index is an ATTRSET rather than a rescan of what has been kept. A rescan pays the
+          # kept list once per contribution, which is quadratic in the group's size on the one
+          # step whose whole purpose is to make a large gather smaller.
+          foldl'
+            (
+              acc: c:
+              let
+                k = dedupKey c;
+                idx = builtins.toJSON k;
+              in
+              if acc.seen ? ${idx} then
+                acc
+                // {
+                  dropped = acc.dropped ++ [
+                    {
+                      contribution = c;
+                      collapsedInto = acc.seen.${idx};
+                      policy = def.dedup.arm;
+                      key = k;
+                    }
+                  ];
+                }
+              else
+                acc
+                // {
+                  kept = acc.kept ++ [ c ];
+                  seen = acc.seen // {
+                    ${idx} = c;
+                  };
+                }
+            )
+            {
+              kept = [ ];
+              dropped = [ ];
+              seen = { };
+            }
+            surviving;
+
+      # 9 — the fold. `foldl'` over the list AS IT STANDS: no sort, no dedup by rank, no reorder.
+      value = foldl' def.combine.op def.empty (map (c: c.datum) deduped.kept);
+
+      # The boundary diagnostic, MATERIALIZED AS DATA AND CARRIED INSIDE THE RESULT. A side channel
+      # a consumer may ignore is exactly the fail-open shape that "boundary as a query property the
+      # query may omit" was refused for; silence must not become access at the diagnostic either.
+      withheld = concatMap (
+        scope:
+        map (w: {
+          inherit scope;
+          inherit (w) label target marks;
+        }) (bounded.withheld scope)
+      ) g.scopes;
+    in
+    {
+      __element = "viewRelation";
+      name = def.name;
+      definition = def;
+      graph = g;
+      inherit value shadowed withheld;
+      contributions = deduped.kept;
+      inherit (deduped) dropped;
+    };
+in
+{
+  inherit viewRelation groupsInWalkOrder indexOf;
+}
