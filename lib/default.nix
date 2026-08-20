@@ -44,13 +44,33 @@
 #   machinery, which is this library. The sorter already had a home; its INPUT did not.
 #
 # ★★★ AND WHAT IS DELIBERATELY *ABSENT*: THERE IS NO ARRIVAL-MODE DISCRIMINATOR, because there is
-# nothing to discriminate. `data(G)` is a COMPONENT of the graph value (Fig. 1), so a datum is in
-# it or it is not and no traversal can put one there — WALK-DEPENDENCE IS UNSAYABLE RATHER THAN
-# DETECTED. An earlier revision made `data` a function of the graph, which made the hazard sayable,
-# and then invented a discriminator to catch what fell through; the divergence is withdrawn and the
-# discriminator retired with it. R17's shape requirement — a contribution competes only if declared
-# — is met BY THE COMPONENT SHAPE: what competes is exactly what is in `data`, the only way in is
-# for an author to write it there, and a walk answer is refused in a data position by name.
+# nothing for the SUBSTRATE to discriminate. `data(G)` is a COMPONENT of the graph value (Fig. 1),
+# so NO TRAVERSAL CAN CHANGE WHICH DATUMS ARE IN THE COMPONENT OR WHERE THEY ARE FILED. An earlier
+# revision made `data` a function of the graph, which let the substrate's own accessor re-emit; the
+# divergence is withdrawn and the discriminator that chased it retired with it.
+#
+# ★★★ THE CLAIM IS SCOPED TO PRESENCE AND FILING, AND SAYING MORE WOULD BE FALSE. Struck, quoted so
+# the broader form is not restored: ~~*"WALK-DEPENDENCE IS UNSAYABLE"*~~. MEASURED, each door in its
+# own evaluation — a caller can bind the graph and read it from inside a datum, because `scopeGraph`
+# forces `scope` and `relation` but never `datum`, and `labeled` is computable from `edges` and
+# `scopes` without `data`:
+#
+#   MEMBERSHIP — whether the datum is in `data` at all   → CLOSED, infinite recursion
+#   FILING     — which scope it sits at                  → CLOSED, infinite recursion
+#   VALUE      — the datum's content                     → OPEN, and it participates conditionally:
+#                two graphs differing only in an edge that does not affect whether the datum's scope
+#                is reached give `["admit"]` and `[ ]` under a WFD that admits one of them
+#
+# ★★ AND THE OPEN DOOR IS LAWFUL, WHICH IS WHY IT IS SCOPED RATHER THAN CLOSED. A datum's VALUE is
+# the AUTHOR'S and is not analysed: a caller writing `datum = <expression over the graph>` has
+# AUTHORED that content explicitly, which is exactly ADR-0024 arm F's *declared explicitly rather
+# than as an implicit side effect*. No constructor can distinguish a graph-derived thunk from a
+# literal, and none should try — what the arm F defect names is MECHANICAL RE-EMISSION BY THE
+# SUBSTRATE, and the substrate here performs one gather, consults no accessor, and cannot re-emit.
+#
+# R17's shape requirement — a contribution competes only if declared — is met BY THE COMPONENT
+# SHAPE: what competes is exactly what is in `data`, the only way in is for an author to write it
+# there, and a walk ANSWER is refused in a data position by name.
 # · `placement`, `setAttrByPath`, the placement modes and the terminal sink: ruled into a fourth
 #   destination with no name and no owner, which is this library — kept as a construct family
 #   BESIDE the declaration, never as declaration fields.

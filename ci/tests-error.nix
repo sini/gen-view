@@ -216,7 +216,7 @@ in
         }) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.scopeGraph: data is a FUNCTION; it must be a plain list of datums.*COMPONENT of the graph.*no traversal can put one there.*$";
+          msg = "^gen-view\\.scopeGraph: data is a FUNCTION; it must be a plain list of datums.*COMPONENT of the graph.*let the substrate's own accessor re-emit.*$";
         };
       };
 

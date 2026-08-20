@@ -135,9 +135,16 @@ condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, 
 ## The data component, boundaries and ordering
 
 - **`data(G)` is a plain component of the graph value**, exactly as Fig. 1 writes it: a list of
-  `{ scope; relation; datum; }` triples, never an accessor and never a function. A datum is in it
-  or it is not, and **no traversal can put one there** — (NR-Rel) is a membership test against a
-  value that existed before any walk began.
+  `{ scope; relation; datum; }` triples, never an accessor and never a function. **No traversal can
+  change which datums are in the component or where they are filed** — (NR-Rel) is a membership test
+  against a value that existed before any walk began. Both of those doors are closed loudly: making
+  a datum's presence or its filing scope a function of the graph is infinite recursion.
+- **A datum's VALUE is the author's, and is not analysed.** A caller may compute one from the graph,
+  and such a datum participates conditionally on graph shape. That is lawful and deliberate:
+  computing a datum **is** authoring it, which is the explicit declaration ADR-0024 arm F asks for.
+  What arm F forbids is **mechanical re-emission by the substrate**, and the substrate performs one
+  gather, consults no accessor, and cannot re-emit. No constructor can tell a graph-derived thunk
+  from a literal, and none tries.
 - **R17's shape requirement is met by that shape, not by a field and not by a check.** "A
   contribution competes only if declared" holds because what competes is exactly what is *in* the
   component, and the only way in is for an author to write it there: **authoring into the component

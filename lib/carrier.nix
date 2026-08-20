@@ -514,7 +514,10 @@ let
   # of it. Having opened that hole, the library then invented a discriminator to detect what had
   # fallen through it, and the discriminator was incomplete (it severed one scope's out-edges, so
   # any walk-dependence routed through other edges survived, and at a SINK scope severing was the
-  # identity and the check was vacuous). ⇒ THE HAZARD IS NOW INEXPRESSIBLE RATHER THAN DETECTED.
+  # identity and the check was vacuous). ⇒ SUBSTRATE RE-EMISSION IS NOW INEXPRESSIBLE RATHER THAN
+  # DETECTED, and the claim is SCOPED TO WHAT THE SHAPE EARNS: no traversal can change WHICH datums
+  # are in the component or WHERE they are filed. A datum's VALUE is the author's and is not
+  # analysed — a caller may compute one from the graph, and doing so IS authoring it.
   # BY-CONSTRUCTION OVER REPAIR, applied to the construction that opened the hazard rather than to
   # the mechanism that chased it. There is no discriminator here because there is nothing to
   # discriminate.
@@ -591,7 +594,7 @@ let
     if !(builtins.isAttrs a.edges) then
       refuse "scopeGraph" "edges must be an attrset of label → (scope → [ scope ]); it is the per-label accessor the walk steps"
     else if builtins.isFunction a.data then
-      refuse "scopeGraph" "data is a FUNCTION; it must be a plain list of datums `[ { scope; relation; datum; } ]`. In the calculus `data(G)` is a COMPONENT of the graph, so a datum is in it or it is not and no traversal can put one there — a function reintroduces exactly the walk-dependence the component shape exists to make unsayable"
+      refuse "scopeGraph" "data is a FUNCTION; it must be a plain list of datums `[ { scope; relation; datum; } ]`. In the calculus `data(G)` is a COMPONENT of the graph, so a datum is in it or it is not and no traversal can put one there — a function is what let the substrate's own accessor re-emit, which is the one shape the component form exists to remove"
     else if !(builtins.isList a.data) then
       refuse "scopeGraph" "data must be a list of datums `[ { scope; relation; datum; } ]` — Fig. 1's `Data ::= s —r→ d`, the ⟨scopes, edges, data⟩ triple's third component"
     else if malformed != [ ] then

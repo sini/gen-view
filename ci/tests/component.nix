@@ -11,10 +11,17 @@
 # a sink scope wins a competition.
 #
 # ★★★ THE DIVERGENCE IS WITHDRAWN. `data(G)` is a COMPONENT of the graph value, as Fig. 1 writes
-# it: a datum is in it or it is not, and NO TRAVERSAL CAN PUT ONE THERE. ⇒ THE HAZARD IS
-# INEXPRESSIBLE RATHER THAN DETECTED, so there is no discriminator, no arrival mode, and nothing
-# for the retired suite to have been about. BY-CONSTRUCTION OVER REPAIR, applied to the
-# construction that opened the hazard instead of to the mechanism that chased it.
+# it, so NO TRAVERSAL CAN CHANGE WHICH DATUMS ARE IN THE COMPONENT OR WHERE THEY ARE FILED. ⇒
+# SUBSTRATE RE-EMISSION IS INEXPRESSIBLE RATHER THAN DETECTED, so there is no discriminator, no
+# arrival mode, and nothing for the retired suite to have been about. BY-CONSTRUCTION OVER REPAIR,
+# applied to the construction that opened the hazard instead of to the mechanism that chased it.
+#
+# ★★ THE CLAIM IS SCOPED TO PRESENCE AND FILING, AND THE CELLS BELOW ARE SCOPED WITH IT. A caller
+# CAN bind the graph and read it from inside a datum, because `scopeGraph` forces `scope` and
+# `relation` but never `datum`. Membership and filing are closed loudly (both infinite recursion);
+# a datum's VALUE is open, and that door is LAWFUL — computing a datum IS authoring it, which is
+# the explicit declaration arm F asks for, and what arm F forbids is mechanical re-emission BY THE
+# SUBSTRATE. Nothing here claims a datum's value is traversal-independent, because it is not.
 #
 # ★★ WHAT SURVIVES FROM THE RETIRED ORACLE IS ITS POSITIVE ARM — the claim that nothing was lost:
 # the DECLARED form still competes, and wins where it should. That cell is below, because it is the
@@ -98,13 +105,15 @@ let
   # construction. Built from `attrNames` minus a named exclusion, so a new constructor joins the
   # sweep without anyone remembering to add it.
   #
-  # ★ THE EXCLUSION IS NAMED, REASONED AND CONTROLLED RATHER THAN QUIET. The excluded names are
-  # BARE-RECORD HELPERS — they read fields off a record positionally instead of through a closed
-  # field set, so handing them a graph's argument set raises an uncatchable missing-attribute
-  # error rather than a refusal (`builtins.tryEval` catches thrown errors and NOT evaluation
-  # errors — measured on this evaluator). They are excluded because a probe cannot survive them,
-  # NOT because they were inconvenient, and the cell below shows each one constructs nothing at
-  # all, which is why their exclusion costs the claim nothing.
+  # ★ THE EXCLUSION IS NAMED, REASONED AND CONTROLLED RATHER THAN QUIET, and it is the ONLY hand-
+  # written list here. The excluded names are BARE-RECORD HELPERS — they read fields off a record
+  # positionally instead of through a closed field set, so handing them a graph's argument set
+  # raises an uncatchable missing-attribute error rather than a refusal (`builtins.tryEval` catches
+  # thrown errors and NOT evaluation errors — measured on this evaluator). They are excluded because
+  # a probe cannot survive them, NOT because they were inconvenient, and the cell below shows each
+  # one constructs nothing at all, which is why their exclusion costs the claim nothing. The
+  # PARTITION is asserted total, so a name can be neither swept nor excluded only by taking a cell
+  # red.
   bareRecordHelpers = [
     "cell"
     "edgeSortKey"
@@ -115,21 +124,35 @@ let
     "placement.sourceKey"
     "placement.targetKey"
   ];
-  familyOf =
-    prefix: fam:
-    map (n: {
-      name = "${prefix}.${n}";
-      value = fam.${n};
-    }) (builtins.filter (n: builtins.isFunction fam.${n}) (builtins.attrNames fam));
-  allCallables =
-    map (n: {
-      name = n;
-      value = v.${n};
-    }) (builtins.filter (n: builtins.isFunction v.${n}) (builtins.attrNames v))
-    ++ familyOf "placement" v.placement
-    ++ familyOf "placement.targets" v.placement.targets
-    ++ familyOf "transform" v.transform
-    ++ familyOf "compositions" v.compositions;
+  # ★★★ THE ROSTER IS DERIVED BY WALKING THE PUBLISHED SURFACE, NOT BY NAMING FAMILIES. An earlier
+  # revision enumerated four families by hand — `placement`, `placement.targets`, `transform`,
+  # `compositions` — and that left FIVE reachable callables in NEITHER partition:
+  # `combines.setUnion`, `combines.listAppend.op`, `combines.attrsShallow.op`, `dedups.byKey` and
+  # `tieSets.orderedFold`, because `combines`, `dedups` and `tieSets` are attrset exports whose
+  # callables were never enumerated. The absence claim survived — none of the five yields a graph —
+  # but the COVERAGE SENTENCE described a hand-written list rather than the surface, and a
+  # constructor added inside those families would have joined neither the sweep nor the exclusion
+  # note SILENTLY. A derived roster cannot drift that way: a new export joins the walk by existing.
+  #
+  # The walk descends through attrset-valued exports to the depth the surface actually nests (a
+  # combine RECORD holds its `op`, which is two levels below the top), and skips the `__element`
+  # tags, which are strings and not part of the callable surface.
+  walkSurface =
+    depth: prefix: val:
+    if builtins.isFunction val then
+      [
+        {
+          name = prefix;
+          value = val;
+        }
+      ]
+    else if builtins.isAttrs val && depth > 0 then
+      builtins.concatMap (
+        n: walkSurface (depth - 1) (if prefix == "" then n else "${prefix}.${n}") val.${n}
+      ) (builtins.filter (n: n != "__element") (builtins.attrNames val))
+    else
+      [ ];
+  allCallables = walkSurface 3 "" v;
   constructors = builtins.filter (c: !(builtins.elem c.name bareRecordHelpers)) allCallables;
 
   # `yieldsGraph` — the predicate. Not "does it evaluate" (a partially-applied function evaluates
@@ -188,18 +211,50 @@ in
       };
     };
 
-    # ★ AND THE SWEEP REACHES A REAL SURFACE, not a list that happens to be short. Stated as a
-    # bound rather than an exact count so a new export does not take this cell red for existing.
-    test-control-the-sweep-covers-the-published-callable-surface = {
+    # ★★★ THE PARTITION IS TOTAL OVER THE REACHABLE SURFACE, AND THAT IS THE CLAIM — not a count.
+    # Every callable reachable on the published surface is either SWEPT or EXCLUDED-AND-CONTROLLED,
+    # with nothing in between. An earlier revision pinned a number about a hand-enumerated set, which
+    # is a coverage sentence that can be true while five reachable callables sit outside both
+    # partitions; this asserts the property that number was standing in for.
+    test-control-the-sweep-partitions-the-whole-reachable-surface = {
       expr = {
-        swept = builtins.length constructors > 25;
-        # the exclusion is a handful, not most of the surface
-        excludedFraction = builtins.length allCallables - builtins.length constructors;
+        # nothing reachable falls outside the two partitions
+        inNeither = builtins.filter (
+          c: !(builtins.elem c.name bareRecordHelpers) && !(builtins.elem c constructors)
+        ) allCallables;
+        partitionIsTotal =
+          builtins.length constructors + builtins.length bareRecordHelpers == builtins.length allCallables;
+        # …and the surface it partitions is a real one, stated as a bound so a new export does not
+        # take this red for existing
+        reachable = builtins.length allCallables > 40;
+        excluded = builtins.length bareRecordHelpers;
       };
       expected = {
-        swept = true;
-        excludedFraction = 8;
+        inNeither = [ ];
+        partitionIsTotal = true;
+        reachable = true;
+        excluded = 8;
       };
+    };
+
+    # ★★ AND THE FIVE THAT USED TO SIT OUTSIDE BOTH PARTITIONS ARE NAMED, so the regression has a
+    # subject. They are SWEPT now — each takes a closed field set or is a curried operator, so a
+    # probe survives all five — and the cell fails if any drops back out of the walk.
+    test-control-the-previously-unswept-family-members-are-now-swept = {
+      expr = builtins.filter (n: builtins.elem n (map (c: c.name) constructors)) [
+        "combines.setUnion"
+        "combines.listAppend.op"
+        "combines.attrsShallow.op"
+        "dedups.byKey"
+        "tieSets.orderedFold"
+      ];
+      expected = [
+        "combines.setUnion"
+        "combines.listAppend.op"
+        "combines.attrsShallow.op"
+        "dedups.byKey"
+        "tieSets.orderedFold"
+      ];
     };
 
     # ══ THE ROUTE IS CLOSED AT THE CONSTRUCTOR, BY NAME AND FOR A STATED REASON ══
@@ -443,6 +498,126 @@ in
           null
           null
         ];
+      };
+    };
+
+    # ══ THE SCOPED CLAIM, PINNED — A COMPUTED DATUM IS LAWFUL AND MUST STAY LAWFUL ══
+    #
+    # ★★★ THIS CELL EXISTS TO STOP A FUTURE READER "FIXING" A DOOR THAT IS MEANT TO BE OPEN. The
+    # library once claimed WALK-DEPENDENCE IS UNSAYABLE without qualification, and that claim was
+    # false: `scopeGraph` forces `scope` and `relation` but never `datum`, and `labeled` is
+    # computable from `edges` and `scopes` without `data` — so a caller can bind the graph and read
+    # it from inside a datum. Someone meeting the old sentence and this fact would reasonably try to
+    # close the door. THEY MUST NOT: a datum's VALUE is the author's and is not analysed, computing
+    # one IS authoring it, and that is exactly ADR-0024 arm F's *declared explicitly rather than as
+    # an implicit side effect*. What arm F forbids is MECHANICAL RE-EMISSION BY THE SUBSTRATE, which
+    # is gone — the library performs one gather and consults no accessor.
+    #
+    # ★★ THE OTHER TWO DOORS CANNOT BE CELLS, AND THAT IS STATED RATHER THAN QUIETLY OMITTED.
+    # Making a datum's MEMBERSHIP or its FILING SCOPE a function of the graph is INFINITE RECURSION
+    # — `scopeGraph` forces both to validate them, so the knot ties itself. Infinite recursion is
+    # not catchable by `builtins.tryEval` on this evaluator, so a cell asserting those doors are
+    # closed would take the whole suite down rather than pass. They are verified by hand, one
+    # evaluation each, and recorded here as measured-not-celled.
+    test-a-computed-datum-is-lawful-and-participates = {
+      expr =
+        let
+          # `inc` is reachable from `leaf` by `include` in BOTH graphs, so the counterfactual varies
+          # an edge that does NOT decide whether the datum's scope is reached — only its VALUE.
+          mk =
+            midHasParent:
+            let
+              g = v.scopeGraph {
+                carrier = f.carrier;
+                scopes = f.scopes;
+                edges = {
+                  parent =
+                    id:
+                    if id == "leaf" then
+                      [ "mid" ]
+                    else if id == "mid" && midHasParent then
+                      [ "root" ]
+                    else
+                      [ ];
+                  include = id: if id == "leaf" then [ "inc" ] else [ ];
+                };
+                data = [
+                  {
+                    scope = "inc";
+                    relation = "import";
+                    datum = if (g.labeled.labeledEdges "mid") != [ ] then [ "admit" ] else [ "reject" ];
+                  }
+                ];
+              };
+            in
+            v.viewRelation {
+              definition = f.mkDefinition { wellFormed = d: d == [ "admit" ]; };
+              graph = g;
+              marks = f.noMarks;
+            };
+          withEdge = mk true;
+          without = mk false;
+        in
+        {
+          # it BUILDS and MATERIALIZES — the door is open
+          builds = withEdge.value;
+          # …and participation follows graph shape, which is the honest form of the claim
+          withParentEdge = map (c: c.scope) withEdge.contributions;
+          withoutParentEdge = map (c: c.scope) without.contributions;
+          valueWithout = without.value;
+        };
+      expected = {
+        builds = [ "admit" ];
+        withParentEdge = [ "inc" ];
+        withoutParentEdge = [ ];
+        valueWithout = [ ];
+      };
+    };
+
+    # ★ THE CONTROL THAT THE COUNTERFACTUAL IS REACHABILITY-NEUTRAL: the datum's scope is reached in
+    # BOTH graphs, so the participation difference above is about the datum's VALUE and not about
+    # whether the walk got there. Without this the cell is consistent with an edge that simply cut
+    # the scope off.
+    test-control-the-counterfactuals-scope-is-reached-in-both-graphs = {
+      expr =
+        let
+          reached =
+            midHasParent:
+            map (c: c.scope)
+              (v.viewRelation {
+                definition = f.mkDefinition { };
+                graph = v.scopeGraph {
+                  carrier = f.carrier;
+                  scopes = f.scopes;
+                  edges = {
+                    parent =
+                      id:
+                      if id == "leaf" then
+                        [ "mid" ]
+                      else if id == "mid" && midHasParent then
+                        [ "root" ]
+                      else
+                        [ ];
+                    include = id: if id == "leaf" then [ "inc" ] else [ ];
+                  };
+                  data = [
+                    {
+                      scope = "inc";
+                      relation = "import";
+                      datum = [ "plain" ];
+                    }
+                  ];
+                };
+                marks = f.noMarks;
+              }).contributions;
+        in
+        {
+          withParentEdge = reached true;
+          withoutParentEdge = reached false;
+        };
+      expected = {
+        withParentEdge = [ "inc" ];
+        withoutParentEdge = [ "inc" ];
       };
     };
   };

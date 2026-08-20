@@ -39,11 +39,22 @@ enumerations `combines` `tieSets` `dedups` `directions` (with `combineArms` `tie
 **Materialization**: `viewRelation`.
 
 ★★ **There is NO arrival-mode family, and do not reintroduce one.** `scopeGraph.data` is a PLAIN
-COMPONENT — a list of `{ scope; relation; datum; }` — so walk-dependence is unsayable and there is
-nothing to discriminate. An earlier revision made `data` a function of the graph and then invented
+COMPONENT — a list of `{ scope; relation; datum; }` — so **no traversal can change which datums are
+in the component or where they are filed**, and there is nothing for the substrate to discriminate.
+An earlier revision made `data` a function of the graph and then invented
 `arrivalMode`/`authoredAt`/`emittedAt`/`severedAt` to catch what that let through; the owner
 withdrew the divergence and the family retired with it. R17 is satisfied by the component shape:
 authoring into the component IS the declaration.
+
+★★★ **SCOPE THAT CLAIM WHEN YOU RESTATE IT — "walk-dependence is unsayable" is FALSE and was struck.**
+Measured: `scopeGraph` forces `scope` and `relation` but never `datum`, and `labeled` is computable
+from `edges` and `scopes` without `data`, so a caller can bind the graph and read it from inside a
+datum. MEMBERSHIP and FILING are closed (both give infinite recursion, loudly); a datum's **VALUE**
+is not, and it participates conditionally on graph shape. **That door is lawful and stays open:** a
+datum's value is the author's and is not analysed — computing one IS authoring it, which is ADR-0024
+arm F's explicit declaration. The defect arm F names is mechanical re-emission by the SUBSTRATE, and
+the substrate performs one gather and consults no accessor. Do not "fix" the open door; do not
+widen the claim back.
 
 **Accumulator + ordering**: `readsOf` `writesOf` `unit` `accumulatorRelation` `accumulatorOrder`
 `orderedFoldOf` `cell`.
