@@ -194,23 +194,61 @@ let
         }) (relationAt m.node)
       ) projected;
 
+      # ★★★ THE LOOKUP IS THE PUBLISHED `relationLookup`, NOT A PRIVATE TWIN OF IT — and that is
+      # the whole of the fix, because the twin was identical BUT FOR THE REFUSAL. Reaching the data
+      # component inline dropped (NR-Rel)'s undeclared-relation check, so a misspelled relation and
+      # a declared relation with no datums both answered `[ ]`, indistinguishable in the result.
+      # That is the exact failure this library's refusal discipline exists to forbid, reproduced by
+      # the library against itself.
+      #
+      # ★★ IT IS ALSO THE RAW-LAYER DISCIPLINE HOLDING AGAINST ITS OWN AUTHOR: a materialization
+      # that reached past a published element into a private near-copy would leave that element a
+      # second surface nobody runs, and the calculus hidden behind the composition again.
+      #
+      # ★ THE WALK-INDEPENDENT READING RIDES ON THE GRAPH IT IS HANDED, not on a second lookup path.
+      # `relationLookup` applies `data` to whatever graph it is given, so severing this scope's
+      # out-edges here is `authoredAt`'s reading taken THROUGH the published rule — one severing
+      # construction, one lookup, nothing to keep in step.
       relationAt =
         scope:
-        map (entry: entry.datum) (
-          filter (entry: entry.relation == def.relation && def.wellFormed entry.datum) (
-            arrival.authoredAt g scope
-          )
-        );
+        carrierLib.relationLookup {
+          graph = g;
+          labeled = arrival.severedAt g.labeled scope;
+          inherit scope;
+          inherit (def) relation wellFormed;
+        };
 
-      # 6 — competition. The lift is a TOTAL PREORDER on rank words (two words compare less,
-      # greater, or neither), so "minimal" reduces to "not beaten by the minimum" and the group
-      # needs one pass rather than a pairwise sweep.
+      # 6 — competition, over a STRICT PARTIAL ORDER.
+      #
+      # ★★★ "NOT BEATEN BY THE MINIMUM" IS WRONG HERE AND THE PROSE THAT CLAIMED IT WAS THE TELL.
+      # Struck, quoted so it is not re-introduced: ~~*"the lift is a TOTAL PREORDER on rank words …
+      # so minimal reduces to not beaten by the minimum"*~~. Fig. 1's `<l` is a strict PARTIAL
+      # order, its lift `<p` is partial too, and a faithful lift of a partial order cannot be
+      # total. Under a partial order a group has an ANTICHAIN of minimal elements, and picking one
+      # of them as "the minimum" silently shadows everything the others leave visible.
+      #
+      # THE SURVIVING-MAXIMAL SET IS THEREFORE COMPUTED AS MINIMALITY: a contribution survives iff
+      # NOTHING in its group strictly precedes it.
+      #
+      # ★★ THE SCAN IS BOUNDED WITHOUT WEAKENING THAT. `rankLess` is a TOTAL order on rank words
+      # that `<p` refines — `a <p b` implies `rankLess a b`, because the first position where two
+      # rank words differ can only be a position where the LABELS differ, and `<p` decides exactly
+      # there. So sorting by it puts every dominator ahead of everything it dominates, and each
+      # candidate need only be compared against the SURVIVORS KEPT SO FAR: `<p` is transitive, so a
+      # candidate dropped by an already-dropped element was dropped by whatever dropped that one.
+      # The cost is Θ(n log n) plus the antichain's width, which is 1 wherever the order is total —
+      # the ordinary case — against Θ(n²) for the pairwise definition.
+      # `ci/tests/relation.nix` runs both forms against each other on the same fixtures.
       competed = map (
         grp:
         let
-          ordered = sort (x: y: def.order.pathPrecedes x.path y.path) grp.members;
-          best = head ordered;
-          survives = c: !(def.order.pathPrecedes best.path c.path);
+          byRank = sort (x: y: def.order.rankLess x.path y.path) grp.members;
+          kept = foldl' (
+            acc: c: if builtins.any (o: def.order.pathPrecedes o.path c.path) acc then acc else acc ++ [ c ]
+          ) [ ] byRank;
+          # Emitted in WALK order, never in the sort key's: the sort is a bound on the computation
+          # and has no business pinning the answer's order.
+          survives = c: elem c kept;
         in
         {
           inherit (grp) key;

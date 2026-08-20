@@ -59,6 +59,7 @@ let
     keyOf = _: "settings";
   };
   tCarrier = v.carrier {
+    relatumLabels = f.roles;
     labels = tLabels;
     labelWellFormedness = tAdmission;
     labelOrder = tFlat;

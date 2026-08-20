@@ -218,5 +218,56 @@ in
       );
       expected = true;
     };
+
+    # ══ THE MATERIALIZATION REFUSES AN UNKNOWN RELATION — IT DOES NOT ANSWER EMPTY ══
+    #
+    # ★★★ THE DEFECT THIS PINS, AND IT IS THIS LIBRARY'S OWN NAMED FAILURE MODE TURNED ON ITSELF.
+    # The materialization reached the data component INLINE, bypassing the published
+    # `relationLookup` — a private near-copy identical to it but for the refusal. So a MISSPELLED
+    # relation and a DECLARED relation with no datums both answered `[ ]`, and no caller could tell
+    # them apart. That is exactly the measured precedent `lib/refusal.nix` exists to forbid.
+    #
+    # The three rows of the table, in one cell: the control that answers, the declared-but-empty
+    # that answers empty, and the undeclared that REFUSES.
+    test-the-materialization-refuses-an-undeclared-relation = {
+      expr = {
+        # (a) CONTROL — a declared relation with datums materializes
+        declaredWithDatums = f.relation.value;
+        # (b) a DECLARED relation with no datums answers EMPTY and does not refuse. This is the row
+        # that makes the refusal meaningful: without it, "refuses on an undeclared name" is
+        # consistent with a materialization that refuses whenever it gathers nothing.
+        declaredButEmpty =
+          (f.mkRelation { definition = f.mkDefinition { relation = "expose-in"; }; }).value;
+        declaredButEmptyRefuses = refuses (
+          f.mkRelation { definition = f.mkDefinition { relation = "expose-in"; }; }
+        );
+        # (c) an UNDECLARED relation REFUSES
+        undeclaredRefuses = refuses (
+          f.mkRelation { definition = f.mkDefinition { relation = "not-a-relation"; }; }
+        );
+      };
+      expected = {
+        declaredWithDatums = [ "inc" ];
+        declaredButEmpty = [ ];
+        declaredButEmptyRefuses = false;
+        undeclaredRefuses = true;
+      };
+    };
+
+    # ★ AND THE REFUSAL COMES FROM THE PUBLISHED ELEMENT, NOT FROM A SECOND CHECK BOLTED ON. The
+    # materialization's lookup and the raw `relationLookup` refuse the same name for the same
+    # reason; a library carrying two refusal paths would have two messages to keep in step.
+    test-control-the-published-lookup-refuses-the-same-name = {
+      expr = refuses (
+        v.relationLookup {
+          graph = f.graph;
+          labeled = f.graph.labeled;
+          scope = "inc";
+          relation = "not-a-relation";
+          wellFormed = f.admitAll;
+        }
+      );
+      expected = true;
+    };
   };
 }

@@ -33,8 +33,11 @@
 #
 #   RAW      `edgeLabels` (L) · `labelWellFormedness` (E) · `labelOrder` (<) · `dataOrder` (k) ·
 #            `relations` (R) — the five, plus `carrier`, `scopeGraph` and `relationLookup`
-#   COMPOSED `compositions.{ movement, channel, registry, topology, role }` — one construction
-#            under five names, differing in exactly one thing: the competition key
+#   COMPOSED `compositions.{ movement, channel, registry, topology, role }` — FIVE NAMES over ONE
+#            construction, instantiated at THREE key shapes (the channel, the scope, a
+#            caller-supplied coordinate). `movement` and `channel` are the same instantiation and
+#            `registry` and `role` are the same shape under different caller vocabulary; the
+#            counts are stated at `compositions.nix` rather than rounded to "one thing"
 #
 # ── WHAT ELSE LANDS HERE, AND WHY ───────────────────────────────────────────────────────────
 # · `readsOf` / `writesOf` and the accumulator relation: they travel with the MATERIALIZATION
@@ -82,6 +85,13 @@ in
     scopeGraph
     relationLookup
     ;
+
+  # ★ Λ — THE RELATUM LABELS, PUBLISHED AS A CONSTRUCTOR AND DELIBERATELY ABSENT FROM
+  # `carrierElements`. A binding's incident edges DO reach the edge set, carrying the roles its
+  # relata play, so the population is real and has to be declarable. It is NOT a carrier element:
+  # admission is indexed by the binding's KIND — the relation `r` — and never by a role label, so
+  # `Λ` indexes nothing in the carrier. The enumeration below stays FIVE for exactly that reason.
+  inherit (carrierLib) relatumLabels;
 
   # THE ENUMERATION OF THE FIVE, as a checkable list rather than a count in a comment. A sixth
   # element cannot join the carrier without this list and the cells that quantify over it moving

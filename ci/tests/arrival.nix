@@ -50,6 +50,7 @@ let
   };
   carrier = v.carrier {
     inherit labels relations;
+    relatumLabels = f.roles;
     labelWellFormedness = admission;
     labelOrder = order;
     dataOrder = key;

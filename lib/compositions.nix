@@ -5,12 +5,26 @@
 # the aspect/entity classification itself are ONE CONSTRUCTION UNDER DIFFERENT NAMES. Movement is
 # the FIRST composition over the calculus, not the calculus.
 #
-# ★★ AND THE AXIS THEY DIFFER ON IS EXACTLY ONE: THE COMPETITION KEY. A channel competes per
-# channel, a registry per entity, a topology per scope, a role per role name. Everything else —
-# the alphabet, the path expression, the label order, the relation reached at the end, the tie-set
-# disposition, the fold — is the same construction reading the same carrier. Publishing five
-# mechanisms where there is one key would be the coupling-through-misscoping this library exists to
-# avoid; publishing five NAMES over one mechanism is the vocabulary claim it exists to make.
+# ★★ THE AXIS THEY DIFFER ON IS THE COMPETITION KEY, AND THE COUNTS ARE STATED RATHER THAN ROUNDED:
+# FIVE NAMES · ONE CONSTRUCTION (`define`) · THREE DISTINCT KEY SHAPES.
+#
+#   the CHANNEL                  `movement` and `channel` — the SAME instantiation (see below)
+#   the SCOPE                    `topology`
+#   a CALLER-SUPPLIED COORDINATE `registry` (`entityOf`) and `role` (`roleOf`) — the same shape,
+#                                differing only in what the caller calls the field
+#
+# ★ SO "FIVE VIEWS DIFFERING IN EXACTLY THE COMPETITION KEY" WOULD BE FALSE, AND IT IS NOT WRITTEN
+# HERE. Two pairs coincide and both coincidences are meant: the seed instance IS the general
+# construction, and a registry and a role differ in the caller's vocabulary rather than in what the
+# substrate does. MANUFACTURING DIFFERENCES TO MAKE A TIDIER CLAIM TRUE WOULD BE THE WORSE REPAIR —
+# the five names are a VOCABULARY claim over one mechanism, which is what the generalization ruled,
+# and the count of mechanisms is one. `ci/tests/surface.nix` measures the three key shapes on one
+# contribution, so this paragraph is checked rather than asserted.
+#
+# Everything else — the alphabet, the path expression, the label order, the relation reached at the
+# end, the tie-set disposition, the fold — is the same construction reading the same carrier.
+# Publishing five mechanisms where there is one would be the coupling-through-misscoping this
+# library exists to avoid.
 #
 # ★ A PROJECTION HAS A NAME AND A DEFINING QUERY, OR IT IS NOT A VIEW. That is the ruled
 # sharpening of "projections, never sources": a framework's flat registry and a schema's edge and

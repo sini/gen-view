@@ -25,6 +25,63 @@ let
   layered = f.relation;
   flat = f.mkRelation { definition = f.mkDefinition { order = f.flatOrder; }; };
   scopesOf = r: map (c: c.scope) r.contributions;
+
+  refuses = thunk: !(builtins.tryEval (builtins.deepSeq thunk true)).success;
+
+  # ── THE ROLE-EDGE FIXTURE ──
+  # `leaf` carries a `relatum-target` incidence edge to a binding node, exactly as a reified
+  # relation's incidence reaches the edge set. The binding holds a datum under the DECLARED
+  # relation, so a walk that could step on the role edge would find it and change the answer —
+  # which is what makes the inertness claim falsifiable.
+  roleData = f.authored {
+    mid = [
+      {
+        relation = "import";
+        datum = [ "mid" ];
+      }
+    ];
+    binding = [
+      {
+        relation = "import";
+        datum = [ "SHOULD-NOT-BE-REACHED" ];
+      }
+    ];
+  };
+  roleScopes = [
+    "leaf"
+    "mid"
+    "binding"
+  ];
+  roleEdges = {
+    parent = id: if id == "leaf" then [ "mid" ] else [ ];
+  };
+  roleGraph = v.scopeGraph {
+    carrier = f.carrier;
+    scopes = roleScopes;
+    edges = roleEdges // {
+      relatum-target = id: if id == "leaf" then [ "binding" ] else [ ];
+    };
+    data = roleData;
+  };
+  # The SAME graph with the role edge removed — the counterpart the inertness claim is measured
+  # against, differing in exactly that one edge.
+  plainGraph = v.scopeGraph {
+    carrier = f.carrier;
+    scopes = roleScopes;
+    edges = roleEdges;
+    data = roleData;
+  };
+  roleDefinition = f.mkDefinition { root = "leaf"; };
+  roleRelation = v.viewRelation {
+    definition = roleDefinition;
+    graph = roleGraph;
+    marks = f.noMarks;
+  };
+  plainRelation = v.viewRelation {
+    definition = roleDefinition;
+    graph = plainGraph;
+    marks = f.noMarks;
+  };
 in
 {
   flake.tests.carrier = {
@@ -40,6 +97,7 @@ in
         "labelWellFormedness"
         "labels"
         "relations"
+        "relatumLabels"
       ];
     };
 
@@ -216,6 +274,284 @@ in
             { label = "parent"; }
           ];
       expected = true;
+    };
+
+    # ══ THE LIFT IS Fig. 1's VISIBILITY ORDER, AND DISTINCT SAME-RANK LABELS LEAVE IT UNDECIDED ══
+    #
+    # ★★★ THE DEFECT THIS PINS: a lift that compares RANK WORDS lexicographically recurses past a
+    # position where the labels DIFFER but their ranks are equal — treating incomparability as
+    # "comparable so far". That lift is strictly FINER than `<p`: it shadows contributions the
+    # calculus keeps visible, and the loss lands in the materialized value.
+    #
+    # Fig. 1 licenses recursion only through the CONGRUENCE (`s·l·p1 <p s·l·p2`, the SAME label),
+    # and licenses ordering at a divergence only where the two labels are `<l`-comparable
+    # (`l1 <l l2 ⟹ s·l1·p1 <p s·l2·p2`).
+    test-distinct-same-rank-labels-leave-the-paths-incomparable = {
+      expr = {
+        # the element already said so
+        elementForward = f.flatOrder.precedes "include" "parent";
+        elementBackward = f.flatOrder.precedes "parent" "include";
+        # ★ and now the LIFT says so too, in both directions — this is the pair that read `true`
+        liftForward =
+          f.flatOrder.pathPrecedes
+            [ { label = "include"; } ]
+            [
+              { label = "parent"; }
+              { label = "parent"; }
+            ];
+        liftBackward =
+          f.flatOrder.pathPrecedes
+            [
+              { label = "parent"; }
+              { label = "parent"; }
+            ]
+            [ { label = "include"; } ];
+      };
+      expected = {
+        elementForward = false;
+        elementBackward = false;
+        liftForward = false;
+        liftBackward = false;
+      };
+    };
+
+    # ★★★ THE CONTROL WITHOUT WHICH THE CELL ABOVE IS WORTHLESS: A LIFT THAT ORDERS NOTHING AT ALL
+    # WOULD PASS IT. Over-correction is the live hazard — "return false everywhere" satisfies every
+    # incomparability claim in this file. So the same lift, in the same run, must still ORDER the
+    # cases Fig. 1 licenses: the congruence-then-exhaustion prefix case, and a comparable
+    # divergence in one direction only.
+    test-control-the-lift-still-orders-what-the-figure-licenses = {
+      expr = {
+        # `$ <l l` ⇒ s <p s·l·p — a proper prefix beats its extensions even under a FLAT order,
+        # because the divergence is at exhaustion and `$` is a label of its own distinct rank.
+        prefixUnderFlatOrder =
+          f.flatOrder.pathPrecedes
+            [ { label = "parent"; } ]
+            [
+              { label = "parent"; }
+              { label = "parent"; }
+            ];
+        # `l1 <l l2` ⇒ ordered, where the ranking makes the two labels comparable
+        comparableDivergence =
+          f.order.pathPrecedes
+            [ { label = "include"; } ]
+            [
+              { label = "parent"; }
+              { label = "parent"; }
+            ];
+        comparableDivergenceReversed =
+          f.order.pathPrecedes
+            [
+              { label = "parent"; }
+              { label = "parent"; }
+            ]
+            [ { label = "include"; } ];
+      };
+      expected = {
+        prefixUnderFlatOrder = true;
+        comparableDivergence = true;
+        comparableDivergenceReversed = false;
+      };
+    };
+
+    # ★ AN `endOfPath` EQUAL TO A LETTER'S RANK LEAVES STOPPING AND CONTINUING INCOMPARABLE — a
+    # sayable declaration under Fig. 1, and one the rank-word lift could not express.
+    test-an-end-of-path-rank-equal-to-a-letters-rank-is-incomparable = {
+      expr =
+        let
+          tied = v.labelOrder {
+            alphabet = f.labels;
+            layers = [
+              [
+                "include"
+                "parent"
+              ]
+            ];
+            endOfPath = 0;
+          };
+        in
+        {
+          forward =
+            tied.pathPrecedes
+              [ { label = "parent"; } ]
+              [
+                { label = "parent"; }
+                { label = "parent"; }
+              ];
+          backward =
+            tied.pathPrecedes
+              [
+                { label = "parent"; }
+                { label = "parent"; }
+              ]
+              [ { label = "parent"; } ];
+        };
+      expected = {
+        forward = false;
+        backward = false;
+      };
+    };
+
+    # ══ Λ — THE RELATUM LABELS ARE PRESENT AND INERT, AND THE COLLISION IS WHAT IS REFUSED ══
+    #
+    # ★★★ THE LAW IS A THREE-WAY CONDITION: `L ∩ R = ∅` · `L ∩ Λ = ∅` · `R ∩ Λ = ∅` and
+    # `labels(edges(G)) ⊆ L ⊎ R ⊎ Λ` — disjoint AND jointly exhaustive, refused at construction.
+    # A binding's incident edges DO reach the edge set, carrying the roles its relata play; they
+    # are HELD AND NOT WALKED. The guard this replaces demanded membership in `L` alone, which is
+    # that law INVERTED — it refused the case the law requires present and accepted the case the
+    # law requires refused, and it left this library unable to hold any graph the minter produces.
+    #
+    # THREE ASSERTIONS, because "present" and "inert" are different claims and neither implies the
+    # other: the role edge is IN the edge set · the walk CANNOT step on it · it never COMPETES.
+    test-a-non-colliding-relatum-edge-is-present-and-inert = {
+      expr = {
+        # (i) PRESENT — the incidence edge is in the graph, reachable through the same accessor
+        # every other edge is.
+        present = builtins.any (e: e.label == "relatum-target") (roleGraph.labeled.labeledEdges "leaf");
+        # (ii) NOT WALKED — structurally, not by a filter: the derivative of the admission
+        # expression with respect to a role label is the EMPTY state, whose canonical key is "0",
+        # so the walk prunes at that edge. That is the whole inertness argument, executed.
+        derivativeIsEmpty = f.admission.stateKey (f.admission.step "relatum-target" f.admission.expr);
+        # …and the scope on the far side of it is never reached.
+        bindingReached = builtins.any (c: c.scope == "binding") roleRelation.contributions;
+        # (iii) NEVER COMPETES — the answer is identical to the same graph with the role edge
+        # removed, in value, in membership and in what was shadowed.
+        sameValue = roleRelation.value == plainRelation.value;
+        sameScopes =
+          map (c: c.scope) roleRelation.contributions == map (c: c.scope) plainRelation.contributions;
+        sameShadowed = map (c: c.scope) roleRelation.shadowed == map (c: c.scope) plainRelation.shadowed;
+      };
+      expected = {
+        present = true;
+        derivativeIsEmpty = "0";
+        bindingReached = false;
+        sameValue = true;
+        sameScopes = true;
+        sameShadowed = true;
+      };
+    };
+
+    # ★ THE CONTROL THAT THE INERTNESS CELL IS NOT VACUOUS: the far-side scope HAS a datum under the
+    # declared relation, so a walk that could step on the role edge would find something and change
+    # the answer. Without this, "binding is never reached" is consistent with a fixture that had
+    # nothing to reach.
+    test-control-the-far-side-of-the-role-edge-really-holds-a-datum = {
+      expr = v.relationLookup {
+        graph = roleGraph;
+        labeled = roleGraph.labeled;
+        scope = "binding";
+        relation = "import";
+        wellFormed = f.admitAll;
+      };
+      expected = [ [ "SHOULD-NOT-BE-REACHED" ] ];
+    };
+
+    # ── THE COLLISION IS THE CASE THE LAW REFUSES, AND IT IS REFUSED BY NAME ──
+    # A role label that is also a letter would make a binding's incidence WALKABLE: the derivative
+    # would not go to the empty state, the walk would step onto a relatum edge, and the inertness
+    # argument would be false while still being written down.
+    test-the-three-pairwise-collisions-are-each-refused = {
+      expr = {
+        lambdaAgainstL = refuses (
+          v.carrier {
+            labels = f.labels;
+            labelWellFormedness = f.admission;
+            labelOrder = f.order;
+            dataOrder = f.key;
+            relations = f.relations;
+            relatumLabels = v.relatumLabels { names = [ "parent" ]; };
+          }
+        );
+        lambdaAgainstR = refuses (
+          v.carrier {
+            labels = f.labels;
+            labelWellFormedness = f.admission;
+            labelOrder = f.order;
+            dataOrder = f.key;
+            relations = f.relations;
+            relatumLabels = v.relatumLabels { names = [ "import" ]; };
+          }
+        );
+        # the L∩R arm, already covered in the refusal suite, re-run here so all three read together
+        rAgainstL = refuses (
+          v.carrier {
+            labels = f.labels;
+            labelWellFormedness = f.admission;
+            labelOrder = f.order;
+            dataOrder = f.key;
+            relations = v.relations {
+              names = [
+                "import"
+                "parent"
+              ];
+            };
+            relatumLabels = f.roles;
+          }
+        );
+      };
+      expected = {
+        lambdaAgainstL = true;
+        lambdaAgainstR = true;
+        rAgainstL = true;
+      };
+    };
+
+    # ── EXHAUSTIVENESS: A LABEL IN NONE OF THE THREE POPULATIONS IS REFUSED ──
+    # The classification of an edge label is TOTAL. A label outside all three would be walked by
+    # nothing and classified as nothing — a silent drop wearing a total function's name.
+    test-an-edge-label-in-no-population-is-refused = {
+      expr = refuses (
+        v.scopeGraph {
+          carrier = f.carrier;
+          scopes = [ "leaf" ];
+          edges = {
+            not-a-population = _: [ ];
+          };
+          data = f.authored { };
+        }
+      );
+      expected = true;
+    };
+
+    # ★ THE REGRESSION CONTROL: THE L-ONLY GRAPH IS UNCHANGED. Every existing expectation in this
+    # suite rides on the fixture graph, which holds no Λ edge at all; this cell says so directly, so
+    # a future widening of the guard cannot be mistaken for the population arriving.
+    test-control-the-l-only-graph-is-unchanged = {
+      expr = {
+        edgeLabels = builtins.attrNames f.graph.edges;
+        allInL = builtins.all (l: f.labels.member l) (builtins.attrNames f.graph.edges);
+        value = f.relation.value;
+        lambdaDeclaredButUnused = f.carrier.relatumLabels.names;
+      };
+      expected = {
+        edgeLabels = [
+          "include"
+          "parent"
+        ];
+        allInL = true;
+        value = [ "inc" ];
+        lambdaDeclaredButUnused = [
+          "relatum-target"
+          "relatum-source"
+        ];
+      };
+    };
+
+    # ── Λ IS NOT A CARRIER ELEMENT, AND THE ENUMERATION SAYS SO ──
+    # Admission is indexed by the binding's KIND — the relation `r` — and never by a role label, so
+    # `Λ` indexes nothing in the carrier. It is a published constructor and a required carrier
+    # FIELD; it is not one of the five.
+    test-lambda-is-a-published-constructor-and-not-a-carrier-element = {
+      expr = {
+        published = builtins.isFunction v.relatumLabels;
+        inTheFive = builtins.elem "relatumLabels" v.carrierElements;
+        theFive = builtins.length v.carrierElements;
+      };
+      expected = {
+        published = true;
+        inTheFive = false;
+        theFive = 5;
+      };
     };
   };
 }

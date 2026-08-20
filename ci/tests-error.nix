@@ -140,6 +140,7 @@ in
               "parent"
             ];
           };
+          relatumLabels = f.roles;
         }) true;
         expectedError = {
           type = "ThrownError";
@@ -147,7 +148,60 @@ in
         };
       };
 
-      # LIVE CONTROL: the carrier that meets the conditions constructs and carries its five.
+      # ★★★ THE Λ COLLISION IS NAMED, AND SO IS *WHY*. A role label that is also a letter would make
+      # a binding's incident edge WALKABLE: the derivative would not go to the empty state, the walk
+      # would step onto a relatum edge, and the inertness that keeps a binding out of the traversal
+      # would be false while still being written down. The message carries that reason, because a
+      # caller who hits it has a naming collision and no way to see what it costs.
+      test-a-relatum-label-colliding-with-a-letter-is-named = {
+        expr = builtins.deepSeq (v.carrier {
+          labels = f.labels;
+          labelWellFormedness = f.admission;
+          labelOrder = f.order;
+          dataOrder = f.key;
+          relations = f.relations;
+          relatumLabels = v.relatumLabels { names = [ "parent" ]; };
+        }) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.carrier: 'parent' is both a letter of L and a relatum label in Λ; the populations are disjoint.*WALKABLE.*$";
+        };
+      };
+
+      # The third pair of the three-way condition, named the same way.
+      test-a-relatum-label-colliding-with-a-relation-is-named = {
+        expr = builtins.deepSeq (v.carrier {
+          labels = f.labels;
+          labelWellFormedness = f.admission;
+          labelOrder = f.order;
+          dataOrder = f.key;
+          relations = f.relations;
+          relatumLabels = v.relatumLabels { names = [ "import" ]; };
+        }) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.carrier: 'import' is both a name in R and a relatum label in Λ; the populations are disjoint.*$";
+        };
+      };
+
+      # EXHAUSTIVENESS: a label in NONE of the three populations names all three, so the reader can
+      # see which one it was meant to join.
+      test-an-edge-label-in-no-population-names-all-three = {
+        expr = builtins.deepSeq (v.scopeGraph {
+          carrier = f.carrier;
+          scopes = [ "leaf" ];
+          edges = {
+            not-a-population = _: [ ];
+          };
+          data = f.authored { };
+        }) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.scopeGraph: edges carry the label 'not-a-population', which is in none of the three populations — L \\(include, parent\\), R \\(broadcast-in, expose-in, import, policy\\) or Λ \\(relatum-source, relatum-target\\).*$";
+        };
+      };
+
+      # LIVE CONTROL: the carrier that meets all three conditions constructs and carries its five.
       test-control-a-well-formed-carrier-constructs = {
         expr = f.carrier.__element;
         expected = "carrier";
@@ -212,6 +266,32 @@ in
           type = "ThrownError";
           msg = "^gen-view\\.readsOf: field 'relation' is a RAW LABELLED-EDGE ACCESSOR; this door takes the materialized result and only that.*$";
         };
+      };
+
+      # ★★★ THE MATERIALIZATION NAMES THE UNDECLARED RELATION AND THE SORT, through the PUBLISHED
+      # lookup rather than through a second refusal path. Before the fix this call answered `[ ]`
+      # and said nothing, indistinguishable from a declared relation with no datums — the failure
+      # `lib/refusal.nix` names as the precedent it exists to forbid, reproduced by the library
+      # against itself. The message is `relationLookup`'s own, which is the point: there is one
+      # refusal here, not two to keep in step.
+      test-the-materialization-names-an-undeclared-relation = {
+        expr =
+          builtins.deepSeq
+            (f.mkRelation { definition = f.mkDefinition { relation = "not-a-relation"; }; }).value
+            true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.relationLookup: 'not-a-relation' is not a name in R \\(broadcast-in, expose-in, import, policy\\); an undeclared relation is refused rather than answered empty.*$";
+        };
+      };
+
+      # ★ THE CONTROL THAT SEPARATES A REFUSAL FROM AN EMPTY ANSWER, on the SAME path in the SAME
+      # run: a DECLARED relation with no datums anywhere materializes to the empty value and does
+      # not refuse. Without it the cell above is consistent with a materialization that refuses
+      # whenever its gather comes back empty.
+      test-control-a-declared-relation-with-no-datums-materializes-empty = {
+        expr = (f.mkRelation { definition = f.mkDefinition { relation = "expose-in"; }; }).value;
+        expected = [ ];
       };
 
       # LIVE CONTROL: the door accepts the materialized projection.

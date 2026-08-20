@@ -137,6 +137,47 @@ let
         member = r: elem r names;
       };
 
+  # ── Λ — the RELATUM LABELS, a THIRD population, and NOT a carrier element ──────────────────
+  # ★★★ IT IS NOT ONE OF THE FIVE, AND SAYING SO IS THE POINT. A binding is a NODE — a reified
+  # relation identified by the labelled tuple of its relata — and its INCIDENT EDGES DO REACH THE
+  # GRAPH'S EDGE SET, carrying the ROLES the relata play. Measured at the single edge-emission site
+  # of the shipped minter, the emitted incidence label ranges over the relatum ROLES and never over
+  # the relation name. So `Λ` is a real population of `labels(edges(G))` — and it INDEXES NOTHING
+  # IN THE CARRIER: admission is indexed by the binding's KIND, the relation `r`, and never by a
+  # role label. A carrier of six would be claiming the opposite.
+  #
+  # ★★ WHY IT MUST BE DECLARED RATHER THAN INFERRED AS "WHATEVER IS NOT IN L". The law is a
+  # THREE-WAY condition — `L ∩ R = ∅`, `L ∩ Λ = ∅`, `R ∩ Λ = ∅`, and
+  # `labels(edges(G)) ⊆ L ⊎ R ⊎ Λ`: disjoint AND jointly exhaustive, refused at construction. An
+  # inferred `Λ = ¬L` makes `L ∩ Λ = ∅` true by construction and therefore UNFALSIFIABLE — the
+  # collision the law exists to refuse becomes unstateable, and the exhaustiveness half becomes
+  # vacuous because nothing can fall outside. A declared population is what makes both halves say
+  # anything.
+  #
+  # ★★ AND THE INERTNESS IS STRUCTURAL, NOT PROMISED. A `Λ` label can appear in no path expression,
+  # because `labelWellFormedness` refuses every literal outside `L` and `Λ ∩ L = ∅`. So the
+  # Brzozowski derivative of ANY admission expression with respect to a role label is the empty
+  # state, its canonical key is `"0"`, and the walk prunes there: **`Λ`-labelled edges are HELD AND
+  # NOT WALKED** — present in the graph, invisible to WFL, read as datums by nothing. That is why
+  # this population carries no lexical constraint of its own: a role label never enters an
+  # expression, so it never renders into a derivative state key.
+  #
+  # ★ AN EMPTY `Λ` IS LAWFUL, WHERE AN EMPTY `R` IS NOT, AND THE ASYMMETRY IS NOT AN OVERSIGHT. R
+  # empty means no datum is reachable at all, since (NR-Rel) is the only rule by which a view
+  # reaches content. Λ empty means the graph holds no reified bindings — an ordinary graph, and the
+  # commonest one. Refusing it would refuse every graph that has no relata to name.
+  relatumLabels =
+    args:
+    let
+      a = fields "relatumLabels" [ "names" ] args;
+      names = strings "relatumLabels" "names" a.names;
+    in
+    {
+      __element = "relatumLabels";
+      inherit names;
+      member = l: elem l names;
+    };
+
   # ── E — label well-formedness ───────────────────────────────────────────────────────────────
   # Fig. 1: `WFL ⊆ L*`, "defined as a regular expression". The expression is stepped by
   # Brzozowski (1964) derivatives held in a normal form, so the derivative state set is finite and
@@ -200,10 +241,32 @@ let
   # end-of-path rank decides whether stopping outranks continuing, which is a per-query decision
   # and not a property of the alphabet.
   #
-  # THE LIFT. `pathPrecedes` compares two witness paths lexicographically on their rank words;
-  # when one word is exhausted its END-OF-PATH rank competes against the other word's next label
-  # rank. A low `endOfPath` makes stopping outrank everything, so a proper prefix beats its own
-  # extensions; a higher one lets continuation on lower-ranked labels beat stopping.
+  # ── THE LIFT IS Fig. 1's VISIBILITY ORDER, RULE BY RULE, AND IT IS *NOT* LEXICOGRAPHIC OVER THE
+  # RANK WORD. ────────────────────────────────────────────────────────────────────────────────
+  # Fig. 1, printed 114:5, *Visibility Order* — four rules, transcribed:
+  #
+  #     <l ⊢ p1 <p p2                 $ <l l                 l <l $              l1 <l l2
+  #   ────────────────────      ──────────────────      ──────────────────   ─────────────────────
+  #   <l ⊢ s·l·p1 <p s·l·p2     <l ⊢ s <p s·l·p         <l ⊢ s·l·p <p s      <l ⊢ s·l1·p1 <p s·l2·p2
+  #
+  # Read off the rules: the congruence needs the labels EQUAL, and the fourth rule needs the two
+  # DIFFERING labels to be `<l`-COMPARABLE. Nothing licenses ordering two distinct labels that `<l`
+  # leaves incomparable — and the paper says so in prose at printed 114:6: *"The prefix order only
+  # orders paths that have a common prefix."*
+  #
+  # ★★★ SO EQUAL RANKS MAY NOT LICENSE CONTINUED RECURSION. A lift that recurses past a position
+  # where the labels DIFFER but their ranks are equal is treating incomparability as "comparable so
+  # far", and it is strictly FINER than `<p`: it shadows contributions the calculus keeps visible,
+  # and the loss lands in the materialized answer. Recursion is licensed by label EQUALITY and by
+  # nothing else; where the labels differ, this is the last position that will ever be read.
+  #
+  # ★ THE EXHAUSTION CASES ARE THE SAME RULE. `$` is a label of L̂ distinct from every letter, so a
+  # path that stops is compared against a path that continues by asking whether `$ <l l` — which is
+  # a rank comparison between two DISTINCT labels, exactly like the fourth rule. A low `endOfPath`
+  # makes stopping outrank everything, so a proper prefix beats its own extensions; a higher one
+  # lets continuation on lower-ranked labels beat stopping; and an `endOfPath` EQUAL to some
+  # letter's rank leaves stopping and continuing on that letter INCOMPARABLE, which is a sayable
+  # and meaningful declaration rather than an accident.
   labelOrder =
     args:
     let
@@ -244,12 +307,55 @@ let
         __element = "labelOrder";
         inherit alphabet layers rankOf;
         inherit (a) endOfPath;
-        # `<l` itself: the strict partial order over L̂ the figure defines. Two letters of one
-        # layer are incomparable, so neither precedes the other.
+        # `<l` itself: the strict partial order over L̂ the figure defines. Two DISTINCT letters of
+        # one layer are incomparable — `precedes` is false in BOTH directions — and a letter is
+        # never `<l` itself. Same label ⇒ same rank, so the rank comparison already says this.
         precedes = x: y: rankOf x < rankOf y;
+
+        # ★ A PROJECTION FOR DIAGNOSTICS AND LAYERING, AND EXPLICITLY *NOT* THE BASIS OF THE
+        # COMPARISON. It is published because the ranks of a path's labels are worth reading; it is
+        # flagged because a reader who assumes `pathPrecedes` is `rankWord` compared
+        # lexicographically has the finer, wrong order in mind — which is exactly the defect this
+        # element was corrected for.
         rankWord = path: map (step: rankOf step.label) path;
-        # The lexicographic lift over rank words, with the end-of-path rank at exhaustion.
+
+        # Fig. 1's Visibility Order. Recursion is licensed by label EQUALITY; where the labels
+        # differ this is the last position read, and the two paths are ordered only if `<l` orders
+        # those two labels.
         pathPrecedes =
+          pa: pb:
+          let
+            la = length pa;
+            lb = length pb;
+            labelAt = p: i: (builtins.elemAt p i).label;
+            go =
+              i:
+              if i >= la && i >= lb then
+                false # the same path: `<p` is strict
+              else if i >= la then
+                rankOf "$" < rankOf (labelAt pb i) # `$ <l l` ⇒ s <p s·l·p
+              else if i >= lb then
+                rankOf (labelAt pa i) < rankOf "$" # `l <l $` ⇒ s·l·p <p s
+              else if labelAt pa i == labelAt pb i then
+                go (i + 1) # the congruence, and the ONLY licence to recurse
+              else
+                # `l1 <l l2` ⇒ ordered; equal ranks on distinct labels ⇒ INCOMPARABLE, false both
+                # ways, and the walk stops here rather than reading a position the calculus never
+                # reaches.
+                rankOf (labelAt pa i) < rankOf (labelAt pb i);
+          in
+          go 0;
+
+        # ★★ A TOTAL ORDER ON RANK WORDS, PUBLISHED UNDER A NAME THAT SAYS WHAT IT IS: A SORT KEY.
+        # It is NOT the visibility order and must never be substituted for one — it is the finer
+        # order `pathPrecedes` was corrected away from. What it is FOR is bounding the minimality
+        # computation: `a <p b` implies `rankLess a b`, because the first position where the rank
+        # words differ can only be a position where the LABELS differ (equal labels have equal
+        # ranks), and `<p` decides exactly there. So sorting by this key puts every dominator ahead
+        # of everything it dominates, and a scan that compares each candidate only against the
+        # survivors kept so far is complete — `<p` being transitive, anything dropped was dropped by
+        # something already kept.
+        rankLess =
           pa: pb:
           let
             wa = map (step: rankOf step.label) pa;
@@ -264,10 +370,8 @@ let
                 a.endOfPath < builtins.elemAt wb i
               else if i >= lb then
                 builtins.elemAt wa i < a.endOfPath
-              else if builtins.elemAt wa i < builtins.elemAt wb i then
-                true
-              else if builtins.elemAt wa i > builtins.elemAt wb i then
-                false
+              else if builtins.elemAt wa i != builtins.elemAt wb i then
+                builtins.elemAt wa i < builtins.elemAt wb i
               else
                 go (i + 1);
           in
@@ -329,9 +433,17 @@ let
           "a ${builtins.typeOf value}"
       }); build it with `${element}` so the element's own refusals have already run";
 
-  # ── THE CARRIER — the five elements assembled, with the cross-checks no element can make alone
+  # ── THE CARRIER — the five elements assembled, plus the third label population, and the
+  # cross-checks no element can make alone ────────────────────────────────────────────────────
   # Each element validates itself; only the assembly can see whether they are about the same
-  # alphabet and whether the structural and content populations overlap.
+  # alphabet and whether the three label populations overlap.
+  #
+  # ★★ `relatumLabels` IS A REQUIRED FIELD AND IS STILL NOT A CARRIER ELEMENT. It is carried here
+  # because THIS is the only construction that can see all three populations at once, which is
+  # where a pairwise-disjointness law has to be enforced. `carrierElements` stays FIVE: `Λ` indexes
+  # nothing in the carrier, and a caller reading the enumeration must not conclude otherwise.
+  # Required rather than optional because absence is a decision — a graph with no reified bindings
+  # says so by declaring `relatumLabels { names = [ ]; }`.
   carrier =
     args:
     let
@@ -341,27 +453,44 @@ let
         "labelOrder"
         "dataOrder"
         "relations"
+        "relatumLabels"
       ] args;
       labels = elementOf "carrier" "labels" "edgeLabels" a.labels;
       wfl = elementOf "carrier" "labelWellFormedness" "labelWellFormedness" a.labelWellFormedness;
       ord = elementOf "carrier" "labelOrder" "labelOrder" a.labelOrder;
       key = elementOf "carrier" "dataOrder" "dataOrder" a.dataOrder;
       rels = elementOf "carrier" "relations" "relations" a.relations;
-      # ★ THE Q21 DISJOINTNESS. A name in both populations would let an admission expression name
-      # content, which is exactly the arrangement the scoped-relations split exists to remove.
-      overlap = filter (r: labels.member r) rels.names;
+      roles = elementOf "carrier" "relatumLabels" "relatumLabels" a.relatumLabels;
+      # ★ THE THREE-WAY DISJOINTNESS, ALL THREE PAIRS, EACH REFUSED BY NAME.
+      # `L ∩ R = ∅` — a name in both would let an admission expression name content, which is the
+      #               arrangement the scoped-relations split exists to remove.
+      # `L ∩ Λ = ∅` — a role label that is also a letter would make a binding's incidence edge
+      #               WALKABLE: the derivative would not go to the empty state, the walk would step
+      #               onto a relatum edge, and the inertness argument would be false while still
+      #               being written down. This is the collision the law names.
+      # `R ∩ Λ = ∅` — a role that is also a relation name makes the classification of an edge
+      #               ambiguous, and the partition realisation of the same law is then not a
+      #               function.
+      lr = filter (r: labels.member r) rels.names;
+      llam = filter (l: labels.member l) roles.names;
+      rlam = filter (l: rels.member l) roles.names;
     in
     if wfl.alphabet.letters != labels.letters then
       refuse "carrier" "labelWellFormedness is built over a different alphabet than `labels` (${quote wfl.alphabet.letters} vs ${quote labels.letters}); one carrier has one L"
     else if ord.alphabet.letters != labels.letters then
       refuse "carrier" "labelOrder is built over a different alphabet than `labels` (${quote ord.alphabet.letters} vs ${quote labels.letters}); one carrier has one L"
-    else if overlap != [ ] then
-      refuse "carrier" "'${head (sort builtins.lessThan overlap)}' is both a letter of L and a name in R; the sorts are disjoint, because the walk steps only on structural letters and a content name reached at the path's end can never enter the label word"
+    else if lr != [ ] then
+      refuse "carrier" "'${head (sort builtins.lessThan lr)}' is both a letter of L and a name in R; the sorts are disjoint, because the walk steps only on structural letters and a content name reached at the path's end can never enter the label word"
+    else if llam != [ ] then
+      refuse "carrier" "'${head (sort builtins.lessThan llam)}' is both a letter of L and a relatum label in Λ; the populations are disjoint, because a role label that is also a letter would make a binding's incident edge WALKABLE and the inertness that keeps a binding out of the traversal would be false"
+    else if rlam != [ ] then
+      refuse "carrier" "'${head (sort builtins.lessThan rlam)}' is both a name in R and a relatum label in Λ; the populations are disjoint, because an edge carrying it could not be classified into one of them"
     else
       {
         __element = "carrier";
         inherit labels;
         relations = rels;
+        relatumLabels = roles;
         labelWellFormedness = wfl;
         labelOrder = ord;
         dataOrder = key;
@@ -382,10 +511,26 @@ let
   # leaving it to arrive undetected — see `arrival.nix`, which derives which of the two happened
   # and restores the calculus's own property by construction.
   #
-  # EVERY EDGE LABEL IS CHECKED AGAINST L at construction. A third population exists at the
-  # boundary — the relatum-role labels of a reified relation — and it indexes NOTHING in this
-  # carrier: its intersection with L is empty, so the derivative of any admission expression on
-  # one of those labels is the empty state and the walk cannot enter a binding at all.
+  # ★★★ EVERY EDGE LABEL IS CHECKED FOR EXHAUSTIVENESS OVER THE *THREE* POPULATIONS, NOT FOR
+  # MEMBERSHIP IN `L`. The law is `labels(edges(G)) ⊆ L ⊎ R ⊎ Λ` — disjoint AND jointly exhaustive,
+  # refused at construction — and the disjointness half is `carrier`'s. A guard demanding
+  # membership in `L` alone is that law INVERTED: it refuses the one case the law requires to be
+  # present (a non-colliding relatum edge, held and inert) and accepts the one case the law
+  # requires to be refused (a role label colliding with a letter, which would make a binding's
+  # incidence WALKABLE). It would also make this library unable to hold a graph containing any
+  # reified binding at all, which is every graph the minter produces.
+  #
+  # ★ WHAT `Λ` AND `R` EDGES ARE: HELD AND NOT WALKED. Their inertness needs no check here because
+  # it is structural — `labelWellFormedness` admits no literal outside `L`, and the three
+  # populations are disjoint, so the Brzozowski derivative with respect to such a label is the
+  # empty state and the walk prunes at that edge. Present in the edge set, invisible to WFL, read
+  # as datums by nothing.
+  #
+  # ★ `R` IS ADMITTED HERE THOUGH THIS LIBRARY TAKES THE OTHER REALISATION. The law offers two: a
+  # PARTITION of one accessor by population, or a SEPARATE data accessor beside it. gen-view takes
+  # the separate accessor — `data` below — so its datums do not ride on `labeledEdges`. Admitting
+  # an `R` label anyway is the stated condition read literally, and such an edge is inert by the
+  # same argument; refusing it would be narrowing a law this library does not own.
   scopeGraph =
     args:
     let
@@ -398,7 +543,9 @@ let
       c = elementOf "scopeGraph" "carrier" "carrier" a.carrier;
       scopes = strings "scopeGraph" "scopes" a.scopes;
       edgeLabelNames = builtins.attrNames a.edges;
-      foreign = filter (l: !(c.labels.member l)) edgeLabelNames;
+      unclassified = filter (
+        l: !(c.labels.member l || c.relations.member l || c.relatumLabels.member l)
+      ) edgeLabelNames;
       labeled = graph.labeledFrom {
         perLabel = a.edges;
         nodes = scopes;
@@ -408,8 +555,8 @@ let
       refuse "scopeGraph" "edges must be an attrset of label → (scope → [ scope ]); it is the per-label accessor the walk steps"
     else if !(builtins.isFunction a.data) then
       refuse "scopeGraph" "data must be a function of the graph — `labeledGraph → scope → [ { relation; datum; } ]`; it is the ⟨scopes, edges, data⟩ triple's third component"
-    else if foreign != [ ] then
-      refuse "scopeGraph" "edges carry the label '${head (sort builtins.lessThan foreign)}', which is not a letter of L (${quote c.labels.letters}); the walk steps only on structural letters"
+    else if unclassified != [ ] then
+      refuse "scopeGraph" "edges carry the label '${head (sort builtins.lessThan unclassified)}', which is in none of the three populations — L (${quote c.labels.letters}), R (${quote c.relations.names}) or Λ (${quote c.relatumLabels.names}); the classification of an edge label is total, and a label outside all three would be walked by nothing and classified as nothing"
     else
       {
         __element = "scopeGraph";
@@ -456,6 +603,7 @@ in
   inherit
     edgeLabels
     relations
+    relatumLabels
     labelWellFormedness
     labelOrder
     dataOrder

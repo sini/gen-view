@@ -4,6 +4,10 @@
 topology, channel, role and the aspect/entity classification are **one construction under different
 names**; movement is the first composition over it, not the calculus.
 
+The five published names are **one construction at three key shapes** — the channel (`movement`,
+`channel`), the scope (`topology`), and a caller-supplied coordinate (`registry`, `role`). Two of
+those pairs coincide, deliberately: the counts are stated rather than rounded.
+
 This library publishes that calculus **raw** and the compositions **on top of it**.
 
 > ⚠️ **`gen-view` IS A TEMPORARY NAME AND A WAY-STATION.** Its constructs fold into a consolidated
@@ -16,7 +20,7 @@ This library publishes that calculus **raw** and the compositions **on top of it
 | layer            | what it publishes                                                                                                                                       |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **raw calculus** | `edgeLabels` (L) · `labelWellFormedness` (E) · `labelOrder` (\<) · `dataOrder` (k) · `relations` (R), plus `carrier`, `scopeGraph` and `relationLookup` |
-| **compositions** | `compositions.{ movement, channel, registry, topology, role }` — one construction, differing in exactly one thing: the competition key                  |
+| **compositions** | `compositions.{ movement, channel, registry, topology, role }` — five names over one construction, at three key shapes                                  |
 
 Publishing only the convenience composition **hides the calculus**, so a consumer needing a
 different instance has to re-implement one. Here the rule is doubly load-bearing: the constructs

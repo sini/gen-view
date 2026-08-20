@@ -4,7 +4,9 @@
 
 The substrate's **derived-view constructor**. A view definition is plain data; a view relation is
 the named result of materializing it over a scope graph. Registry, topology, channel, role and
-movement are **one construction** differing only in the competition key.
+movement are **one construction** at **three key shapes** — five names, one `define`, and two pairs
+that deliberately coincide (`movement` ≡ `channel`; `registry` ≡ `role` modulo the caller's field
+name). Do not "differentiate" them to make a tidier claim true.
 
 Two inputs: `gen-prelude` and `gen-graph`. `lib` is a function of both.
 

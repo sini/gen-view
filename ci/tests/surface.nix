@@ -10,6 +10,7 @@
 { genView, ... }:
 let
   v = genView;
+  f = import ../fixture.nix { inherit genView; };
 in
 {
   flake.tests.surface = {
@@ -45,6 +46,7 @@ in
         "readsOf"
         "relationLookup"
         "relations"
+        "relatumLabels"
         "renderEntry"
         "renderTrace"
         "scopeGraph"
@@ -137,6 +139,85 @@ in
         builtins.attrNames v ++ builtins.attrNames v.placement ++ builtins.attrNames v.transform
       );
       expected = [ ];
+    };
+
+    # ══ THE COMPOSITION CLAIM IS MEASURED, NOT ASSERTED ══
+    #
+    # ★★★ "FIVE VIEWS DIFFERING IN EXACTLY THE COMPETITION KEY" WOULD BE FALSE, and the prose no
+    # longer says it. The measured structure is FIVE NAMES · ONE CONSTRUCTION · THREE KEY SHAPES,
+    # and this cell is what makes those counts checked rather than claimed: the five keys are
+    # computed on ONE contribution, and two pairs coincide.
+    #
+    # ★ THE COINCIDENCES ARE MEANT AND ARE NOT DEFECTS. The seed instance IS the general
+    # construction, so `movement` and `channel` are the same instantiation; a registry and a role
+    # differ in what the CALLER calls the coordinate and not in what the substrate does with it.
+    # Manufacturing a difference to make a tidier claim true would be the worse repair.
+    test-the-five-names-are-one-construction-at-three-key-shapes = {
+      expr =
+        let
+          probe = {
+            scope = "s";
+            channel = "settings";
+            datum = [ "x" ];
+            entity = "E";
+            role = "R";
+          };
+          keyOf = def: def.channel.keyOf probe;
+          base = {
+            channel = "settings";
+            relation = "import";
+            root = "leaf";
+            direction = "outbound";
+            admission = f.admission;
+            order = f.order;
+            wellFormed = f.admitAll;
+            tieSet = v.tieSets.union;
+            empty = [ ];
+            combine = v.combines.listAppend;
+            dedup = v.dedups.none;
+          };
+          keys = {
+            movement = keyOf (v.compositions.movement base);
+            channel = keyOf (v.compositions.channel base);
+            topology = keyOf (v.compositions.topology base);
+            registry = keyOf (v.compositions.registry (base // { entityOf = c: c.entity; }));
+            role = keyOf (v.compositions.role (base // { roleOf = c: c.role; }));
+          };
+        in
+        {
+          inherit keys;
+          names = builtins.length (builtins.attrNames v.compositions);
+          # ★ THE TWO COINCIDENCES, EACH MEASURED AS THE CLAIM STATES IT.
+          # `movement ≡ channel` is an identity of INSTANTIATION: the same base, the same key.
+          movementIsChannel = keys.movement == keys.channel;
+          # `registry ≡ role` is an identity of SHAPE, not of value — they read different fields of
+          # the probe above because the CALLER named the coordinate differently. Handed the SAME
+          # extractor they are the same view, which is exactly what "the same shape modulo the
+          # caller's field name" means, and it is measured here rather than asserted in prose.
+          registryIsRoleShape =
+            keyOf (v.compositions.registry (base // { entityOf = c: c.role; }))
+            == keyOf (v.compositions.role (base // { roleOf = c: c.role; }));
+          # ⇒ FIVE NAMES over THREE key shapes: the channel, the scope, a caller-supplied
+          # coordinate. The distinct VALUES on this probe are four, because the two
+          # caller-supplied ones were handed different fields — stated so the two numbers are not
+          # confused for each other.
+          distinctKeyValuesOnThisProbe = builtins.length (
+            builtins.attrNames (builtins.groupBy (k: k) (builtins.attrValues keys))
+          );
+        };
+      expected = {
+        keys = {
+          movement = "settings";
+          channel = "settings";
+          topology = "s";
+          registry = "E";
+          role = "R";
+        };
+        names = 5;
+        movementIsChannel = true;
+        registryIsRoleShape = true;
+        distinctKeyValuesOnThisProbe = 4;
+      };
     };
   };
 }

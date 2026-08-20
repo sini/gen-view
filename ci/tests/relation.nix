@@ -30,6 +30,7 @@ let
     keyOf = c: c.scope;
   };
   dCarrier = v.carrier {
+    relatumLabels = f.roles;
     labels = dLabels;
     labelWellFormedness = dAdmission;
     labelOrder = dOrder;
@@ -81,6 +82,58 @@ let
     graph = diamond;
     marks = f.noMarks;
   };
+
+  # ── THE DIVERGENT-AT-POSITION-0 FIXTURE, for the visibility order ──
+  # `A` is reached by `include`, `D` by `parent·parent`. The two paths diverge at the FIRST
+  # position on DISTINCT labels, so whether either shadows the other is decided entirely by
+  # whether `<l` orders those two labels — which is the question the layers declaration answers
+  # and the rank-word lift used to ignore. There is deliberately no contributor at the
+  # intermediate scope, so no prefix relation can mask the outcome.
+  divergentGraph = v.scopeGraph {
+    carrier = f.carrier;
+    scopes = [
+      "S"
+      "A"
+      "M"
+      "D"
+    ];
+    edges = {
+      include = id: if id == "S" then [ "A" ] else [ ];
+      parent =
+        id:
+        {
+          S = [ "M" ];
+          M = [ "D" ];
+        }
+        .${id} or [ ];
+    };
+    data = f.authored {
+      A = [
+        {
+          relation = "import";
+          datum = [ "a" ];
+        }
+      ];
+      D = [
+        {
+          relation = "import";
+          datum = [ "d" ];
+        }
+      ];
+    };
+  };
+  divergentWith =
+    order:
+    v.viewRelation {
+      definition = f.mkDefinition {
+        inherit order;
+        root = "S";
+      };
+      graph = divergentGraph;
+      marks = f.noMarks;
+    };
+  divergentFlat = divergentWith f.flatOrder;
+  divergentLayered = divergentWith f.order;
 
   # ── THE PER-SCOPE-KEY RELATION OVER THE DUPLICATE GRAPH, for the dedup records ──
   dupWith =
@@ -444,6 +497,87 @@ in
         relation = "settings";
         definition = "settings";
       };
+    };
+
+    # ══ FLAT ORDER ⇒ NOTHING SHADOWED, END TO END ══
+    #
+    # ★★★ THIS IS THE FIXTURE THE DEFECT WAS FOUND ON. `A` is reached by `include` and `D` by
+    # `parent·parent` — two paths that DIVERGE AT POSITION 0 on distinct labels. Under a FLAT order
+    # those labels share a rank, so Fig. 1 leaves the paths incomparable and NOTHING may shadow.
+    # The rank-word lift ordered them anyway and produced an outcome identical to the layered
+    # control, so declaring no specificity at all shadowed exactly as much as declaring a real
+    # ranking — which made the whole layers design unobservable from the answer.
+    #
+    # ★ THE LAYERED ARM IS IN THE SAME CELL ON PURPOSE. It is the control: with `include` ranked
+    # above `parent` the two labels ARE comparable, shadowing IS licensed, and it happens. A fix
+    # that simply stopped ordering things would take this half red.
+    test-a-flat-order-shadows-nothing-and-a-layered-one-still-does = {
+      expr = {
+        flatVisible = map (c: c.scope) divergentFlat.contributions;
+        flatShadowed = map (c: c.scope) divergentFlat.shadowed;
+        flatValue = divergentFlat.value;
+        layeredVisible = map (c: c.scope) divergentLayered.contributions;
+        layeredShadowed = map (c: c.scope) divergentLayered.shadowed;
+        layeredValue = divergentLayered.value;
+      };
+      expected = {
+        flatVisible = [
+          "A"
+          "D"
+        ];
+        flatShadowed = [ ];
+        flatValue = [
+          "a"
+          "d"
+        ];
+        layeredVisible = [ "A" ];
+        layeredShadowed = [ "D" ];
+        layeredValue = [ "a" ];
+      };
+    };
+
+    # ★★ THE DIFFERENTIAL CONTROL ON THE BOUNDED SCAN. The competition computes minimality with a
+    # sort by `rankLess` plus a scan against the survivors kept so far — a bound that rests on `<p`
+    # refining `rankLess` and on `<p` being transitive. This cell runs the DIRECT pairwise
+    # definition ("nothing in the group strictly precedes it") over the same groups and asserts the
+    # two agree. If the bound's argument were wrong, the two would disagree here rather than in a
+    # consumer's answer six libraries away.
+    test-control-the-bounded-minimality-scan-agrees-with-the-pairwise-definition = {
+      expr =
+        builtins.all
+          (
+            case:
+            let
+              members = case.relation.contributions ++ case.relation.shadowed;
+              order = case.relation.definition.order;
+              pairwise = builtins.filter (
+                c: !(builtins.any (o: order.pathPrecedes o.path c.path) members)
+              ) members;
+            in
+            map (c: c.scope) pairwise == map (c: c.scope) case.relation.contributions
+          )
+          [
+            { relation = divergentFlat; }
+            { relation = divergentLayered; }
+            { relation = f.relation; }
+            { relation = f.mkRelation { definition = f.mkDefinition { order = f.flatOrder; }; }; }
+          ];
+      expected = true;
+    };
+
+    # ★ AND THE CONTROL'S OWN CONTROL: the four cases are not all trivially one-element groups, so
+    # the agreement above is over groups where minimality has something to decide.
+    test-control-the-differential-cases-have-competing-groups = {
+      expr = map (r: builtins.length (r.contributions ++ r.shadowed)) [
+        divergentFlat
+        divergentLayered
+        f.relation
+      ];
+      expected = [
+        2
+        2
+        3
+      ];
     };
   };
 }

@@ -75,8 +75,19 @@ let
     keyOf = c: c.scope;
   };
 
+  # Λ — the relatum-role labels. DECLARED here and carried by every graph below; the main fixture
+  # graph deliberately holds NO Λ edge, so it stays the L-only regression subject while the role
+  # graph in `ci/tests/carrier.nix` exercises the population.
+  roles = v.relatumLabels {
+    names = [
+      "relatum-target"
+      "relatum-source"
+    ];
+  };
+
   carrier = v.carrier {
     inherit labels relations;
+    relatumLabels = roles;
     labelWellFormedness = admission;
     labelOrder = order;
     dataOrder = key;
@@ -251,6 +262,7 @@ in
     relations
     admission
     order
+    roles
     flatOrder
     key
     perScopeKey
