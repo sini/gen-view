@@ -213,7 +213,6 @@ in
     test-relation-lookup-is-the-terminus-rule = {
       expr = v.relationLookup {
         graph = f.graph;
-        labeled = f.graph.labeled;
         scope = "inc";
         relation = "import";
         wellFormed = _: true;
@@ -225,7 +224,6 @@ in
     test-control-wfd-narrows-the-datum-and-not-the-path = {
       expr = v.relationLookup {
         graph = f.graph;
-        labeled = f.graph.labeled;
         scope = "inc";
         relation = "import";
         wellFormed = d: d != [ "inc" ];
@@ -438,7 +436,6 @@ in
     test-control-the-far-side-of-the-role-edge-really-holds-a-datum = {
       expr = v.relationLookup {
         graph = roleGraph;
-        labeled = roleGraph.labeled;
         scope = "binding";
         relation = "import";
         wellFormed = f.admitAll;

@@ -21,9 +21,10 @@
 #     A DECLARATION MAY NEVER KEY FINER THAN ITS CARRIER, and cannot, since no projection can
 #     un-merge what the carrier has already merged.
 #  5. (NR-Rel) — at each surviving scope the relation is reached ONCE, AT THE END OF THE PATH,
-#     and the datum is filtered by WFD. The gather reads the WALK-INDEPENDENT data component
-#     (`arrival.nix`), so a walk-emitted value's participation is inexpressible here rather than
-#     filtered out downstream.
+#     and the datum is filtered by WFD. `data(G)` is a COMPONENT of the graph value, so what is
+#     found there was authored before this materialization began: no step of the walk can put a
+#     datum where a later step reads one, and a walk-emitted contribution is not a thing that can
+#     exist rather than a thing that is filtered out.
 #  6. competition — contributions are grouped by k and the surviving-maximal set of each group is
 #     taken under the label order's lexicographic lift.
 #  7. the tie-set disposition — `union`, `refuse` or `orderedFold`, named by the declaration.
@@ -54,7 +55,6 @@ let
     ;
   refusal = import ./refusal.nix { inherit prelude; };
   carrierLib = import ./carrier.nix { inherit prelude graph; };
-  arrival = import ./arrival.nix { inherit prelude graph; };
   inherit (refusal) refuse fields quote;
   inherit (carrierLib) elementOf;
 
@@ -205,15 +205,15 @@ let
       # that reached past a published element into a private near-copy would leave that element a
       # second surface nobody runs, and the calculus hidden behind the composition again.
       #
-      # ★ THE WALK-INDEPENDENT READING RIDES ON THE GRAPH IT IS HANDED, not on a second lookup path.
-      # `relationLookup` applies `data` to whatever graph it is given, so severing this scope's
-      # out-edges here is `authoredAt`'s reading taken THROUGH the published rule — one severing
-      # construction, one lookup, nothing to keep in step.
+      # ★★ THERE IS NOTHING HERE ABOUT *WHICH* READING OF THE DATA COMPONENT TO TAKE, BECAUSE THERE
+      # IS ONLY ONE. `data` is a component of the graph value, so the datums at a scope are fixed
+      # before this materialization begins and no step of it can add one. The discriminator that
+      # used to sit at this line — severing the scope's out-edges to find the walk-independent
+      # reading — is gone with the divergence that made two readings possible.
       relationAt =
         scope:
         carrierLib.relationLookup {
           graph = g;
-          labeled = arrival.severedAt g.labeled scope;
           inherit scope;
           inherit (def) relation wellFormed;
         };

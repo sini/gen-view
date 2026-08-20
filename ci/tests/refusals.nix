@@ -117,7 +117,6 @@ in
       expr = refuses (
         v.relationLookup {
           graph = f.graph;
-          labeled = f.graph.labeled;
           scope = "inc";
           relation = "not-declared";
           wellFormed = f.admitAll;
@@ -132,7 +131,6 @@ in
     test-control-a-declared-relation-with-no-datums-answers-empty-without-refusing = {
       expr = v.relationLookup {
         graph = f.graph;
-        labeled = f.graph.labeled;
         scope = "inc";
         relation = "expose-in";
         wellFormed = f.admitAll;
@@ -261,7 +259,6 @@ in
       expr = refuses (
         v.relationLookup {
           graph = f.graph;
-          labeled = f.graph.labeled;
           scope = "inc";
           relation = "not-a-relation";
           wellFormed = f.admitAll;

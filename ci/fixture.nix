@@ -111,11 +111,19 @@ let
     include = id: if id == "leaf" then [ "inc" ] else [ ];
   };
 
-  # An AUTHORED data component: it ignores the graph entirely, which is what an ordinary data
-  # component does and why the ordinary case pays no price for the arrival discriminator.
+  # `authored { <scope> = [ { relation; datum; } ]; }` — the data COMPONENT, flattened to Fig. 1's
+  # own shape `Data ::= s —r→ d`. It is a plain value: no function, nothing to consult, nothing a
+  # traversal could reach into. The per-scope attrset is the ergonomic form a fixture wants to
+  # write; the triples are what the graph holds.
   authored =
-    entries: _: scope:
-    entries.${scope} or [ ];
+    entries:
+    builtins.concatMap (
+      scope:
+      map (e: {
+        inherit scope;
+        inherit (e) relation datum;
+      }) entries.${scope}
+    ) (builtins.attrNames entries);
 
   datums = {
     root = [

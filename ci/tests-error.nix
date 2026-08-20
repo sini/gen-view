@@ -116,7 +116,6 @@ in
       test-an-undeclared-relation-is-named-with-the-sort = {
         expr = builtins.deepSeq (v.relationLookup {
           graph = f.graph;
-          labeled = f.graph.labeled;
           scope = "inc";
           relation = "not-declared";
           wellFormed = f.admitAll;
@@ -198,6 +197,56 @@ in
         expectedError = {
           type = "ThrownError";
           msg = "^gen-view\\.scopeGraph: edges carry the label 'not-a-population', which is in none of the three populations — L \\(include, parent\\), R \\(broadcast-in, expose-in, import, policy\\) or Λ \\(relatum-source, relatum-target\\).*$";
+        };
+      };
+
+      # ★★★ A FUNCTION IN THE DATA POSITION IS REFUSED WITH THE REASON, NOT MERELY WITH A TYPE
+      # COMPLAINT — and the message is asserted because the VERDICT alone does not distinguish this
+      # branch from the generic "must be a list" one. Measured: disabling this branch leaves every
+      # boolean cell green, because the list check catches a function too. What would be lost is the
+      # only place the library says WHY a function is the one shape that may not appear here — it is
+      # the withdrawn divergence, the construction that made walk-dependence sayable in the first
+      # place, and a reader who reintroduces it will meet this sentence or nothing.
+      test-a-function-in-the-data-position-names-the-withdrawn-divergence = {
+        expr = builtins.deepSeq (v.scopeGraph {
+          carrier = f.carrier;
+          scopes = [ "leaf" ];
+          edges = { };
+          data = _: _: [ ];
+        }) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.scopeGraph: data is a FUNCTION; it must be a plain list of datums.*COMPONENT of the graph.*no traversal can put one there.*$";
+        };
+      };
+
+      # And the generic shape complaint is a DIFFERENT message, so the two are not one branch
+      # wearing two descriptions.
+      test-a-non-list-data-component-names-the-shape = {
+        expr = builtins.deepSeq (v.scopeGraph {
+          carrier = f.carrier;
+          scopes = [ "leaf" ];
+          edges = { };
+          data = "not a list";
+        }) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.scopeGraph: data must be a list of datums.*Fig\\. 1's `Data ::= s —r→ d`.*$";
+        };
+      };
+
+      # ★★ A CONTRIBUTION IN A DATA POSITION IS NAMED WITH ITS EXTRA FIELDS, so the reader sees
+      # exactly why a walk answer is not a datum and what authoring one would mean.
+      test-a-contribution-in-a-data-position-names-its-fields = {
+        expr = builtins.deepSeq (v.scopeGraph {
+          carrier = f.carrier;
+          scopes = f.scopes;
+          edges = f.edges;
+          data = [ (builtins.head f.relation.contributions) ];
+        }) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.scopeGraph: a datum carries the fields \\(admission, channel, datum, distance, path, relation, scope\\); a datum is exactly .* A WALK ANSWER CANNOT BE A DATUM.*$";
         };
       };
 

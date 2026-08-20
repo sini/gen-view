@@ -38,7 +38,12 @@ enumerations `combines` `tieSets` `dedups` `directions` (with `combineArms` `tie
 
 **Materialization**: `viewRelation`.
 
-**Arrival mode**: `arrivalMode` `authoredAt` `emittedAt` `severedAt` `arrivalModes`.
+★★ **There is NO arrival-mode family, and do not reintroduce one.** `scopeGraph.data` is a PLAIN
+COMPONENT — a list of `{ scope; relation; datum; }` — so walk-dependence is unsayable and there is
+nothing to discriminate. An earlier revision made `data` a function of the graph and then invented
+`arrivalMode`/`authoredAt`/`emittedAt`/`severedAt` to catch what that let through; the owner
+withdrew the divergence and the family retired with it. R17 is satisfied by the component shape:
+authoring into the component IS the declaration.
 
 **Accumulator + ordering**: `readsOf` `writesOf` `unit` `accumulatorRelation` `accumulatorOrder`
 `orderedFoldOf` `cell`.

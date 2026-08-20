@@ -502,14 +502,30 @@ let
   # SEPARATE SORT and not an edge payload, which is the whole content of the scoped-relations
   # arrangement.
   #
-  # ★★ `data` TAKES THE GRAPH, AND THAT IS THE ONE DELIBERATE DIVERGENCE FROM THE FIGURE.
-  # In the calculus `data(G)` is a COMPONENT of G and therefore walk-independent by definition —
-  # a datum is in it or it is not, and no traversal can put one there. In a substrate where the
-  # component is reached through an accessor, walk-dependence becomes SAYABLE: an accessor can
-  # consult the graph and re-emit, at one scope, datums it found by walking out of it. Taking the
-  # graph as a parameter is what makes that possible shape VISIBLE to the substrate instead of
-  # leaving it to arrive undetected — see `arrival.nix`, which derives which of the two happened
-  # and restores the calculus's own property by construction.
+  # ★★★ `data` IS A PLAIN COMPONENT OF THE GRAPH VALUE — A SET OF DATUMS, NOT AN ACCESSOR AND NOT A
+  # FUNCTION OF ANYTHING. Fig. 1 writes it that way and the reason is the whole of this design:
+  # `data(G)` is a COMPONENT, so a datum is in it or it is not, and NO TRAVERSAL CAN PUT ONE THERE.
+  # (NR-Rel) reads `s′ —r→ d ∈ data(G)` — a membership test against a value that existed before any
+  # walk began.
+  #
+  # ★★★ AN EARLIER REVISION MADE `data` A FUNCTION OF THE GRAPH, AND THAT DIVERGENCE IS WITHDRAWN.
+  # Owner-ruled: taking the graph as a parameter is precisely what made WALK-DEPENDENCE SAYABLE —
+  # an accessor could consult the graph and re-emit, at one scope, datums it found by walking out
+  # of it. Having opened that hole, the library then invented a discriminator to detect what had
+  # fallen through it, and the discriminator was incomplete (it severed one scope's out-edges, so
+  # any walk-dependence routed through other edges survived, and at a SINK scope severing was the
+  # identity and the check was vacuous). ⇒ THE HAZARD IS NOW INEXPRESSIBLE RATHER THAN DETECTED.
+  # BY-CONSTRUCTION OVER REPAIR, applied to the construction that opened the hazard rather than to
+  # the mechanism that chased it. There is no discriminator here because there is nothing to
+  # discriminate.
+  #
+  # ★★ AND R17's SHAPE REQUIREMENT IS SATISFIED BY THE COMPONENT SHAPE, not by a declaration field
+  # and not by a check. What competes is exactly what is IN the data component, and the only way a
+  # value gets there is for an author to write it there — so AUTHORING INTO THE COMPONENT *IS* THE
+  # DECLARATION. A walk answer has no route in: `datum` entries are closed to `{ scope; relation;
+  # datum; }`, so a contribution — which carries `path`, `admission`, `distance` and `channel` —
+  # is refused BY NAME in a data position, and stripping it back to the three fields is an act of
+  # authorship performed by a person.
   #
   # ★★★ EVERY EDGE LABEL IS CHECKED FOR EXHAUSTIVENESS OVER THE *THREE* POPULATIONS, NOT FOR
   # MEMBERSHIP IN `L`. The law is `labels(edges(G)) ⊆ L ⊎ R ⊎ Λ` — disjoint AND jointly exhaustive,
@@ -527,8 +543,8 @@ let
   # as datums by nothing.
   #
   # ★ `R` IS ADMITTED HERE THOUGH THIS LIBRARY TAKES THE OTHER REALISATION. The law offers two: a
-  # PARTITION of one accessor by population, or a SEPARATE data accessor beside it. gen-view takes
-  # the separate accessor — `data` below — so its datums do not ride on `labeledEdges`. Admitting
+  # PARTITION of one accessor by population, or a SEPARATE data component beside it. gen-view takes
+  # the separate component — `data` below — so its datums do not ride on `labeledEdges`. Admitting
   # an `R` label anyway is the stated condition read literally, and such an edge is inert by the
   # same argument; refusing it would be narrowing a law this library does not own.
   scopeGraph =
@@ -550,18 +566,47 @@ let
         perLabel = a.edges;
         nodes = scopes;
       };
+      # `Data ::= s —r→ d` — THREE components and no more. The field set is CLOSED, and that is
+      # what makes a walk answer unsayable here: a contribution carries `path`, `admission`,
+      # `distance` and `channel` besides, so it is refused in a data position BY NAME rather than
+      # silently accepted and carried into competition.
+      datumFields = [
+        "scope"
+        "relation"
+        "datum"
+      ];
+      malformed = filter (
+        e:
+        !(builtins.isAttrs e)
+        || sort builtins.lessThan (builtins.attrNames e) != sort builtins.lessThan datumFields
+      ) (if builtins.isList a.data then a.data else [ ]);
+      offScope = filter (e: !(elem e.scope scopes)) (if builtins.isList a.data then a.data else [ ]);
+      offRelation = filter (e: !(c.relations.member e.relation)) (
+        if builtins.isList a.data then a.data else [ ]
+      );
+      # The per-scope index, DERIVED once and shared. It is a projection of the component, never a
+      # second source: `data` remains the component the figure names, and this is how it is read.
+      datumsAt = builtins.groupBy (e: e.scope) a.data;
     in
     if !(builtins.isAttrs a.edges) then
       refuse "scopeGraph" "edges must be an attrset of label → (scope → [ scope ]); it is the per-label accessor the walk steps"
-    else if !(builtins.isFunction a.data) then
-      refuse "scopeGraph" "data must be a function of the graph — `labeledGraph → scope → [ { relation; datum; } ]`; it is the ⟨scopes, edges, data⟩ triple's third component"
+    else if builtins.isFunction a.data then
+      refuse "scopeGraph" "data is a FUNCTION; it must be a plain list of datums `[ { scope; relation; datum; } ]`. In the calculus `data(G)` is a COMPONENT of the graph, so a datum is in it or it is not and no traversal can put one there — a function reintroduces exactly the walk-dependence the component shape exists to make unsayable"
+    else if !(builtins.isList a.data) then
+      refuse "scopeGraph" "data must be a list of datums `[ { scope; relation; datum; } ]` — Fig. 1's `Data ::= s —r→ d`, the ⟨scopes, edges, data⟩ triple's third component"
+    else if malformed != [ ] then
+      refuse "scopeGraph" "a datum carries the fields (${quote (builtins.attrNames (head malformed))}); a datum is exactly `{ scope; relation; datum; }` and the field set is closed. A WALK ANSWER CANNOT BE A DATUM: a contribution carries its path, its residual admission state and its distance, none of which a component of the graph can hold — strip it to the three fields and you have authored one"
+    else if offScope != [ ] then
+      refuse "scopeGraph" "a datum is filed at scope '${(head offScope).scope}', which is not a scope of this graph (${quote scopes})"
+    else if offRelation != [ ] then
+      refuse "scopeGraph" "a datum is filed under relation '${(head offRelation).relation}', which is not a name in R (${quote c.relations.names}); the sort a datum is reached by is declared, and an undeclared one is reachable by no query"
     else if unclassified != [ ] then
       refuse "scopeGraph" "edges carry the label '${head (sort builtins.lessThan unclassified)}', which is in none of the three populations — L (${quote c.labels.letters}), R (${quote c.relations.names}) or Λ (${quote c.relatumLabels.names}); the classification of an edge label is total, and a label outside all three would be walked by nothing and classified as nothing"
     else
       {
         __element = "scopeGraph";
         carrier = c;
-        inherit scopes labeled;
+        inherit scopes labeled datumsAt;
         inherit (a) edges data;
       };
 
@@ -575,15 +620,16 @@ let
   # are indistinguishable in an answer and must not be indistinguishable in a diagnostic: a
   # misspelled relation that gathered nothing looks exactly like a relation with no datums.
   #
-  # ★ `data` IS APPLIED TO THE GRAPH THE CALLER HANDS IN, never to a graph this binding chooses.
-  # That is what lets `arrival.nix` pass a severed graph through the same rule and get the
-  # walk-independent answer, with no second lookup path to keep in step with this one.
+  # ★★ IT READS THE COMPONENT AND TAKES NO GRAPH-TO-READ-IT-AGAINST, because there is only one
+  # reading. The earlier signature carried a `labeled` argument so a caller could pass a modified
+  # graph and get a different answer at the same scope — which is the walk-dependence the component
+  # shape removes. A membership test against a value has no such parameter, and its absence is what
+  # makes the rule total.
   relationLookup =
     args:
     let
       a = fields "relationLookup" [
         "graph"
-        "labeled"
         "scope"
         "relation"
         "wellFormed"
@@ -596,7 +642,9 @@ let
       refuse "relationLookup" "wellFormed must be a predicate on data terms; it is WFD, the visibility parameter that decides whether the datum found at the path's end is the one being looked for"
     else
       map (entry: entry.datum) (
-        filter (entry: entry.relation == a.relation && a.wellFormed entry.datum) (g.data a.labeled a.scope)
+        filter (entry: entry.relation == a.relation && a.wellFormed entry.datum) (
+          g.datumsAt.${a.scope} or [ ]
+        )
       );
 in
 {

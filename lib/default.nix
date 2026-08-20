@@ -42,6 +42,15 @@
 # ── WHAT ELSE LANDS HERE, AND WHY ───────────────────────────────────────────────────────────
 # · `readsOf` / `writesOf` and the accumulator relation: they travel with the MATERIALIZATION
 #   machinery, which is this library. The sorter already had a home; its INPUT did not.
+#
+# ★★★ AND WHAT IS DELIBERATELY *ABSENT*: THERE IS NO ARRIVAL-MODE DISCRIMINATOR, because there is
+# nothing to discriminate. `data(G)` is a COMPONENT of the graph value (Fig. 1), so a datum is in
+# it or it is not and no traversal can put one there — WALK-DEPENDENCE IS UNSAYABLE RATHER THAN
+# DETECTED. An earlier revision made `data` a function of the graph, which made the hazard sayable,
+# and then invented a discriminator to catch what fell through; the divergence is withdrawn and the
+# discriminator retired with it. R17's shape requirement — a contribution competes only if declared
+# — is met BY THE COMPONENT SHAPE: what competes is exactly what is in `data`, the only way in is
+# for an author to write it there, and a walk answer is refused in a data position by name.
 # · `placement`, `setAttrByPath`, the placement modes and the terminal sink: ruled into a fourth
 #   destination with no name and no owner, which is this library — kept as a construct family
 #   BESIDE the declaration, never as declaration fields.
@@ -65,7 +74,6 @@ let
   carrierLib = import ./carrier.nix { inherit prelude graph; };
   enums = import ./enumerations.nix { inherit prelude; };
   definitionLib = import ./definition.nix { inherit prelude graph; };
-  arrivalLib = import ./arrival.nix { inherit prelude graph; };
   relationLib = import ./relation.nix { inherit prelude graph; };
   orderingLib = import ./ordering.nix { inherit prelude graph; };
   placementLib = import ./placement.nix { inherit prelude; };
@@ -125,15 +133,6 @@ in
 
   # ── THE MATERIALIZATION ─────────────────────────────────────────────────────────────────────
   inherit (relationLib) viewRelation;
-
-  # ── ARRIVAL MODE — DERIVED, and a walk-emitted value's participation is inexpressible ───────
-  inherit (arrivalLib)
-    arrivalMode
-    authoredAt
-    emittedAt
-    severedAt
-    ;
-  arrivalModes = arrivalLib.modes;
 
   # ── THE ACCUMULATOR RELATION AND THE ORDERING DOOR ──────────────────────────────────────────
   inherit (orderingLib)

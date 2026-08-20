@@ -98,7 +98,13 @@ let
 in
 view.viewRelation {
   inherit definition;
-  graph = scopeGraph;
+  graph = view.scopeGraph {
+    inherit carrier;
+    scopes = [ "leaf" "mid" ];
+    edges = { parent = id: if id == "leaf" then [ "mid" ] else [ ]; };
+    # the data COMPONENT — a value, never an accessor
+    data = [ { scope = "mid"; relation = "import"; datum = [ "x" ]; } ];
+  };
   marks = _: [ ];   # required: "no marks" is written down, never defaulted
 }
 ```
@@ -126,15 +132,25 @@ The closed enumerations: `tieSets.{ union, refuse, orderedFold }` · `combines.{
 condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, byKey }` ·
 `directions.{ outbound, inbound }`.
 
-## Boundaries, arrival mode and ordering
+## The data component, boundaries and ordering
 
+- **`data(G)` is a plain component of the graph value**, exactly as Fig. 1 writes it: a list of
+  `{ scope; relation; datum; }` triples, never an accessor and never a function. A datum is in it
+  or it is not, and **no traversal can put one there** — (NR-Rel) is a membership test against a
+  value that existed before any walk began.
+- **R17's shape requirement is met by that shape, not by a field and not by a check.** "A
+  contribution competes only if declared" holds because what competes is exactly what is *in* the
+  component, and the only way in is for an author to write it there: **authoring into the component
+  is the declaration**. A walk answer has no route in — the datum field set is closed to the three,
+  so a contribution (which also carries its path, its residual admission state, its distance and
+  its channel) is refused in a data position **by name**. Stripping it back to three fields is an
+  act of authorship performed by a person.
+- **There is no arrival-mode discriminator, and its absence is the design.** An earlier revision
+  made `data` a function of the graph — which made walk-dependence *sayable* — and then invented a
+  discriminator to detect what fell through. The divergence is withdrawn; the hazard is
+  **inexpressible rather than detected**, so there is nothing to discriminate.
 - **effective E = node marks ∩ declared admission.** Marks apply at the accessor, so the
   construction only ever *removes* edges: **widening is not forbidden, it is unsayable.**
-- **arrival mode is derived, never declared.** A datum is *authored* at a scope iff it is still in
-  the data component when that scope's out-edges are cut, and *walk-emitted* otherwise. The gather
-  reads only the walk-independent component, so a walk-emitted value's participation is
-  **inexpressible** rather than filtered — which restores the calculus's own property, `data(G)`
-  being a component of `G` and not a function of resolution.
 - **the ordering door takes the materialized projection and rejects the raw labelled-edge
   accessor.** The input type *is* the stratification: a consumed query cannot observe a conditional
   edge, so a query's answer cannot decide whether an edge exists, and the negative cycle cannot be
