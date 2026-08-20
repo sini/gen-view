@@ -61,7 +61,15 @@ widen the claim back.
 
 **Families beside the declaration**: `placement` · `transform`.
 
-**Oracle cluster**: `trace` `traceEntryOf` `renderTrace` `renderEntry` `edgeSortKey`.
+**Oracle cluster**: `trace` `traceEntryOf` `renderTrace` `renderEntry` `edgeSortKey` `hashTrace`.
+
+★ **Fingerprint a topology with `hashTrace`, never with `edgeSortKey`.** The key is a `" | "`-join
+over free strings, so a component carrying the separator shifts the field boundaries and two
+structurally distinct entries render one key — it is **not preimage-injective**, and anything keyed
+on it can be forged by that shift. `hashTrace` is `sha256` over the canonical JSON of the trace,
+where every component sits under its own name; entries that collide on the key still separate there.
+The collision only degrades `trace`'s **primary** order to a tie, which the canonical-JSON secondary
+resolves.
 
 **Compositions**: `compositions.{ movement, channel, registry, topology, role }`.
 

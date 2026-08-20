@@ -21,7 +21,9 @@
 # ★ AND THE ORACLE CLUSTER RETIRES LAST. `trace`, `renderTrace`, `renderEntry`, `traceEntryOf` and
 # `edgeSortKey` are the instrument that validates the spec that retires them, so they must be
 # expressible HERE before they retire THERE — any plan retiring them alongside the rest removes its
-# own oracle.
+# own oracle. The cluster's SIXTH construct, `hashTrace`, is not one of the sixteen — the export map
+# does not name it — so it is measured at the foot of this file on its own property rather than
+# joining a roster that is about the map.
 { genView, ... }:
 let
   f = import ../fixture.nix { inherit genView; };
@@ -157,6 +159,35 @@ let
     graph = tGraph;
     marks = f.noMarks;
   };
+
+  # ── TWO PRESENTATIONS OF ONE EDGE SET, AND ONE SET SHORT OF IT ──
+  # A presentation is the ORDER the contributions arrive in; the set is what they are. Reversing the
+  # list changes the first and not the second, which is exactly the difference a fingerprint of a
+  # topology must not see. Dropping one changes the SET, which is exactly the difference it must.
+  reverseList =
+    xs: builtins.genList (i: builtins.elemAt xs (builtins.length xs - 1 - i)) (builtins.length xs);
+  presentedAs = cs: tUnbounded // { contributions = cs; };
+  reversedPresentation = presentedAs (reverseList tUnbounded.contributions);
+  oneEdgeFewer = presentedAs (builtins.tail tUnbounded.contributions);
+  # The entries a presentation yields IN ITS OWN ORDER — identity-only records and therefore plain
+  # data, so two of them compare by value. The relation records themselves must NOT be compared:
+  # they reach a definition holding lambdas, and two Nix lambdas are never equal, so any such
+  # comparison reports a difference the language invented rather than one the fixtures carry.
+  entriesAsPresented =
+    r:
+    map (
+      c:
+      v.traceEntryOf {
+        contribution = c;
+        placement = mergeAtRoot;
+      }
+    ) r.contributions;
+  fingerprintOf =
+    relation:
+    v.hashTrace {
+      inherit relation;
+      placement = mergeAtRoot;
+    };
 
   # Shared placements, so a mutant differs from its fixture in exactly one respect.
   mergeAtRoot = v.placement.place {
@@ -660,6 +691,46 @@ in
           "traceEntryOf"
           "traceOf"
         ];
+      };
+
+      # ══ THE CLUSTER'S SIXTH CONSTRUCT, WHICH IS NOT ONE OF THE SIXTEEN ══
+      #
+      # ★ `hashTrace` SITS OUTSIDE THE ROSTER ABOVE ON PURPOSE, AND THE REASON IS PROVENANCE. That
+      # roster is the export map's own enumeration, and the map names sixteen; `hashTrace` is not
+      # among them. Adding a seventeenth case would make the roster cell assert something the map
+      # does not say, so the fingerprint is measured HERE, on its own property, and the roster keeps
+      # saying what it is about.
+      #
+      # ★★ THE PROPERTY IS THE ONE THE ACCEPTANCE INSTRUMENT RESTS ON: a fingerprint of a TOPOLOGY
+      # is blind to the order its edges were presented in and sensitive to which edges they are. The
+      # two arms are one cell because neither means anything alone — invariance with no sensitivity
+      # is satisfied by a constant.
+      test-the-fingerprint-is-invariant-under-presentation-order = {
+        expr = {
+          # The two presentations really do differ, so the agreement below is not a comparison of
+          # one list with itself.
+          presentationsDiffer = entriesAsPresented tUnbounded != entriesAsPresented reversedPresentation;
+          # …and they are presentations of ONE set, which is what makes their fingerprints obliged
+          # to agree.
+          sameSet =
+            builtins.sort builtins.lessThan (map builtins.toJSON (entriesAsPresented tUnbounded))
+            == builtins.sort builtins.lessThan (map builtins.toJSON (entriesAsPresented reversedPresentation));
+          fingerprintsAgree = fingerprintOf tUnbounded == fingerprintOf reversedPresentation;
+        };
+        expected = {
+          presentationsDiffer = true;
+          sameSet = true;
+          fingerprintsAgree = true;
+        };
+      };
+
+      # ★★★ THE SENSITIVITY CONTROL, AND IT IS WHAT MAKES THE CELL ABOVE FALSIFIABLE. An invariance
+      # claim measured on an instrument that cannot tell any two topologies apart is a claim about a
+      # constant function. These two topologies differ in exactly ONE edge, and the fingerprint must
+      # separate them — through the same construct, on the same fixture, in the same run.
+      test-control-the-fingerprint-separates-a-one-edge-difference = {
+        expr = fingerprintOf tUnbounded == fingerprintOf oneEdgeFewer;
+        expected = false;
       };
 
       # And every case really carries all three parts — a case with a missing mutant would generate a

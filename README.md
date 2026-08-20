@@ -175,9 +175,18 @@ not declaration fields: folding placement or content transformation into the dec
 reconstruct the released edge grammar under new names. `over` is the one operator that can
 **reorder**, so its result reports whether it did.
 
-The trace cluster — `trace`, `traceEntryOf`, `renderTrace`, `renderEntry`, `edgeSortKey` — is the
-instrument that validates the spec that retires it, so it is expressible **here** before it retires
-**there**. Entries are **identity only** and never carry resolved content.
+The trace cluster — `trace`, `traceEntryOf`, `renderTrace`, `renderEntry`, `edgeSortKey`,
+`hashTrace` — is the instrument that validates the spec that retires it, so it is expressible
+**here** before it retires **there**. Entries are **identity only** and never carry resolved
+content.
+
+`hashTrace` is that instrument's topology fingerprint: `sha256` over the canonical JSON of the
+trace, invariant under the order the edges were presented in and sensitive to which edges they are.
+It is taken over the **trace** and never over the sort key, because the key is a `" | "`-join over
+free strings — a component carrying the separator shifts the field boundaries, so two structurally
+distinct entries render one key. Canonical JSON has no such route: every component sits under its
+own name. The collision degrades `trace`'s primary order to a tie and the canonical-JSON secondary
+resolves it.
 
 ## Tests
 

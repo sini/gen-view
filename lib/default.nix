@@ -181,6 +181,7 @@ in
     renderTrace
     renderEntry
     edgeSortKey
+    hashTrace
     ;
 
   # ── THE NAMED COMPOSITIONS ──────────────────────────────────────────────────────────────────

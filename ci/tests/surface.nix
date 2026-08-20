@@ -35,6 +35,7 @@ in
         "directions"
         "edgeLabels"
         "edgeSortKey"
+        "hashTrace"
         "labelOrder"
         "labelWellFormedness"
         "orderedFoldOf"

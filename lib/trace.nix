@@ -1,6 +1,7 @@
-# THE ORACLE CLUSTER — the structured trace, its frozen sort key, and the rendering.
+# THE ORACLE CLUSTER — the structured trace, its frozen sort key, the rendering, and the trace's
+# structural fingerprint.
 #
-# ★★ WHY THIS CLUSTER IS BUILT HERE BEFORE ANYTHING RETIRES. These five constructs are THE
+# ★★ WHY THIS CLUSTER IS BUILT HERE BEFORE ANYTHING RETIRES. These six constructs are THE
 # INSTRUMENT THAT VALIDATES THE SPEC THAT RETIRES THEM. A plan that retired them alongside the
 # rest would remove its own oracle, so they must be EXPRESSIBLE HERE FIRST — and the ordering is
 # not a courtesy: the key below is built on the PATH and the MODE, which are placement components,
@@ -115,6 +116,25 @@ let
     + entry.mode;
 
   renderTrace = entries: map renderEntry entries;
+
+  # `hashTrace { relation; placement; }` — the topology's structural fingerprint: `sha256` over the
+  # canonical JSON of the trace. Content-independent, because the trace it hashes is: an entry
+  # carries identities and never a datum, so two runs differing only in what their channels resolved
+  # to fingerprint alike, and that is a limit of the instrument rather than a defect in it.
+  #
+  # ★★ THE PREIMAGE ARGUMENT IS WHY THE HASH IS TAKEN OVER THE TRACE AND NEVER OVER THE SORT KEY.
+  # The key above is a `" | "`-join over components that are FREE STRINGS, so a component carrying
+  # the separator shifts the field boundaries and two structurally distinct entries render one key —
+  # the key is not preimage-injective, and a fingerprint built on it would be forgeable by exactly
+  # that shift. The trace encoding has no such route: canonical JSON carries every component under
+  # its own name, so no component's content can be read as another's, and entries that collide on
+  # the key still separate here. The key's collision degrades `trace`'s PRIMARY order to a tie and
+  # the canonical-JSON secondary resolves it — which is what the secondary is for.
+  #
+  # ★ PERMUTATION INVARIANCE IS INHERITED, NOT RESTATED. `trace` is a function of the entry SET, so
+  # two presentations of one set reach `toJSON` byte-equal and there is nothing left here to make
+  # order-independent.
+  hashTrace = args: builtins.hashString "sha256" (builtins.toJSON (trace args));
 in
 {
   inherit
@@ -123,5 +143,6 @@ in
     trace
     renderEntry
     renderTrace
+    hashTrace
     ;
 }
