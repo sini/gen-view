@@ -132,7 +132,10 @@ let
   # callables were never enumerated. The absence claim survived — none of the five yields a graph —
   # but the COVERAGE SENTENCE described a hand-written list rather than the surface, and a
   # constructor added inside those families would have joined neither the sweep nor the exclusion
-  # note SILENTLY. A derived roster cannot drift that way: a new export joins the walk by existing.
+  # note SILENTLY. A derived roster does not drift that way: a new export joins the walk by existing
+  # — ★ SO LONG AS IT IS WITHIN THE WALK'S REACH, which is why the partition cell carries a
+  # FIXED-POINT ARM and not a depth bound alone. The bound is exactly saturated by the real surface
+  # today, so unqualified that sentence would be true only up to a depth the surface has reached.
   #
   # The walk descends through attrset-valued exports to the depth the surface actually nests (a
   # combine RECORD holds its `op`, which is two levels below the top), and skips the `__element`
@@ -152,7 +155,12 @@ let
       ) (builtins.filter (n: n != "__element") (builtins.attrNames val))
     else
       [ ];
-  allCallables = walkSurface 3 "" v;
+  walkDepth = 3;
+  allCallables = walkSurface walkDepth "" v;
+  # ★★★ THE SAME WALK AT A DEPTH NOTHING ON THIS SURFACE COULD SATURATE. Read only by the
+  # fixed-point arm below: if the two walks disagree, the shallow one is missing something and every
+  # count taken from it is a count of the wrong set.
+  deeperCallables = walkSurface (walkDepth + 5) "" v;
   constructors = builtins.filter (c: !(builtins.elem c.name bareRecordHelpers)) allCallables;
 
   # `yieldsGraph` — the predicate. Not "does it evaluate" (a partially-applied function evaluates
@@ -228,12 +236,30 @@ in
         # take this red for existing
         reachable = builtins.length allCallables > 40;
         excluded = builtins.length bareRecordHelpers;
+        # ★★★ THE FIXED-POINT ARM, AND WITHOUT IT EVERY OTHER FIELD IN THIS CELL IS
+        # SELF-REFERENTIAL. `inNeither`, `partitionIsTotal` and `reachable` are all computed from
+        # `allCallables` — the SUBJECT and the YARDSTICK are the same walk — so a callable the walk
+        # MISSES is absent from both, and all three stay green while it sits outside the roster.
+        # Measured: the real surface nests EXACTLY to the bound, zero headroom, and a seeded
+        # depth-4 export is invisible to `walk 3`, visible to `walk 4`, and leaves `inNeither = [ ]`,
+        # `partitionIsTotal = true` and `reachable = true` untouched.
+        #
+        # Comparing the walk against a DEEPER walk breaks the self-reference, because the yardstick
+        # is no longer the subject. Anything nested past the bound makes the two disagree and takes
+        # this cell red — a roster can only be trusted complete by something that is not the roster.
+        # ★ COMPARED BY NAME, AND THAT IS NOT A WEAKENING — IT IS THE LANGUAGE. These are records
+        # holding FUNCTIONS, and two Nix lambdas are never equal, not even against themselves, so a
+        # record-wise comparison reads `false` on a walk that is a perfect fixed point. Measured
+        # here, on this cell, before it was corrected. The names are the roster's identity anyway:
+        # what the arm asks is whether the deeper walk REACHES ANYTHING THE SHALLOW ONE DID NOT.
+        walkIsAFixedPoint = map (c: c.name) allCallables == map (c: c.name) deeperCallables;
       };
       expected = {
         inNeither = [ ];
         partitionIsTotal = true;
         reachable = true;
         excluded = 8;
+        walkIsAFixedPoint = true;
       };
     };
 
