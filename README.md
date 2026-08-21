@@ -17,10 +17,10 @@ This library publishes that calculus **raw** and the compositions **on top of it
 
 ## The two layers
 
-| layer            | what it publishes                                                                                                                                       |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **raw calculus** | `edgeLabels` (L) · `labelWellFormedness` (E) · `labelOrder` (\<) · `dataOrder` (k) · `relations` (R), plus `carrier`, `scopeGraph` and `relationLookup` |
-| **compositions** | `compositions.{ movement, channel, registry, topology, role }` — five names over one construction, at three key shapes                                  |
+| layer            | what it publishes                                                                                                                                                                                                                                         |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **raw calculus** | `edgeLabels` (L) · `labelWellFormedness` (E) · `labelOrder` (\<) · `dataOrder` (k) · `relations` (R), plus `relatumLabels` (Λ — a **required** field of `carrier` and deliberately **not** a sixth element), `carrier`, `scopeGraph` and `relationLookup` |
+| **compositions** | `compositions.{ movement, channel, registry, topology, role }` — five names over one construction, at three key shapes                                                                                                                                    |
 
 Publishing only the convenience composition **hides the calculus**, so a consumer needing a
 different instance has to re-implement one. Here the rule is doubly load-bearing: the constructs

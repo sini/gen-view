@@ -54,8 +54,25 @@ class-discipline half ruled to a delivery-class realization surface not yet extr
 ## The published surface, by layer
 
 **Raw calculus** (the five, each a named export): `edgeLabels` `labelWellFormedness` `labelOrder`
-`dataOrder` `relations` — plus `carrier`, `scopeGraph`, `relationLookup`, and `carrierElements` as
-the checkable enumeration of the five.
+`dataOrder` `relations` — plus `relatumLabels`, `carrier`, `scopeGraph`, `relationLookup`, and
+`carrierElements` as the checkable enumeration of the five.
+
+★★ **`relatumLabels` IS A PUBLISHED CONSTRUCTOR AND IS NOT A SIXTH CARRIER ELEMENT** — do not read
+`carrierElements` as the whole raw layer, and do not "complete" the enumeration by adding it. `Λ` is
+the **relatum-role population**: a binding is a reified relation whose incident edges reach the edge
+set carrying the roles its relata play, so the population is real and has to be declarable. It
+**indexes nothing in the carrier** — admission is indexed by the binding's kind, the relation `r`,
+never by a role label — which is why `carrierElements` stays five while the export count does not.
+
+- **Required, not optional.** `carrier` refuses without it by name; a graph with no reified bindings
+  says so by declaring `relatumLabels { names = [ ]; }`. An empty `Λ` is lawful where an empty `R` is
+  refused — `R` empty means (NR-Rel) reaches no datum at all, `Λ` empty is the commonest graph.
+- **Λ-labelled edges are HELD AND NOT WALKED.** `Λ ∩ L = ∅` and `labelWellFormedness` refuses every
+  literal outside `L`, so the derivative of any admission expression with respect to a role label is
+  the empty state and the walk prunes there. The inertness is structural, not promised.
+- **The classification of an edge label is total over three populations**, `L` · `R` · `Λ`:
+  `scopeGraph` refuses a label in none of them, and `carrier` enforces all three disjointness pairs
+  separately, each with its own refusal.
 
 **Declaration**: `viewDefinition`, `definitionFields`, `compositionFields`, and the closed
 enumerations `combines` `tieSets` `dedups` `directions` (with `combineArms` `tieSetArms`
