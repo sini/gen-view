@@ -66,6 +66,10 @@ let
     ) authorityTokens;
 
   violations = hitsIn libSources;
+
+  # The authority's refusal is a named `throw`, so a caller can hold it. Spelled exactly as
+  # `refusals.nix` spells its own: one predicate for one property, whoever authored the refusal.
+  refuses = thunk: !(builtins.tryEval (builtins.deepSeq thunk true)).success;
 in
 {
   flake.tests.reference = {
@@ -117,38 +121,36 @@ in
       };
     };
 
-    # ══ ORACLE O9 — THE MULTI-CANDIDATE DISPOSAL IS PINNED ══
+    # ══ ORACLE O9 — THE MULTI-CANDIDATE IMPORT SET IS REFUSED BY THE AUTHORITY ══
     #
     # ★★★ THE CELL EVERY OTHER ORACLE HERE IS BLIND TO. D < I < P orders the three SORTS — local,
-    # imported, inherited — and orders NOTHING among the imports. When two imported candidates are
-    # both admitted, the authority disposes them BY THE RUNTIME TYPE OF THE PROJECTED DATUM, and
-    # the two arms below are that disposal measured rather than described:
+    # imported, inherited — and orders NOTHING among the imports. `r` includes both `A` and `B` and
+    # both are admitted, so the authority is handed a candidate set the specificity ordering does
+    # not decide. It answers with a single declaration or REFUSES: two admitted candidates
+    # contributed by two DISTINCT nodes are two declaration occurrences for one read, which is an
+    # ambiguity (Neron 2015 §2.2, Duplicate Declarations), and it refuses by name.
     #
-    #   (i)  an ATTRSET projection ⇒ a shadow-fold across EVERY candidate. The expected value
-    #        `{ a = 1; b = 2; }` EXISTS AT NEITHER `A` NOR `B` — which is what makes this arm
-    #        discriminating: an implementation returning either node's datum fails it. It is also
-    #        why no `codomain` literal is published: the cardinality is one and the PROVENANCE is
-    #        not, so a constant asserting "at most one declaration" would be false in the sense it
-    #        claimed.
-    #   (ii) anything else ⇒ the FIRST in traversal order, which is the caller's own DECLARED
-    #        imports list. `[ "a" ]` comes back and `B` is SILENTLY ABSENT. This is the live
-    #        consumer's type.
+    # ★★ WHAT THIS CELL PINS IS THAT THE REFUSAL TRAVELS. `referenceResolution`'s compute is TOTAL
+    # DELEGATION, so it neither authors this refusal nor may swallow it — a construct that caught
+    # the throw and answered anything at all would be deciding among declarations, which is the one
+    # thing the delegation exists not to do. The cell reads the refusal through the construct,
+    # which is the only place the property is observable from here.
     #
-    # ★★ ARM (ii) DOES NOT DISCRIMINATE ON ITS OWN AND THIS CELL SAYS SO. Under a degeneration that
-    # simply dropped `B`, arm (ii) would still read `[ "a" ]`. What protects it is arm (i) SHARING
-    # THE FIXTURE — the same graph, the same two admitted candidates — together with `q` below. A
-    # cell claiming otherwise would be claiming a control it does not have.
-    test-a-multi-candidate-import-set-is-disposed-by-the-authority = {
+    # ★★ BOTH ARMS ARE CAUGHT SEPARATELY, AND THAT IS DELIBERATE. One `tryEval` over both reads
+    # would be satisfied by a construction in which only one of them refused. The two projections
+    # reach the authority by different types — `d` is attrset-valued, `l` is list-valued and is the
+    # live consumer's type — and until this change those were two different code paths carrying two
+    # different silent dispositions: a shadow-fold across every candidate producing a value that
+    # existed at NEITHER node, and `builtins.head` in traversal order with `B` silently absent.
+    # Asserting each arm separately is what keeps the retirement of both of them oracled.
+    test-a-multi-candidate-import-set-is-refused-by-the-authority = {
       expr = {
-        attrsAtR = f.multiSelf.get "r" "attrsArm";
-        listAtR = f.multiSelf.get "r" "listArm";
+        attrsAtR = refuses (f.multiSelf.get "r" "attrsArm");
+        listAtR = refuses (f.multiSelf.get "r" "listArm");
       };
       expected = {
-        attrsAtR = {
-          a = 1;
-          b = 2;
-        };
-        listAtR = [ "a" ];
+        attrsAtR = true;
+        listAtR = true;
       };
     };
 
