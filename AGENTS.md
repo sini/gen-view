@@ -103,6 +103,39 @@ widen the claim back.
 
 **Families beside the declaration**: `placement` · `transform`.
 
+**Reference resolution**: `referenceResolution`, with `referenceResolutionFields` as the checkable
+enumeration of its seven. A **defining query** whose compute is **TOTAL DELEGATION** to an injected
+query authority. The term is the primary's own — Néron et al. 2015 names *"reference resolution"* as
+a **rule of the resolution calculus** (Fig. 3 rule (X), and rule (X′) of Fig. 19). It is **not**
+`referenceAttribute`: Hedin 2000's reference attribute takes *"the (unique) identity of the denoted
+node"* as its value, where this construct's value is the caller's **projection of the resolved
+node's datum** — so that term would be true at the source and false here.
+
+★★ **THE AUTHORITY IS A FIELD, AND THAT IS WHAT KEEPS THIS LIBRARY EVALUATOR-FREE.** `engine` is
+injected into the constructor, so `lib/` acquires no evaluator and `flake.nix` no edge onto one —
+gen-scope is a **ci-only** input, on the same terms as nixpkgs, and
+`ci/tests/reference.nix` asserts that absence over `lib/`'s own source with a positive control
+rather than leaving it to prose. Do not "simplify" by importing the authority.
+
+★★★ **THERE IS NO `codomain` FIELD AND DO NOT ADD ONE.** A literal such as `codomain = "atMostOne"`
+would be a constant *here* about a fact owned *there*, and it would be **false in the sense it
+claims**. D < I < P orders the three **sorts**; **nothing orders candidates among the imports.** The
+delegate disposes a multi-candidate import set by the **runtime type of the projected datum** — an
+attrset shadow-folds across *every* candidate, anything else takes the first in the caller's own
+declared imports order. So the **cardinality is one and the provenance is not**: the value returned
+is not in general the datum of any one node. Pinned by
+`reference.test-a-multi-candidate-import-set-is-disposed-by-the-authority`, whose attrset arm
+expects `{ a = 1; b = 2; }` — a value present at **neither** contributing node. The fact is selected
+inside the delegate's closure on a runtime type, so no constructor can derive it and no
+construction-time check can know it; it is **pointed at**, never re-spelled.
+
+★ **The relation is NOT declared here**, though `viewDefinition` requires one: the only honest
+source for the name is the delegate's traversal vocabulary, which is a private module there, so a
+`relation` field would be an **unchecked** re-spelling — the drift shape this ecosystem has closed
+twice. And **`wellFormed` and `project` are two fields because the defining query has two
+operators**; fusing them back into one predicate makes `null` mean both *"not a binding here"* and
+*"the value"*, which is the defect `requireNonNull` refuses.
+
 **Oracle cluster**: `trace` `traceEntryOf` `renderTrace` `renderEntry` `edgeSortKey` `hashTrace`.
 
 ★ **Fingerprint a topology with `hashTrace`, never with `edgeSortKey`.** The key is a `" | "`-join

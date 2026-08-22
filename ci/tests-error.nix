@@ -22,11 +22,13 @@
 {
   lib,
   genView,
+  genScope,
   genInputs,
   ...
 }:
 let
   f = import ./fixture.nix { inherit genView; };
+  r = import ./reference-fixture.nix { inherit genView genScope; };
   v = genView;
 in
 {
@@ -79,6 +81,102 @@ in
             type = "ThrownError";
             msg = "^gen-view\\.viewRelation: field 'widen' is not a field of this construct; the field set is closed .*$";
           };
+        };
+      };
+
+    # ── REFERENCE RESOLUTION: EVERY OMITTED FIELD IS NAMED, ONE CELL PER FIELD ──
+    # Generated from the construct's own field enumeration, so an eighth field cannot arrive
+    # without a message cell arriving with it. What makes these cells worth their length is the
+    # thing they replace: the wrapper this construct succeeds left FOUR of these seven to silent
+    # defaults, and a default is a decision nobody made and nobody can see.
+    flake.testsError.reference-refusals =
+      builtins.listToAttrs (
+        map (field: {
+          name = "test-omitting-reference-${field}-names-the-field";
+          value = {
+            expr = builtins.deepSeq (v.referenceResolution (removeAttrs r.referenceArgs [ field ])) true;
+            expectedError = {
+              type = "ThrownError";
+              msg = "^gen-view\\.referenceResolution: required field '${field}' is not declared; every field of this construct is required and total .*$";
+            };
+          };
+        }) v.referenceResolutionFields
+      )
+      // {
+        # ★ THE LIVE CONTROL, IN THE SAME INVOCATION. Without it every cell above is consistent
+        # with a construct that refuses whatever it is handed, and the messages would be about a
+        # constructor nobody has seen succeed.
+        test-control-the-complete-reference-declaration-does-not-refuse = {
+          expr = (v.referenceResolution r.referenceArgs).name;
+          expected = "resolvedProvides";
+        };
+
+        # The closed field set names the offender — and the name chosen here is the one a reader is
+        # most likely to try, because a `codomain` literal is exactly what this construct declines
+        # to publish: the disposal is selected inside the authority's closure on a runtime type, so
+        # no constructor could derive it and no constant could stay true about it.
+        test-an-undeclared-reference-field-is-named = {
+          expr = builtins.deepSeq (v.referenceResolution (
+            r.referenceArgs // { codomain = "atMostOne"; }
+          )) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.referenceResolution: field 'codomain' is not a field of this construct; the field set is closed .*$";
+          };
+        };
+
+        # The injected authority, named with what it must publish — a caller who handed the wrong
+        # value needs to know which surface was wanted, not that one was refused.
+        test-an-engine-publishing-no-query-is-named = {
+          expr = builtins.deepSeq (v.referenceResolution (r.referenceArgs // { engine = { }; })) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.referenceResolution: field 'engine' must be a query authority publishing a 'query'.*performs no resolution of its own.*$";
+          };
+        };
+
+        # The two operators are named as operators, because a caller who fused them needs to meet
+        # the reason and not the type complaint: a predicate that also projects cannot be split
+        # into π and σ, which is why the split is not a matter of taste.
+        test-a-non-function-projection-is-named-as-an-operator = {
+          expr = builtins.deepSeq (v.referenceResolution (r.referenceArgs // { project = [ ]; })) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.referenceResolution: field 'project' must be a function.*a predicate that also projects cannot be split into the two operators.*$";
+          };
+        };
+
+        # ★ THE FLAG IS NAMED INDIVIDUALLY, which is the whole reason the three are checked through
+        # a list rather than by one `all` over them. A message saying "a flag is not a boolean"
+        # would leave the caller to find out which.
+        test-a-non-boolean-discipline-flag-names-which-one = {
+          expr = builtins.deepSeq (v.referenceResolution (
+            r.referenceArgs // { importShadowsParent = null; }
+          )) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.referenceResolution: field 'importShadowsParent' is null, which is not a boolean.*DECLARED here rather than left to the authority's defaults.*$";
+          };
+        };
+
+        # ★★★ THE MATERIALIZATION REFUSAL, NAMED WITH THE RESULT AND THE NODE. This is the fused
+        # predicate's third defect closed, and the message has to carry both coordinates: a caller
+        # meets it while forcing some attribute far from the declaration, and "a projection was
+        # null" without the result name and the node is a fact they cannot act on.
+        test-a-null-projection-names-the-result-and-the-node = {
+          expr = builtins.deepSeq (r.projectionSelf.get "reader" "nullArm") true;
+          expectedError = {
+            type = "ThrownError";
+            msg = ".*gen-view\\.referenceResolution: result 'tagOfNearestHolder': node 'holder' is admitted by 'wellFormed' and its 'project' returned null.*NO BINDING HERE.*";
+          };
+        };
+
+        # ★ THE CONTROL THAT SEPARATES THAT REFUSAL FROM AN ORDINARY ABSENCE, on the same fixture in
+        # the same run: a node whose only candidate the predicate DECLINES answers null and does not
+        # refuse. Without it, the cell above is consistent with a guard that fired on every miss.
+        test-control-an-unadmitted-node-answers-null-without-refusing = {
+          expr = r.projectionSelf.get "lonely" "nullArm";
+          expected = null;
         };
       };
 

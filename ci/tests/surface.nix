@@ -41,6 +41,8 @@ in
         "orderedFoldOf"
         "placement"
         "readsOf"
+        "referenceResolution"
+        "referenceResolutionFields"
         "relationLookup"
         "relations"
         "relatumLabels"
@@ -122,6 +124,41 @@ in
         "over"
         "scan"
       ];
+    };
+
+    # ★★ REFERENCE RESOLUTION IS PUBLISHED IN THE RAW LAYER, AND THAT IS WHAT THIS CELL EXISTS FOR.
+    # The constructs of this library migrate into a consolidated library and the container does
+    # not, so a construct reachable only THROUGH a composition would have to be REBUILT at the fold
+    # while a published one moves intact. This one has a live external consumer, which makes the
+    # difference concrete rather than architectural.
+    #
+    # ★ IT IS NOT A CARRIER ELEMENT and `carrierElements` stays at five: it indexes nothing in the
+    # carrier and declares no walk. It is not a sixth composition either — the five compositions
+    # are instantiations of ONE construction over `viewDefinition` → `viewRelation`, and this
+    # construct goes through neither. Both facts are pinned by the two enumeration cells above,
+    # which is why this cell asserts only what those cannot: that the name is a published
+    # constructor with its field enumeration beside it.
+    test-reference-resolution-is-a-published-constructor-with-its-enumeration = {
+      expr = {
+        isExport = v ? referenceResolution && builtins.isFunction v.referenceResolution;
+        fieldsPublished = v.referenceResolutionFields;
+        notACarrierElement = builtins.elem "referenceResolution" v.carrierElements;
+        notAComposition = v.compositions ? referenceResolution;
+      };
+      expected = {
+        isExport = true;
+        fieldsPublished = [
+          "engine"
+          "name"
+          "wellFormed"
+          "project"
+          "localShadowsImport"
+          "importShadowsParent"
+          "transitiveImports"
+        ];
+        notACarrierElement = false;
+        notAComposition = false;
+      };
     };
 
     # ★ NO IDENTIFIER HERE IS NAMED `materialize`. The act between a view definition and a view

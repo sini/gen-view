@@ -76,6 +76,12 @@
 #   BESIDE the declaration, never as declaration fields.
 # · `transform.{ map, scan, over }`: content transformation, excluded from the declaration by
 #   construction and homed here rather than dropped.
+# · `referenceResolution`: a DEFINING QUERY over an INJECTED authority, ruled in here rather than
+#   swept in by proximity. It is the one construct of the retiring resolution wrapper with a live
+#   external consumer, and it lands as a construct BESIDE the declaration for the same reason
+#   `placement` does — it declares a query and holds no walk, so it is not a `viewDefinition` and
+#   not a sixth composition. Its compute is TOTAL DELEGATION; this library acquires no evaluator
+#   and no dependency edge onto one, because the authority arrives as a field.
 # · the trace cluster: it is the instrument that validates the spec that retires it, so it must be
 #   expressible here BEFORE it retires there.
 #
@@ -98,6 +104,7 @@ let
   orderingLib = import ./ordering.nix { inherit prelude graph; };
   placementLib = import ./placement.nix { inherit prelude; };
   transformLib = import ./transform.nix { inherit prelude; };
+  referenceLib = import ./reference.nix { inherit prelude; };
   traceLib = import ./trace.nix { inherit prelude; };
   compositionLib = import ./compositions.nix { inherit prelude graph; };
 in
@@ -173,6 +180,19 @@ in
     inherit (transformLib) scan over;
     map = transformLib.mapDatums;
   };
+
+  # ── REFERENCE RESOLUTION — a defining query over an INJECTED authority, likewise a construct
+  # beside the declaration ─────────────────────────────────────────────────────────────────────
+  # ★ IT IS NOT A CARRIER ELEMENT and does not join `carrierElements`, which stays at five: it
+  # indexes nothing in the carrier and declares no walk. It is not a sixth composition either — the
+  # five compositions are instantiations of ONE construction over `viewDefinition` → `viewRelation`,
+  # and this construct goes through neither.
+  inherit (referenceLib) referenceResolution;
+
+  # The field set, published as an enumeration for the same reason `definitionFields` is: "each
+  # omitted field refuses by name" is a claim that has to quantify over something, and a field
+  # added without a cell to omit it is the failure a hand-written list of cells cannot see.
+  referenceResolutionFields = referenceLib.required;
 
   # ── THE ORACLE CLUSTER — expressible HERE before it retires THERE ───────────────────────────
   inherit (traceLib)
