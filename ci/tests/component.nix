@@ -120,7 +120,6 @@ let
     "renderEntry"
     "renderTrace"
     "placement.pathKey"
-    "placement.setAttrByPath"
     "placement.sourceKey"
     "placement.targetKey"
   ];
@@ -258,7 +257,8 @@ in
         inNeither = [ ];
         partitionIsTotal = true;
         reachable = true;
-        excluded = 8;
+        # 8 until `placement.setAttrByPath` retired to gen-prelude (2026-08-27 ruling).
+        excluded = 7;
         walkIsAFixedPoint = true;
       };
     };
@@ -494,7 +494,6 @@ in
           )
           ((v.renderTrace [ ]).__element or null)
           ((v.placement.pathKey [ "a" ]).__element or null)
-          ((v.placement.setAttrByPath [ "a" ] 1).__element or null)
           ((v.placement.sourceKey {
             scope = "s";
             relation = "r";
@@ -510,12 +509,10 @@ in
           "renderEntry"
           "renderTrace"
           "placement.pathKey"
-          "placement.setAttrByPath"
           "placement.sourceKey"
           "placement.targetKey"
         ];
         tags = [
-          null
           null
           null
           null

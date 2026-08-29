@@ -7,15 +7,27 @@
 # released rather than renamed. Keeping them here gives the four homeless constructs a home
 # without giving the declaration a shape a ruling took away from it.
 #
-# The four that land here, each named in the record that left them homeless: the three PLACEMENT
+# The four that landed here, each named in the record that left them homeless: the three PLACEMENT
 # MODES with DEDUP EXEMPTION AS A PLACEMENT PROPERTY, `setAttrByPath`, the TERMINAL SINK
-# (`targets.output`), and mutate-with-a-position.
+# (`targets.output`), and mutate-with-a-position. Three of the four are still here; the fourth
+# retired to gen-prelude and the reversal is recorded next.
 #
-# ★ `setAttrByPath` IS PUBLISHED, AND THAT IS THE POINT OF PUBLISHING IT. It was measured absent
-# from every candidate successor library AND from the utility base, while three private twins of it
-# exist in the ecosystem — the exact shape of a raw primitive trapped inside composition-only
-# libraries, which is the failure the raw-calculus rule exists to prevent. The gen libraries are
-# nixpkgs-lib-free, so the ambient implementation is not an available substitute.
+# ★ `setAttrByPath` WAS PUBLISHED FROM HERE AND THE OWNER RULED THE OTHER WAY (2026-08-27). The
+# position this file took, kept verbatim in substance because a rejected position that leaves no
+# trace gets re-proposed: the primitive was MEASURED absent from every candidate successor library
+# AND from the utility base, while three private twins of it existed in the ecosystem — the exact
+# shape of a raw primitive trapped inside composition-only libraries, which is the failure the
+# raw-calculus rule exists to prevent. The gen libraries are nixpkgs-lib-free, so the ambient
+# implementation was not an available substitute. Deferring to a consolidated library that did not
+# yet exist was therefore DECLINED, and publishing from here was chosen over waiting.
+#
+# THE REVERSAL, and why the declined position does not survive it: that measurement was of an
+# ABSENCE in the utility base, and the ruling FILLED the absence rather than leaving it — the pair
+# `setAttrByPath` + `getAttrByPath` landed in gen-prelude (`a2d2e7d`, `a05779b`), which is the
+# named owner a primitive wants and which this library never was. So the export is withdrawn and
+# the internal use below consumes `prelude.setAttrByPath`. What the raw-calculus rule bought here
+# still holds: the primitive is published, just not from a placement library. Placement keeps the
+# CONSTRUCT and stops keeping the PRIMITIVE.
 #
 # ★ THE ORDERING COUPLING, RECORDED BECAUSE IT DECIDES A RETIREMENT SEQUENCE: the frozen sort key
 # of the oracle cluster (`trace.nix`) keys on the PATH and the MODE, both of which are components
@@ -23,7 +35,7 @@
 # is here — so this file is upstream of that cluster's retirement, not beside it.
 { prelude }:
 let
-  inherit (prelude) foldl' elem;
+  inherit (prelude) elem setAttrByPath;
   refusal = import ./refusal.nix { inherit prelude; };
   inherit (refusal)
     refuse
@@ -38,15 +50,6 @@ let
     "nest"
     "nest-verbatim"
   ];
-
-  # `setAttrByPath [ "a" "b" ] v` ⇒ `{ a.b = v; }`. The empty path is the value itself, which is
-  # what makes `place` with a root-level target a plain case rather than a special one.
-  setAttrByPath =
-    path: value:
-    foldl' (acc: seg: { ${seg} = acc; }) value (
-      # Right fold via a reversed left fold: the LAST segment is the innermost attribute.
-      builtins.genList (i: builtins.elemAt path (builtins.length path - 1 - i)) (builtins.length path)
-    );
 
   # THE TARGETS. Two arms, and the second is the TERMINAL SINK — a position outside the graph
   # entirely, which is why it is an arm of its own rather than a scope that happens to be special.
@@ -125,7 +128,6 @@ in
 {
   inherit
     modes
-    setAttrByPath
     targets
     place
     pathKey

@@ -71,9 +71,10 @@
 # R17's shape requirement — a contribution competes only if declared — is met BY THE COMPONENT
 # SHAPE: what competes is exactly what is in `data`, the only way in is for an author to write it
 # there, and a walk ANSWER is refused in a data position by name.
-# · `placement`, `setAttrByPath`, the placement modes and the terminal sink: ruled into a fourth
-#   destination with no name and no owner, which is this library — kept as a construct family
-#   BESIDE the declaration, never as declaration fields.
+# · `placement`, the placement modes and the terminal sink: ruled into a fourth destination with no
+#   name and no owner, which is this library — kept as a construct family BESIDE the declaration,
+#   never as declaration fields. `setAttrByPath` arrived with them and has since retired to
+#   gen-prelude by a later ruling (2026-08-27); `placement.nix` records that reversal.
 # · `transform.{ map, scan, over }`: content transformation, excluded from the declaration by
 #   construction and homed here rather than dropped.
 # · `referenceResolution`: a DEFINING QUERY over an INJECTED authority, ruled in here rather than

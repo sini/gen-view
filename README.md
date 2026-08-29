@@ -169,11 +169,17 @@ condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, 
 
 ## Beside the declaration, never inside it
 
-`placement` (the three modes with dedup exemption as a placement property, `setAttrByPath`, the
-root target and the terminal sink) and `transform.{ map, scan, over }` are **construct families**,
-not declaration fields: folding placement or content transformation into the declaration would
-reconstruct the released edge grammar under new names. `over` is the one operator that can
-**reorder**, so its result reports whether it did.
+`placement` (the three modes with dedup exemption as a placement property, the root target and the
+terminal sink) and `transform.{ map, scan, over }` are **construct families**, not declaration
+fields: folding placement or content transformation into the declaration would reconstruct the
+released edge grammar under new names. `over` is the one operator that can **reorder**, so its
+result reports whether it did.
+
+`placement.setAttrByPath` **was** part of that family and is **no longer exported**: the owner
+ruled (2026-08-27) that the path writer/reader pair lands in **gen-prelude**, and every live
+hand-roll converges on it. Use `gen-prelude`'s `setAttrByPath`, which additionally **refuses by
+name** on a non-list path or a non-string segment where this one fell into a raw uncatchable
+abort. `lib/placement.nix` keeps the declined position and its measurement.
 
 The trace cluster — `trace`, `traceEntryOf`, `renderTrace`, `renderEntry`, `edgeSortKey`,
 `hashTrace` — is the instrument that validates the spec that retires it, so it is expressible

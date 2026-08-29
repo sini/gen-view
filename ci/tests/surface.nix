@@ -110,7 +110,6 @@ in
         "modes"
         "pathKey"
         "place"
-        "setAttrByPath"
         "sourceKey"
         "targetKey"
         "targets"

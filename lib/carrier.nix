@@ -2,10 +2,18 @@
 #
 # ★★ WHY THE RAW LAYER IS PUBLISHED AND NOT ONLY THE COMPOSITIONS. A library publishing only its
 # convenience composition HIDES the calculus, so a consumer needing a different instance has to
-# re-implement one. Two measured instances of exactly that sit in this ecosystem: gen-select's
-# `matchView` is unexported while `sel = select;` is exported, and `setAttrByPath` has no exported
+# re-implement one. Two measured instances of exactly that sat in this ecosystem: gen-select's
+# `matchView` is unexported while `sel = select;` is exported, and `setAttrByPath` had no exported
 # home anywhere and three private twins. Both are raw primitives trapped inside composition-only
-# libraries, and both are why those constructs have no home to retire into.
+# libraries, and both are why those constructs had no home to retire into.
+#
+# ★ THE SECOND INSTANCE IS DISCHARGED, AND HOW IT WAS IS THE POINT. This library's own reading was
+# that the fix is to publish the primitive from HERE, and it did. The owner ruled otherwise
+# (2026-08-27): it lands in the UTILITY BASE, and `setAttrByPath` + `getAttrByPath` shipped in
+# gen-prelude with every live twin converging on them. What survives is the RULE — a raw primitive
+# needs an exported home — and the ruling settled only WHICH library is that home. Publishing it
+# from a placement library would have given the primitive an owner it does not belong to; the
+# rejected position and its measurement are kept at `placement.nix`.
 #
 # ★★ AND HERE THE RULE IS DOUBLY LOAD-BEARING. The CONSTRUCTS of this library migrate into a
 # consolidated library later; the CONTAINER does not. So construct boundaries carry all of the
