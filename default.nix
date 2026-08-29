@@ -23,10 +23,17 @@
 # `inputs.gen-prelude.follows` makes the same construction the flake output holds. Were the two
 # preludes allowed to diverge, this entry and the flake output would be two libraries that agree
 # on names and disagree on builds — the one drift an `attrNames` comparison cannot see.
+#
+# ★ `graph` IS CONSTRUCTED THROUGH GEN-GRAPH'S OWN STANDALONE ENTRY, NEVER THROUGH ITS BARE
+# `./lib`. Reaching past the entry obliged this file to name gen-graph's whole formal list by
+# hand, which is a SECOND SIGNATURE that nothing compares against the first: every formal
+# gen-graph gains or retires has to be re-tracked here, and when it drifts only the standalone
+# path breaks while CI — which exercises the flake path — stays green. Through the entry, what
+# gen-graph needs is defaulted by gen-graph from its own lock and the divergence cannot form.
 {
   lock ? builtins.fromJSON (builtins.readFile ./flake.lock),
   fetch ? name: builtins.fetchTree lock.nodes.${lock.nodes.root.inputs.${name}}.locked,
   prelude ? import "${fetch "gen-prelude"}/lib",
-  graph ? import "${fetch "gen-graph"}/lib" { inherit prelude; },
+  graph ? import "${fetch "gen-graph"}" { inherit prelude; },
 }:
 import ./lib { inherit prelude graph; }
