@@ -23,7 +23,6 @@
   lib,
   genView,
   genScope,
-  genInputs,
   ...
 }:
 let
@@ -32,14 +31,6 @@ let
   v = genView;
 in
 {
-  # Same type as `flake.tests`, because it is the same kind of thing read by the same runner —
-  # only the assertion the cells carry differs.
-  options.flake.testsError = lib.mkOption {
-    type = lib.types.lazyAttrsOf (lib.types.lazyAttrsOf lib.types.raw);
-    default = { };
-    description = "Test suites whose cells assert an ERROR: { suite.test = { expr; expectedError; }; }. Read by `nix-unit --flake ./ci#testsError`; deliberately outside `flake.tests`, which the batch asserter quantifies over.";
-  };
-
   config = {
     # ── EVERY OMITTED FIELD IS NAMED, ONE CELL PER FIELD ──
     # Generated from the library's own field enumeration, so a thirteenth field cannot arrive
@@ -447,30 +438,5 @@ in
         expected = [ "inc/settings@input" ];
       };
     };
-
-    # THE SECOND HOOK. A second output that nothing runs is a second output that rots, and the
-    # wrapper the harness builds bakes `./ci#tests` into its own text, so it cannot be pointed at
-    # this one. This is its counterpart, built the same way, under a distinct hook id so the two
-    # merge rather than collide.
-    perSystem =
-      { pkgs, system, ... }:
-      {
-        pre-commit.settings.hooks.ci-error = {
-          enable = true;
-          name = "ci-error";
-          description = "Run nix-unit error-assertion tests";
-          entry = "${
-            pkgs.writeShellApplication {
-              name = "gen-view-ci-nix-unit-error";
-              runtimeInputs = [ genInputs.nix-unit.packages.${system}.default ];
-              text = ''
-                exec nix-unit --flake ./ci#testsError "$@"
-              '';
-            }
-          }/bin/gen-view-ci-nix-unit-error";
-          files = "\\.nix$";
-          pass_filenames = false;
-        };
-      };
   };
 }
