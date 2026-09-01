@@ -20,7 +20,6 @@
 #   nix-unit --flake ./ci#tests        # the suite
 #   nix-unit --flake ./ci#testsError   # these cells
 {
-  lib,
   genView,
   genScope,
   ...
