@@ -366,24 +366,9 @@ let
         rankLess =
           pa: pb:
           let
-            wa = map (step: rankOf step.label) pa;
-            wb = map (step: rankOf step.label) pb;
-            la = length wa;
-            lb = length wb;
-            go =
-              i:
-              if i >= la && i >= lb then
-                false
-              else if i >= la then
-                a.endOfPath < builtins.elemAt wb i
-              else if i >= lb then
-                builtins.elemAt wa i < a.endOfPath
-              else if builtins.elemAt wa i != builtins.elemAt wb i then
-                builtins.elemAt wa i < builtins.elemAt wb i
-              else
-                go (i + 1);
+            w = p: map (step: rankOf step.label) p;
           in
-          go 0;
+          graph.wordLess a.endOfPath (w pa) (w pb);
       };
 
   # ── k — the competition key, an instance of the data order ──────────────────────────────────

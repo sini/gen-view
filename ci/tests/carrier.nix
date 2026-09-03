@@ -390,6 +390,64 @@ in
       };
     };
 
+    # ★★ THE SEPARATOR — `pathPrecedes` SURVIVES `rankLess`'s MIGRATION AND IS NOT SUBSTITUTED FOR
+    # IT. `rankLess` is now `graph.wordLess` at a pin (gen-graph publishes the rank-word calculus);
+    # `pathPrecedes` is Fig. 1's visibility order and gen-graph has NO counterpart to it. The two
+    # are different orders, and this cell says so in the one shape a silent substitution fails:
+    # `rankLess` DECIDES a pair `pathPrecedes` leaves incomparable in BOTH directions. Substitute
+    # either for the other and a reading below flips.
+    #
+    # ★ THE TIE IS WHAT DISCRIMINATES, and a tie-free fixture would measure nothing. A total and a
+    # partial order agree on every pair of a singleton-layer order — measured, 0 disagreements over
+    # 100 pairs — so a cell written there passes under the very substitution this one exists to
+    # catch. Three letters with the first two TIED is the smallest shape that separates them:
+    # `[P·X]` and `[I·P]` differ at position 0 on labels of EQUAL rank, which is exactly where
+    # Fig. 2's recursion is unlicensed and the rank-word lift walks on.
+    test-rankLess-decides-a-pair-pathPrecedes-leaves-incomparable = {
+      expr =
+        let
+          tied = v.labelOrder {
+            alphabet = v.edgeLabels {
+              letters = [
+                "P"
+                "I"
+                "X"
+              ];
+            };
+            layers = [
+              [
+                "P"
+                "I"
+              ]
+              [ "X" ]
+            ];
+            endOfPath = -1;
+          };
+          px = [
+            { label = "P"; }
+            { label = "X"; }
+          ];
+          ip = [
+            { label = "I"; }
+            { label = "P"; }
+          ];
+        in
+        {
+          rankLessForward = tied.rankLess px ip;
+          rankLessBackward = tied.rankLess ip px;
+          pathPrecedesForward = tied.pathPrecedes px ip;
+          pathPrecedesBackward = tied.pathPrecedes ip px;
+        };
+      expected = {
+        # the sort key DECIDES the pair
+        rankLessForward = false;
+        rankLessBackward = true;
+        # the visibility order REFUSES it, both ways
+        pathPrecedesForward = false;
+        pathPrecedesBackward = false;
+      };
+    };
+
     # ══ Λ — THE RELATUM LABELS ARE PRESENT AND INERT, AND THE COLLISION IS WHAT IS REFUSED ══
     #
     # ★★★ THE LAW IS A THREE-WAY CONDITION: `L ∩ R = ∅` · `L ∩ Λ = ∅` · `R ∩ Λ = ∅` and
