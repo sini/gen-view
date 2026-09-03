@@ -38,6 +38,8 @@ in
         "hashTrace"
         "labelOrder"
         "labelWellFormedness"
+        "neededBy"
+        "neededByFields"
         "orderedFoldOf"
         "placement"
         "readsOf"
@@ -157,6 +159,39 @@ in
         ];
         notACarrierElement = false;
         notAComposition = false;
+      };
+    };
+
+    # ★★ AND SO IS ITS REVERSE HALF, AS THE SAME CHECKED FACT. `neededBy` is published in the RAW
+    # layer for the reason the cell above states — the constructs migrate into a consolidated
+    # library and the container does not — and it is pinned SEPARATELY rather than folded into that
+    # cell because the two are two constructs. A `direction` field would have made this one name;
+    # that it is two names, each with its own enumeration beside it, is the design being checked.
+    #
+    # ★ THE ENUMERATIONS ARE DISTINCT AND BOTH ARE ASSERTED, which is what the sweeps in
+    # `refusals.nix` and `tests-error.nix` quantify over: they share four field names and differ in
+    # the fifth, so one list standing for both would make each sweep a claim about the other
+    # construct.
+    test-neededby-is-a-published-constructor-with-its-enumeration = {
+      expr = {
+        isExport = v ? neededBy && builtins.isFunction v.neededBy;
+        fieldsPublished = v.neededByFields;
+        notACarrierElement = builtins.elem "neededBy" v.carrierElements;
+        notAComposition = v.compositions ? neededBy;
+        distinctFromTheForwardEnumeration = v.neededByFields == v.referenceResolutionFields;
+      };
+      expected = {
+        isExport = true;
+        fieldsPublished = [
+          "engine"
+          "name"
+          "wellFormed"
+          "project"
+          "transitive"
+        ];
+        notACarrierElement = false;
+        notAComposition = false;
+        distinctFromTheForwardEnumeration = false;
       };
     };
 

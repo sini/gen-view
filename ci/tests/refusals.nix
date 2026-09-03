@@ -46,11 +46,26 @@ let
       };
     }) v.referenceResolutionFields
   );
+
+  # And a THIRD sweep for the reverse construct, over ITS OWN published enumeration — for the same
+  # reason again. `neededBy` shares four field NAMES with the construct above and differs in the
+  # fifth, so a sweep that quantified over the forward enumeration would silently omit `transitive`
+  # while looking complete, and would omit the three shadowing flags in the other direction.
+  neededByOmissionCells = builtins.listToAttrs (
+    map (field: {
+      name = "test-omitting-neededby-${field}-refuses";
+      value = {
+        expr = refuses (v.neededBy (removeAttrs r.reverseArgs [ field ]));
+        expected = true;
+      };
+    }) v.neededByFields
+  );
 in
 {
   flake.tests.refusals =
     omissionCells
     // referenceOmissionCells
+    // neededByOmissionCells
     // {
       # ── THE POSITIVE CONTROL, SAME RUN ──
       # The COMPLETE definition constructs, and the view it declares EVALUATES TO A RESULT. Both
@@ -432,6 +447,157 @@ in
         expected = {
           refuses = false;
           value = null;
+        };
+      };
+
+      # ══ ORACLE O1, THE REVERSE HALF — `neededBy`'S NAMED REFUSALS FIRE ══
+      #
+      # ★ THE ENUMERATION IS THE SWEEP'S QUANTIFIER, pinned here for the same reason both others
+      # are: emptied, the sweep above goes VACUOUS and every omission cell vanishes with nothing
+      # going red. Five fields, and the fifth is the one the forward enumeration does not carry.
+      test-control-the-neededby-field-enumeration-is-complete-and-non-trivial = {
+        expr = v.neededByFields;
+        expected = [
+          "engine"
+          "name"
+          "wellFormed"
+          "project"
+          "transitive"
+        ];
+      };
+
+      # ── THE POSITIVE CONTROL, SAME RUN ──
+      # The COMPLETE declaration constructs AND ITS COMPUTE GATHERS, and both halves matter for the
+      # reason the two controls above state. ★ IT MATTERS HARDER HERE: an EMPTY ANSWER IS THIS
+      # CONSTRUCT'S ORDINARY CASE, so a refusal sweep with no populated positive control cannot
+      # tell a refusal from a node that legitimately gathered nothing.
+      test-control-the-complete-neededby-declaration-constructs-and-gathers = {
+        expr = {
+          constructs = (builtins.tryEval (builtins.deepSeq (v.neededBy r.reverseArgs) true)).success;
+          value = r.gatherSelf.get "db1" "direct";
+        };
+        expected = {
+          constructs = true;
+          value = [
+            "w1"
+            "w2"
+            "m"
+          ];
+        };
+      };
+
+      # ── THE FIELD SET IS CLOSED, WHICH IS THE OTHER SIDE OF TOTALITY ──
+      # ★ THE NAME CHOSEN IS THE ONE A READER IS MOST LIKELY TO TRY: `transitiveImports` is what the
+      # FORWARD construct spells its closure flag, and a caller reaching for symmetry writes it
+      # here. It is not a field of this construct — the delegate's reverse operator owns the name
+      # `transitive` and refuses the forward spelling loudly — so the mistake is caught at the
+      # declaration rather than inside the authority.
+      test-an-undeclared-neededby-field-is-refused = {
+        expr = {
+          symmetricGuess = refuses (v.neededBy (r.reverseArgs // { transitiveImports = false; }));
+          codomain = refuses (v.neededBy (r.reverseArgs // { codomain = "list"; }));
+        };
+        expected = {
+          symmetricGuess = true;
+          codomain = true;
+        };
+      };
+
+      # ── THE INJECTED AUTHORITY IS CHECKED AT CONSTRUCTION, AND IT IS CHECKED FOR THE RIGHT
+      # OPERATOR ──
+      #
+      # ★★★ THE `forwardOnly` ROW IS THE ONE THIS CELL EXISTS FOR. A construct whose engine check
+      # was COPIED from the forward sibling would test for `query`, ACCEPT `stubEngine` — which
+      # publishes exactly that and nothing else — and then fail at force with an unnamed
+      # missing-attribute error three layers inside an evaluator. The two stubs are each other's
+      # wrong-authority arm: `stubEngine` publishes only `query`, `reverseStubEngine` only
+      # `queryReverse`, and the second is the positive control that the check is not simply
+      # refusing every stub.
+      test-an-engine-publishing-no-queryreverse-refuses = {
+        expr = {
+          noOperator = refuses (v.neededBy (r.reverseArgs // { engine = { }; }));
+          forwardOnly = refuses (v.neededBy (r.reverseArgs // { engine = r.stubEngine; }));
+          notAnAttrset = refuses (v.neededBy (r.reverseArgs // { engine = "gen-scope"; }));
+          reverseStubAccepted = refuses (v.neededBy (r.reverseArgs // { engine = r.reverseStubEngine; }));
+        };
+        expected = {
+          noOperator = true;
+          forwardOnly = true;
+          notAnAttrset = true;
+          reverseStubAccepted = false;
+        };
+      };
+
+      # ── THE REMAINING FIELD SHAPES, EACH REFUSED BY NAME ──
+      # One cell rather than five, for the reason the forward half's states: the claim is one claim.
+      test-a-neededby-field-of-the-wrong-shape-refuses = {
+        expr = {
+          emptyName = refuses (v.neededBy (r.reverseArgs // { name = ""; }));
+          nonStringName = refuses (v.neededBy (r.reverseArgs // { name = 7; }));
+          nonFunctionWellFormed = refuses (v.neededBy (r.reverseArgs // { wellFormed = true; }));
+          nonFunctionProject = refuses (v.neededBy (r.reverseArgs // { project = [ ]; }));
+          nonBoolTransitive = refuses (v.neededBy (r.reverseArgs // { transitive = 0; }));
+        };
+        expected = {
+          emptyName = true;
+          nonStringName = true;
+          nonFunctionWellFormed = true;
+          nonFunctionProject = true;
+          nonBoolTransitive = true;
+        };
+      };
+
+      # ══ ORACLE O5 — THE NULL-PROJECTION REFUSAL ON THE REVERSE ARM, WITH ITS VACUITY CHECK ══
+      #
+      # ★★★ THE FUSION DEFECT IS WORSE IN THIS DIRECTION, AND THE FIXTURE IS BUILT TO SHOW IT. On
+      # the forward arm a lost binding leaves `null`, which a caller at least sees as an absence. On
+      # the reverse arm the admitted contributor is DROPPED FROM A LIST THAT STILL HAS SOMETHING IN
+      # IT — the delegate drops a null contribution — so the answer stays plausible and stays
+      # wrong. Nothing in `[ "w1" ]` says a second contributor was admitted and discarded.
+      #
+      # ★★ THE FOUR ROWS ARE ONE CLAIM AND MUST BE READ TOGETHER:
+      #   (a) SUBJECT   — the admitted importer with a null projection REFUSES.
+      #   (b) POSITIVE  — the same fixture and declaration with that one datum non-null: it gathers
+      #       BOTH contributors, so the fixture genuinely builds the subject.
+      #   (c) VACUITY   — the same composition WITH THE GUARD REMOVED answers `[ "w1" ]`: the
+      #       contributor vanishes. This is what makes (a) a statement about the guard rather than
+      #       about a fixture that refused for some reason of its own.
+      #   (d) REACHABILITY — the guard-removed composition with the non-null datum answers BOTH. Row
+      #       (c) on its own is worth nothing, because an unreached node contributes nothing either;
+      #       this row is what makes (c)'s absence the PROJECTION's.
+      test-a-null-projection-at-an-admitted-importer-refuses = {
+        expr = {
+          subjectRefuses = refuses (r.reverseNullSelf.get "db1" "gathered");
+          positive = r.reverseNonNullSelf.get "db1" "gathered";
+          unguarded = r.reverseNullSelf.get "db1" "unguarded";
+          unguardedReaches = r.reverseNonNullSelf.get "db1" "unguarded";
+        };
+        expected = {
+          subjectRefuses = true;
+          positive = [
+            "w1"
+            "NN"
+          ];
+          unguarded = [ "w1" ];
+          unguardedReaches = [
+            "w1"
+            "NN"
+          ];
+        };
+      };
+
+      # ★★ THE BOUND, one relation over. `db1` itself is admitted by nothing here and `web1` has no
+      # importers at all, so the guard must not fire on either: an empty gather is an ordinary
+      # absence and stays one. A guard that fired on every miss would have converted this
+      # construct's ORDINARY CASE into an error.
+      test-control-an-empty-reverse-gather-does-not-refuse = {
+        expr = {
+          refuses = refuses (r.reverseNullSelf.get "web1" "gathered");
+          value = r.reverseNullSelf.get "web1" "gathered";
+        };
+        expected = {
+          refuses = false;
+          value = [ ];
         };
       };
     };

@@ -170,6 +170,114 @@ in
         };
       };
 
+    # ── `neededBy`: EVERY OMITTED FIELD IS NAMED, ONE CELL PER FIELD ──
+    # Generated from the REVERSE construct's own field enumeration — a third generator rather than a
+    # widened one, because the two constructs share four field names and differ in the fifth, and a
+    # sweep quantified over the wrong enumeration would look complete while omitting exactly the
+    # field that distinguishes them.
+    flake.testsError.neededby-refusals =
+      builtins.listToAttrs (
+        map (field: {
+          name = "test-omitting-neededby-${field}-names-the-field";
+          value = {
+            expr = builtins.deepSeq (v.neededBy (removeAttrs r.reverseArgs [ field ])) true;
+            expectedError = {
+              type = "ThrownError";
+              msg = "^gen-view\\.neededBy: required field '${field}' is not declared; every field of this construct is required and total .*$";
+            };
+          };
+        }) v.neededByFields
+      )
+      // {
+        # ★ THE LIVE CONTROL, IN THE SAME INVOCATION, for the reason both sweeps above carry one:
+        # without it every cell here is consistent with a construct that refuses whatever it is
+        # handed, and the messages would be about a constructor nobody has seen succeed.
+        test-control-the-complete-neededby-declaration-does-not-refuse = {
+          expr = (v.neededBy r.reverseArgs).name;
+          expected = "consumers";
+        };
+
+        # ★ THE CLOSED FIELD SET NAMES THE OFFENDER, and the name chosen is the one a reader is most
+        # likely to try: `transitiveImports` is the FORWARD construct's spelling of the closure flag,
+        # so a caller reaching for symmetry between two constructs in one file writes it here. The
+        # delegate's reverse operator owns the name `transitive` and refuses the forward spelling in
+        # a way `tryEval` cannot catch, so catching it at the declaration is what keeps the failure
+        # somewhere a caller can act on.
+        test-the-forward-spelling-of-the-closure-flag-is-named = {
+          expr = builtins.deepSeq (v.neededBy (r.reverseArgs // { transitiveImports = false; })) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.neededBy: field 'transitiveImports' is not a field of this construct; the field set is closed .*$";
+          };
+        };
+
+        # ★★★ THE ENGINE CHECK NAMES `queryReverse` AND NOT `query`, AND THIS IS THE CELL THAT PINS
+        # IT. An authority publishing only the forward operator cannot answer this construct at all,
+        # so an engine check COPIED from the forward sibling would accept it here and defer the
+        # failure to some later force, where it arrives as an unnamed missing-attribute error inside
+        # an evaluator. Two arms: a value publishing NOTHING, and — the arm that catches the copy —
+        # a value publishing exactly `query`.
+        test-an-engine-publishing-no-queryreverse-is-named-with-the-operator-it-lacks = {
+          expr = builtins.deepSeq (v.neededBy (r.reverseArgs // { engine = { }; })) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.neededBy: field 'engine' must be a query authority publishing a 'queryReverse'.*performs no traversal of its own.*$";
+          };
+        };
+
+        test-a-forward-only-authority-is-named-with-the-operator-it-lacks = {
+          expr = builtins.deepSeq (v.neededBy (r.reverseArgs // { engine = r.stubEngine; })) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.neededBy: field 'engine' must be a query authority publishing a 'queryReverse'.*only the forward 'query' cannot answer the reverse direction.*$";
+          };
+        };
+
+        # The two operators are named AS OPERATORS here too — a caller who fused them meets the
+        # reason and not the type complaint.
+        test-a-non-function-reverse-projection-is-named-as-an-operator = {
+          expr = builtins.deepSeq (v.neededBy (r.reverseArgs // { project = [ ]; })) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.neededBy: field 'project' must be a function.*a predicate that also projects cannot be split into the two operators.*$";
+          };
+        };
+
+        # ★ THE CLOSURE FLAG IS NAMED WITH ITS VALUE. There is one such flag rather than the forward
+        # half's three, so the message names it directly — and it says the closure is DECLARED here,
+        # which is the whole content of the field: the wrapper this construct succeeds passed it
+        # never and let the delegate's own default decide the reverse-import closure.
+        test-a-non-boolean-transitive-names-the-field-and-its-value = {
+          expr = builtins.deepSeq (v.neededBy (r.reverseArgs // { transitive = 0; })) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.neededBy: field 'transitive' is 0, which is not a boolean; the reverse-import closure is DECLARED here rather than left to the authority's default.*$";
+          };
+        };
+
+        # ★★★ THE MATERIALIZATION REFUSAL, NAMED WITH THE RESULT AND THE NODE — the same guard as
+        # the forward half's, reached through the other operator, which is why the message reads
+        # `neededBy` here and `referenceResolution` there off ONE lifted helper. The node name is
+        # what the reverse arm buys: `nodeLabel` finds a string `id` on every reverse contributor,
+        # so the refusal points at the importer rather than falling to its no-`id` fallback.
+        test-a-null-reverse-projection-names-the-result-and-the-importer = {
+          expr = builtins.deepSeq (r.reverseNullSelf.get "db1" "gathered") true;
+          expectedError = {
+            type = "ThrownError";
+            msg = ".*gen-view\\.neededBy: result 'consumers': node 'nullnode' is admitted by 'wellFormed' and its 'project' returned null.*NO BINDING HERE.*";
+          };
+        };
+
+        # ★ THE CONTROL THAT SEPARATES THAT REFUSAL FROM AN ORDINARY ABSENCE, same fixture same run:
+        # a node nothing imports gathers empty and does not refuse. An empty gather is this
+        # construct's ORDINARY case, so without this row the cell above is consistent with a guard
+        # that fired on every miss.
+        test-control-an-empty-reverse-gather-answers-empty-without-refusing = {
+          expr = r.reverseNullSelf.get "web1" "gathered";
+          expected = [ ];
+        };
+      };
+
     # ── THE CARRIER'S OWN REFUSALS NAME THEIR SUBJECT ──
     flake.testsError.carrier-refusals = {
       # The letter, not merely "an unranked letter".

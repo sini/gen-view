@@ -205,5 +205,117 @@ in
       expr = builtins.length libSources == builtins.length nixFiles + 2 && builtins.length nixFiles >= 12;
       expected = true;
     };
+
+    # ══ ORACLE O6 — THE REVERSE DELEGATION IS HONEST, AND ITS ENGINE CHECK NAMES ITS OWN OPERATOR ══
+    #
+    # ★★★ THE SEEDED-DEFECT ORACLE, ONE RELATION OVER. The construct is handed an authority whose
+    # `queryReverse` IGNORES ITS ARGUMENTS and answers a sentinel; `compute` must return that
+    # sentinel, which it can do only while the answer is entirely the authority's. The moment any
+    # part of the reverse walk — an importer enumeration, a closure step, a fold — is computed
+    # inside `lib/reference.nix`, the sentinel stops coming back.
+    #
+    # ★ THE CONTROL IS THE REAL AUTHORITY OVER THE SAME DECLARATION IN THE SAME EVALUATOR. Without
+    # it the cell is consistent with a construct that returns whatever it is handed and gathers
+    # nothing at all: a sentinel coming back from a construct that never queries anything is
+    # evidence of a short circuit, not of delegation.
+    test-the-reverse-compute-is-the-authoritys-answer-and-nothing-else = {
+      expr = {
+        stub = f.gatherSelf.get "db1" "stubbed";
+        real = f.gatherSelf.get "db1" "direct";
+      };
+      expected = {
+        stub = f.reverseSentinel;
+        real = [
+          "w1"
+          "w2"
+          "m"
+        ];
+      };
+    };
+
+    # ══ ORACLE O2 — THE GATHER, ASSERTED ON THE VALUE ══
+    #
+    # ★★ THREE CONTRIBUTORS, AND THE COUNT IS THE DISCRIMINATION. `web1`, `web2` and `mid` all
+    # import `db1`. A construct that answered the FIRST contributor gives `[ "w1" ]` here and a
+    # construct that answered the origin's own datum gives `[ ]`; a three-element expectation
+    # rejects both. This is the shape the forward arm cannot have — there the delegate REFUSES a
+    # candidate set it cannot order, and here it gathers one with no refusal at all, which is the
+    # measured reason the two directions are two constructs rather than one field.
+    test-the-reverse-gather-answers-every-importer = {
+      expr = f.gatherSelf.get "db1" "direct";
+      expected = [
+        "w1"
+        "w2"
+        "m"
+      ];
+    };
+
+    # ★ AND THE ANSWER IS THE CONTRIBUTORS' DATUM RATHER THAN THEIR IDENTITY, which is a claim about
+    # `project`'s domain and not about the walk. The same fixture under a different π answers the
+    # ids — a different π, a different answer — so the datum arm above cannot be an artefact of a
+    # gather that reached one thing and named it twice.
+    test-control-a-different-projection-over-one-gather-answers-differently = {
+      expr = f.gatherSelf.get "db1" "identities";
+      expected = [
+        "web1"
+        "web2"
+        "mid"
+      ];
+    };
+
+    # ══ ORACLE O3 — AN EMPTY GATHER IS NOT A REFUSAL ══
+    #
+    # ★★ THE EXACT INVERSION OF THIS LIBRARY'S LAW, AND IT IS WHY THE CELL CARRIES BOTH ARMS.
+    # Nothing imports `web2`, so its reverse answer is empty — and empty is the ORDINARY case of a
+    # reverse gather, not an exceptional one. A construct that refused here would have made a
+    # refusal out of an ordinary absence, which is the failure `refusal.nix` exists to forbid in the
+    # other direction. The populated node in the same run is what keeps the empty from being the
+    # answer of a walk that never ran.
+    test-a-node-with-no-importers-gathers-empty-without-refusing = {
+      expr = {
+        empty = f.gatherSelf.get "web2" "direct";
+        refused = refuses (f.gatherSelf.get "web2" "direct");
+        populated = f.gatherSelf.get "db1" "direct";
+      };
+      expected = {
+        empty = [ ];
+        refused = false;
+        populated = [
+          "w1"
+          "w2"
+          "m"
+        ];
+      };
+    };
+
+    # ══ ORACLE O4 — `transitive` IS DECLARED AND CHANGES THE ANSWER ══
+    #
+    # ★★ TWO ARMS OVER ONE FIXTURE, AND THEY ARE EACH OTHER'S CONTROL: a construct that dropped the
+    # field on the floor would give one value twice. `web1` imports `db1` directly AND imports
+    # `mid`, which imports `db1` — two reverse paths to one node.
+    #
+    # ★★★ THE DUPLICATE `w1` IS ASSERTED, NOT TOLERATED. The delegate does not deduplicate, because
+    # a reverse gather COUNTS CONTRIBUTIONS, and a caller needing a set does that at its own call
+    # site. A construct that deduplicated here would be this library performing a fold the delegate
+    # owns — the anti-drift condition broken — and this expectation is what fails then.
+    test-the-transitive-arm-is-declared-and-changes-the-answer = {
+      expr = {
+        direct = f.gatherSelf.get "db1" "direct";
+        transitive = f.gatherSelf.get "db1" "transitive";
+      };
+      expected = {
+        direct = [
+          "w1"
+          "w2"
+          "m"
+        ];
+        transitive = [
+          "w1"
+          "w2"
+          "m"
+          "w1"
+        ];
+      };
+    };
   };
 }

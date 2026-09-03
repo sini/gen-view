@@ -83,6 +83,10 @@
 #   `placement` does — it declares a query and holds no walk, so it is not a `viewDefinition` and
 #   not a sixth composition. Its compute is TOTAL DELEGATION; this library acquires no evaluator
 #   and no dependency edge onto one, because the authority arrives as a field.
+# · `neededBy`: the REVERSE half of that same relation, and a SECOND CONSTRUCT rather than a
+#   `direction` field on the one above — the forward arm answers one datum or refuses, this one
+#   gathers a set and refuses nothing, so one field would select opposite dispositions of a
+#   different shape. Its compute is likewise total delegation, to the authority's reverse operator.
 # · the trace cluster: it is the instrument that validates the spec that retires it, so it must be
 #   expressible here BEFORE it retires there.
 #
@@ -194,6 +198,22 @@ in
   # omitted field refuses by name" is a claim that has to quantify over something, and a field
   # added without a cell to omit it is the failure a hand-written list of cells cannot see.
   referenceResolutionFields = referenceLib.required;
+
+  # ── `neededBy` — THE REVERSE HALF OF THE SAME RELATION, AND A SECOND CONSTRUCT ───────────────
+  # ★★ NOT A `direction` FIELD ON THE ONE ABOVE. The forward arm answers one datum or refuses; this
+  # one gathers a set and refuses nothing, so a single field would select opposite DISPOSITIONS of a
+  # different SHAPE — a semantics chosen by a field value rather than stated as one defining query.
+  # ★ AND NOT A SECOND ACCESS PATH TO `viewRelation { direction = "inbound"; }` either: that one
+  # walks a HELD graph from a DECLARED root and holds a walk, a competition, a tie-set and a dedup,
+  # where this one reaches the evaluator's live node set through an injected authority and holds
+  # none of them. The ground `referenceResolution` lands on above never mentions direction, so it
+  # is read here at its stated scope rather than extended.
+  inherit (referenceLib) neededBy;
+
+  # Its field set, published for the same reason and separately: the two constructs have different
+  # fields for different reasons, and one enumeration standing for both would make each sweep's
+  # quantifier a claim about the other construct.
+  neededByFields = referenceLib.reverseRequired;
 
   # ── THE ORACLE CLUSTER — expressible HERE before it retires THERE ───────────────────────────
   inherit (traceLib)

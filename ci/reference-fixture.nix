@@ -1,5 +1,8 @@
 # THE REFERENCE-RESOLUTION FIXTURE — one construction of the REAL query authority, reached by
-# every cell that has anything to say about `referenceResolution`.
+# every cell that has anything to say about `referenceResolution` or about its reverse half
+# `neededBy`. ★ ONE authority for BOTH directions, deliberately: the two operators live on the same
+# injected value, so a second fixture would make each direction's values a claim about its own
+# evaluator rather than about the delegate the two constructs share.
 #
 # It lives OUTSIDE `./tests` for the same reason `fixture.nix` does: `testModules` is the whole of
 # `flake.tests`, so a plain value module in that tree would be read as a suite and contribute cells
@@ -247,6 +250,143 @@ let
       listArm = computeOf (multiArgs "l");
     };
   };
+
+  # ══ THE REVERSE HALF — `neededBy` OVER THE SAME EVALUATOR AND THE SAME REAL AUTHORITY ═══════
+  #
+  # ★ IT REUSES `mkSelf`, WHICH IS THE POINT. The reverse operator lives on the same injected
+  # authority as the forward one, so building it against a second evaluator would make every value
+  # below a claim about a fixture rather than about the delegate. One `mkSelf`, two directions.
+
+  reverseComputeOf = args: (v.neededBy args).compute;
+
+  # ── THE GATHER FIXTURE ──
+  # `web1`, `web2` and `mid` all import `db1`, so `db1` has THREE reverse contributors — the shape
+  # the forward arm cannot have, where the delegate refuses a candidate set it cannot order. `web1`
+  # ALSO imports `mid`, which gives `db1` a SECOND reverse path to `web1` and is what makes the
+  # transitive arm's duplicate contribution observable. `db1` carries a datum of its own that no
+  # predicate here admits, so nothing in its answer can be its own.
+  gatherEdges = [
+    {
+      from = "web1";
+      to = "db1";
+    }
+    {
+      from = "web2";
+      to = "db1";
+    }
+    {
+      from = "web1";
+      to = "mid";
+    }
+    {
+      from = "mid";
+      to = "db1";
+    }
+  ];
+  gatherDecls = {
+    db1 = {
+      role = "database";
+    };
+    web1 = {
+      tag = "w1";
+    };
+    web2 = {
+      tag = "w2";
+    };
+    mid = {
+      tag = "m";
+    };
+  };
+
+  admitsTagged = n: n.decls ? tag;
+  tagOf = n: n.decls.tag;
+
+  reverseArgs = {
+    engine = s;
+    name = "consumers";
+    wellFormed = admitsTagged;
+    project = tagOf;
+    transitive = false;
+  };
+
+  # THE REVERSE STUB AUTHORITY — a `queryReverse` ignoring its arguments entirely, answering a
+  # sentinel. It is the whole of the reverse delegation oracle, on the forward stub's own terms.
+  # ★ IT PUBLISHES NO `query`, and `stubEngine` above publishes no `queryReverse`: the two stubs
+  # are each other's wrong-authority arm, so "the engine check names the operator THIS construct
+  # needs" is checked in both directions rather than asserted in one.
+  reverseSentinel = "the-reverse-stub-authority-answered";
+  reverseStubEngine = {
+    queryReverse =
+      _args: _self: _id:
+      reverseSentinel;
+  };
+
+  gatherSelf = mkSelf {
+    edges = gatherEdges;
+    decls = gatherDecls;
+    attributes = {
+      # The two `transitive` arms over ONE declaration in ONE evaluator, differing in exactly the
+      # declared field — a construct that ignored it answers the same value twice.
+      direct = reverseComputeOf reverseArgs;
+      transitive = reverseComputeOf (reverseArgs // { transitive = true; });
+      # The real authority and the reverse stub, likewise differing in exactly the injected field.
+      stubbed = reverseComputeOf (reverseArgs // { engine = reverseStubEngine; });
+      # ★ THE CONTRIBUTOR'S IDENTITY beside its datum, over the same fixture: a different π, a
+      # different answer, which is what makes the datum arm a statement about `project` and not
+      # about a walk that reached one node.
+      identities = reverseComputeOf (reverseArgs // { project = n: n.id; });
+    };
+  };
+
+  # ── THE REVERSE NULL PROJECTION ──
+  # `nullnode` imports `db1` and IS admitted by the predicate, and its projection is null. Beside
+  # it `web1` imports `db1` and projects a datum, so the gather is non-empty either way — which is
+  # exactly why the defect is invisible without the guard: the admitted contributor VANISHES from a
+  # list that still has something in it.
+  reverseNullEdges = [
+    {
+      from = "web1";
+      to = "db1";
+    }
+    {
+      from = "nullnode";
+      to = "db1";
+    }
+  ];
+  mkReverseNullSelf =
+    nullnodeTag:
+    mkSelf {
+      edges = reverseNullEdges;
+      decls = {
+        db1 = {
+          role = "database";
+        };
+        web1 = {
+          tag = "w1";
+        };
+        nullnode = {
+          tag = nullnodeTag;
+        };
+      };
+      attributes = {
+        gathered = reverseComputeOf reverseArgs;
+        # ★ THE VACUITY ARM — the same π ∘ σ composition with the guard removed and nothing else
+        # changed, reached through the delegate directly. Written from the shared `unguarded`
+        # binding above so the guarded and unguarded readings differ in EXACTLY the guard.
+        unguarded = s.queryReverse {
+          dataFilter = unguarded {
+            wellFormed = admitsTagged;
+            project = tagOf;
+          };
+        };
+      };
+    };
+
+  # The subject: the admitted contributor projects null.
+  reverseNullSelf = mkReverseNullSelf null;
+  # ★ THE CONTROL, same fixture and same declaration, differing ONLY in that one datum. It is what
+  # shows the fixture genuinely builds the subject: the node is reached, admitted and projected.
+  reverseNonNullSelf = mkReverseNullSelf "NN";
 in
 {
   inherit
@@ -262,5 +402,12 @@ in
     projectionSelf
     multiArgs
     multiSelf
+    reverseComputeOf
+    reverseArgs
+    reverseSentinel
+    reverseStubEngine
+    gatherSelf
+    reverseNullSelf
+    reverseNonNullSelf
     ;
 }
