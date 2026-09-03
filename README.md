@@ -181,6 +181,55 @@ hand-roll converges on it. Use `gen-prelude`'s `setAttrByPath`, which additional
 name** on a non-list path or a non-string segment where this one fell into a raw uncatchable
 abort. `lib/placement.nix` keeps the declined position and its measurement.
 
+## The two defining queries — `referenceResolution` and `neededBy`
+
+Both are **defining queries over an INJECTED authority**, and both hold **no walk of their own**:
+the compute is delegation and nothing else, which is what keeps this library evaluator-free. They
+are two constructs over the two directions of one relation.
+
+```nix
+referenceResolution {
+  engine;                # the authority — must publish `query`
+  name; wellFormed;      # the result name, and σ
+  project;               # π
+  localShadowsImport; importShadowsParent; transitiveImports;
+}                        # ⇒ ONE datum, or the authority's refusal
+
+neededBy {
+  engine;                # the authority — must publish `queryReverse`
+  name; wellFormed;      # the result name, and σ
+  project;               # π
+  transitive;            # direct importers, or the reverse-import closure
+}                        # ⇒ the LIST of contributions from the nodes that import the id
+```
+
+`neededBy` is the **projection of the datum at each node that imports an id**, among those the
+predicate admits. The name is the owner's, ruled as the stated inverse of `includes`. It is **not a
+base relation**: it is a *rule-defined relation made to appear as one* — Manchanda & Warren again,
+printed 381 — which is what makes it a **view** and not an inverted lookup, an inverted lookup
+being a materialized index with no name and no rule.
+
+**Two constructs and not a `direction` field.** The forward arm answers one datum **or refuses**;
+the reverse arm **gathers** and refuses nothing. One field would select opposite *dispositions* of a
+different *shape*, which is a semantics chosen by a field value rather than stated as one defining
+query. Where direction is only direction, one field is right — `viewRelation` has exactly that, and
+its two arms share shape and share discipline.
+
+**Not a second access path to `viewRelation { direction = "inbound"; }`** either. That one walks a
+**held graph** from a **declared root** and holds a walk, a competition, a tie-set and a dedup; this
+one reaches the **evaluator's live node set** through the injected authority, from the id handed
+`compute` at force time.
+
+An **empty gather is the ordinary case, never a refusal** — most nodes have no importers. The one
+refusal that fires at materialization is `requireNonNull`: a node the predicate **admits** whose
+projection is `null`. The authority reads that null as *no binding here*, so without the guard the
+admitted contributor is **dropped from a list that still has something in it** — the answer stays
+plausible and stays wrong.
+
+**Order and duplicates are the delegate's, pointed at and not restated.** It neither sorts nor
+deduplicates: a node reachable along two reverse paths **contributes twice**, because a reverse
+gather counts contributions. A caller needing a set does that at its own call site.
+
 The trace cluster — `trace`, `traceEntryOf`, `renderTrace`, `renderEntry`, `edgeSortKey`,
 `hashTrace` — is the instrument that validates the spec that retires it, so it is expressible
 **here** before it retires **there**. Entries are **identity only** and never carry resolved

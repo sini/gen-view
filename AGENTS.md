@@ -136,6 +136,60 @@ twice. And **`wellFormed` and `project` are two fields because the defining quer
 operators**; fusing them back into one predicate makes `null` mean both *"not a binding here"* and
 *"the value"*, which is the defect `requireNonNull` refuses.
 
+**The reverse view**: `neededBy`, with `neededByFields` as the checkable enumeration of its **five**
+— `engine` `name` `wellFormed` `project` `transitive`. Same file, same injected authority, other
+direction: **the projection of the datum at each node that IMPORTS an id, among those the predicate
+admits**, one hop or to the reverse-import closure as `transitive` declares. The name is the
+owner's, ruled as the stated inverse of `includes`. It is **not a base relation** — it is a
+rule-defined relation made to appear as one (Manchanda & Warren, printed 381), which is what makes
+it a **view** rather than an inverted lookup.
+
+★★★ **IT IS A SECOND CONSTRUCT AND NOT A `direction` FIELD ON THE ONE ABOVE. DO NOT MERGE THEM.**
+The forward arm answers **one datum or REFUSES** — the delegate throws on a candidate set nothing
+orders — where this one **GATHERS** a multi-contributor set with no refusal at all. One field would
+select **opposite dispositions of a different shape**, which is a semantics chosen by a field value
+and unstatable as one defining query. `viewRelation`'s own `direction` is the **confirming case,
+not the counter-example**: there both arms share shape and share discipline, and the field touches
+exactly one step of one pipeline. ★ Nor is it a second access path to
+`viewRelation { direction = "inbound"; }`: that walks a **held graph** from a **declared root** and
+holds a walk, a competition, a tie-set and a dedup; this reaches the **evaluator's live node set**
+from the id handed `compute` **at force time** and holds none of them.
+
+★★ **THE ENGINE CHECK NAMES `queryReverse`, NOT `query` — do not "unify" it with the sibling's.** An
+authority publishing only the forward operator cannot answer this construct, and a check copied
+from above would **accept** it and then fail at force with an unnamed error inside an evaluator.
+`refusals.test-an-engine-publishing-no-queryreverse-refuses` carries that arm.
+
+★★ **`transitive` IS SPELLED THE DELEGATE'S WAY AND NOT `transitiveImports`, DELIBERATELY.** The
+delegate's reverse operator owns the name, refuses the forward spelling **loudly and
+tryEval-uncatchably**, and `inherit (a) transitive` is what makes a disagreement between two
+written-down literals inexpressible. Symmetry with the forward half would cost a rename layer
+inside `compute` — a literal at one site about a name owned at another.
+
+★ **NO ORDER AND NO `dedup` FIELD, and the duplicate is ASSERTED rather than tolerated.** The
+delegate neither sorts nor deduplicates: a node reachable along two reverse paths **contributes
+twice**, because a reverse gather counts contributions. `reference.test-the-transitive-arm-is-declared-and-changes-the-answer`
+expects `[ "w1" "w2" "m" "w1" ]`, so a construct that deduplicated here — performing a fold the
+delegate owns — fails it.
+
+★ **AN EMPTY GATHER IS THE ORDINARY CASE AND MUST NEVER BE A REFUSAL.** Most nodes have no
+importers. This is why the refusal sweep needs a **populated** positive control: without one it
+cannot tell a refusal from a node that legitimately gathered nothing.
+
+★★ **THERE IS NO `marks` FIELD, AND ITS ABSENCE IS AN OPEN QUESTION RATHER THAN A DECISION.**
+`viewRelation` **requires** `marks`; both constructs in `lib/reference.nix` take none, because their
+reachability is entirely the injected authority's. Whether ADR-0026 reaches injected-authority
+constructs is **one owner ruling about BOTH of them**, not a thing to settle from either side. Do
+not add one here alone.
+
+★ **`nodeLabel` AND `requireNonNull` ARE AT MODULE SCOPE AND SHARED.** The null-projection guard
+states **one** fact about **one** authority — that it reads `null` as NO BINDING HERE, true of both
+its operators — so it has one statement, parameterised on `site` and `resultName`. Do not copy it
+into a per-construct `let`, and do not relax
+`reference-refusals.test-a-null-projection-names-the-result-and-the-node`: that cell **predates**
+the reverse construct and pins the forward message by regex, so editing it to make a change pass
+has **moved the oracle rather than met it**.
+
 **Oracle cluster**: `trace` `traceEntryOf` `renderTrace` `renderEntry` `edgeSortKey` `hashTrace`.
 
 ★ **Fingerprint a topology with `hashTrace`, never with `edgeSortKey`.** The key is a `" | "`-join
