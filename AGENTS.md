@@ -204,6 +204,8 @@ resolves.
 
 ## Rules that will bite you
 
+<!-- gen-citations:begin -->
+
 - **Nothing is defaulted.** Every field of a view definition is required, and so is `marks` at the
   materialization — "no marks" is `_: [ ]` written down. If you are about to add a default, the
   answer is a refusal instead.
@@ -222,6 +224,8 @@ resolves.
 - **The ordering door must never accept the raw labelled-edge accessor.** The input type is the
   stratification, and relaxing it reads like a query-surface change while being a semantics change
   that does not throw.
+
+<!-- gen-citations:end -->
 
 ## Tests
 
