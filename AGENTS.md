@@ -245,3 +245,21 @@ exclude raw-function fields and check those by name. Element attrsets compare fi
 hold the same constructed element.
 
 <!-- gen-citations:end -->
+
+## Drift check
+
+From the repository root:
+
+```sh
+nix eval --json .#lib --apply builtins.attrNames
+```
+
+Current output (verbatim):
+
+```json
+["accumulatorOrder","accumulatorRelation","carrier","carrierElements","cell","combineArms","combines","compositionFields","compositions","dataOrder","dedupArms","dedups","definitionFields","directions","edgeLabels","edgeSortKey","hashTrace","labelOrder","labelWellFormedness","neededBy","neededByFields","orderedFoldOf","placement","readsOf","referenceResolution","referenceResolutionFields","relationLookup","relations","relatumLabels","renderEntry","renderTrace","scopeGraph","tieSetArms","tieSets","trace","traceEntryOf","transform","unit","viewDefinition","viewRelation","writesOf"]
+```
+
+The command observes **export names only**. The layering above is a reading of that one list, not a
+second thing this check measures: a rename inside a closed enumeration (`combines`, `tieSets`,
+`dedups`, `directions`) leaves it unmoved.
