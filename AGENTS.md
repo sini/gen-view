@@ -204,8 +204,6 @@ resolves.
 
 ## Rules that will bite you
 
-<!-- gen-citations:begin -->
-
 - **Nothing is defaulted.** Every field of a view definition is required, and so is `marks` at the
   materialization — "no marks" is `_: [ ]` written down. If you are about to add a default, the
   answer is a refusal instead.
@@ -225,9 +223,9 @@ resolves.
   stratification, and relaxing it reads like a query-surface change while being a semantics change
   that does not throw.
 
-<!-- gen-citations:end -->
-
 ## Tests
+
+<!-- gen-citations:begin -->
 
 ```
 nix-unit --flake ./ci#tests        # the suite
@@ -245,3 +243,5 @@ outside `./tests` so `import-tree` does not read it as a suite. Build variants w
 ★ **Two Nix lambdas are never equal, not even against themselves** (measured: `{ v = d.f; } == { v = d.f; }` reads false for one and the same attribute). Comparisons over constructed values must
 exclude raw-function fields and check those by name. Element attrsets compare fine when both sides
 hold the same constructed element.
+
+<!-- gen-citations:end -->
