@@ -22,12 +22,37 @@
 {
   genView,
   genScope,
+  graph,
   ...
 }:
 let
   f = import ./fixture.nix { inherit genView; };
   r = import ./reference-fixture.nix { inherit genView genScope; };
   v = genView;
+
+  # ══ W1 FIXTURE — boundedWellDefinedSchedule, ORACLE O2 and O5a ══
+  wdsRef = graph.mkNodeRef {
+    isRegistered =
+      id:
+      builtins.elem id [
+        "child"
+        "parent"
+      ];
+  };
+  wdsContracted = rel: graph.mkDeclaredEdges (builtins.mapAttrs (_: ids: map wdsRef ids) rel);
+  wdsDeclaredCyclic = wdsContracted {
+    child = [ "parent" ];
+    parent = [ "child" ];
+  };
+  wdsScheduleArgs = {
+    nodes = [
+      "child"
+      "parent"
+    ];
+    equations = { };
+    declaredDependencies = wdsDeclaredCyclic;
+    admitsCycle = _: false;
+  };
 in
 {
   config = {
@@ -543,6 +568,48 @@ in
       test-control-the-ordering-door-accepts-the-materialized-projection = {
         expr = v.readsOf f.relation;
         expected = [ "inc/settings@input" ];
+      };
+    };
+
+    # ── boundedWellDefinedSchedule's OWN REFUSALS: O2 NAMES THE CYCLE, O5a NAMES NOTHING ELSE ──
+    flake.testsError.schedule-refusals = {
+      # ★★ O2 — THE REFUSAL NAMES THE SCC. Not merely that a declared cycle was refused, but WHICH
+      # component — the same fact the historic uncatchable stack overflow could not say at all,
+      # since it never reached a message.
+      test-a-refused-declared-cycle-names-the-scc = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule wdsScheduleArgs) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: the declared relation has a cyclic component `admitsCycle` does not admit: \\[\\[\"child\",\"parent\"\\]\\]\\..*$";
+        };
+      };
+
+      # ★★★ O5a — THE CITATION CELL. The full message, anchored start to end, so a stray occurrence
+      # of the forbidden phrase anywhere in it — including the Knuth 1971 corrected per-symbol
+      # algorithm this construct does NOT implement — fails this cell, not merely a substring probe.
+      test-the-refusal-message-names-sloane-and-never-the-forbidden-phrase = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule wdsScheduleArgs) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: the declared relation has a cyclic component `admitsCycle` does not admit: \\[\\[\"child\",\"parent\"\\]\\]\\. Declare `admitsCycle` true for every member \\(Sloane 2009 iterate-to-fixpoint\\) or break the cycle$";
+        };
+      };
+
+      # ★ THE LIVE CONTROL, IN THE SAME INVOCATION: the same construct, the declared cycle removed,
+      # does not refuse. Without it the two cells above are consistent with a construct that
+      # refuses whatever it is handed and a message that never varies with its input.
+      test-control-the-same-construct-with-the-cycle-broken-does-not-refuse = {
+        expr =
+          (v.boundedWellDefinedSchedule (
+            wdsScheduleArgs
+            // {
+              declaredDependencies = wdsContracted { child = [ "parent" ]; };
+            }
+          )).condensation.sccs;
+        expected = [
+          [ "parent" ]
+          [ "child" ]
+        ];
       };
     };
   };

@@ -21,6 +21,7 @@ in
       expected = [
         "accumulatorOrder"
         "accumulatorRelation"
+        "boundedWellDefinedSchedule"
         "carrier"
         "carrierElements"
         "cell"

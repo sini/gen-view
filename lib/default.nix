@@ -175,6 +175,7 @@ in
     accumulatorOrder
     orderedFoldOf
     cell
+    boundedWellDefinedSchedule
     ;
 
   # ── PLACEMENT — a construct family beside the declaration, never inside it ──────────────────

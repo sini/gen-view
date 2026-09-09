@@ -101,6 +101,17 @@ widen the claim back.
 **Accumulator + ordering**: `readsOf` `writesOf` `unit` `accumulatorRelation` `accumulatorOrder`
 `orderedFoldOf` `cell`.
 
+**A second, unrelated door on the same file**: `boundedWellDefinedSchedule` (ADR-0008 §3) — Vogt's
+`bounded well-defined` (Definition 3.14, Theorem 3.2's first two conjuncts, finiteness omitted) as a
+query over `gen-graph`'s CONTRACTED declared relation. Its input type is materialized at
+**construction**, not by a materialized-projection door: `gen-graph.mkDeclaredEdges`'s own
+`deepSeq`-forcing is the guarantee, and this construct owes it nothing else. A refusal here is
+`admitsCycle` (Sloane 2009 iterate-to-fixpoint) declining a declared cycle — it is NOT evidence of
+ill-definedness, only of a cycle this caller did not carve out, and it does not imply the schedule
+this construct refuses cannot be evaluated by something else (Knuth 1968, MST 2(2) 127-145, cited
+for the ⟸ reduction only, never ⟺; Knuth 1971, MST 5(1) 95-96, cited as the negative that this
+construct does not implement — no productions, one declared graph, condensed once).
+
 **Families beside the declaration**: `placement` · `transform`.
 
 **Reference resolution**: `referenceResolution`, with `referenceResolutionFields` as the checkable
@@ -257,7 +268,7 @@ nix eval --json .#lib --apply builtins.attrNames
 Current output (verbatim):
 
 ```json
-["accumulatorOrder","accumulatorRelation","carrier","carrierElements","cell","combineArms","combines","compositionFields","compositions","dataOrder","dedupArms","dedups","definitionFields","directions","edgeLabels","edgeSortKey","hashTrace","labelOrder","labelWellFormedness","neededBy","neededByFields","orderedFoldOf","placement","readsOf","referenceResolution","referenceResolutionFields","relationLookup","relations","relatumLabels","renderEntry","renderTrace","scopeGraph","tieSetArms","tieSets","trace","traceEntryOf","transform","unit","viewDefinition","viewRelation","writesOf"]
+["accumulatorOrder","accumulatorRelation","boundedWellDefinedSchedule","carrier","carrierElements","cell","combineArms","combines","compositionFields","compositions","dataOrder","dedupArms","dedups","definitionFields","directions","edgeLabels","edgeSortKey","hashTrace","labelOrder","labelWellFormedness","neededBy","neededByFields","orderedFoldOf","placement","readsOf","referenceResolution","referenceResolutionFields","relationLookup","relations","relatumLabels","renderEntry","renderTrace","scopeGraph","tieSetArms","tieSets","trace","traceEntryOf","transform","unit","viewDefinition","viewRelation","writesOf"]
 ```
 
 The command observes **export names only**. The layering above is a reading of that one list, not a

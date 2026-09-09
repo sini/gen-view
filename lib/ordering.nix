@@ -46,6 +46,15 @@
 # exist. This library publishes NO ordering door that accepts the raw labelled-edge accessor, and
 # the refusal below names that accessor specifically so the next reader meets the reason and not
 # just the denial.
+#
+# ── A SECOND DOOR, A DIFFERENT INPUT-TYPE LAW ────────────────────────────────────────────────
+# `boundedWellDefinedSchedule` (ADR-0008 §3) is not this door and does not owe it the law above.
+# Its input type is `gen-graph.mkDeclaredEdges`'s contracted declared relation, and that relation
+# obtains its guarantee at CONSTRUCTION — `deepSeq`-forced there, so a relation closing back over
+# the evaluation it orders diverges before this library ever reads it — never by materialization.
+# The two doors share nothing but the file: one refuses a raw labelled-edge accessor because a
+# query's answer cannot decide whether an edge exists, the other admits a value already forced
+# closed at its own construction site.
 { prelude, graph }:
 let
   inherit (prelude)
@@ -57,7 +66,12 @@ let
   refusal = import ./refusal.nix { inherit prelude; };
   carrierLib = import ./carrier.nix { inherit prelude graph; };
   placement = import ./placement.nix { inherit prelude; };
-  inherit (refusal) refuse fields choice;
+  inherit (refusal)
+    refuse
+    fields
+    choice
+    strings
+    ;
   inherit (carrierLib) elementOf;
 
   # A CELL is the unit both sets range over: a ⟨scope, channel, SIDE⟩ bucket, rendered to a string
@@ -259,6 +273,60 @@ let
         value = a.units.${n}.relation.value;
       }
     ) order;
+
+  # `boundedWellDefinedSchedule { nodes; declaredDependencies; equations; admitsCycle; }` — ADR-0008
+  # §3's static well-definedness gate, re-homed as a query over gen-graph's CONTRACTED declared
+  # relation (owner-ruled 2026-09-09). It is Vogt's `bounded well-defined` (Definition 3.14), NOT
+  # `well defined` — Theorem 3.2's first two conjuncts, finiteness omitted, at Vogt's own stated
+  # price. A REFUSAL DOES NOT IMPLY ILL-DEFINEDNESS: well-definedness ⟸ absence of a declared cycle
+  # (Knuth 1968, MST 2(2) 127-145, cited for the reduction and for that one direction only), never
+  # ⟺. The 1971 correction (MST 5(1) 95-96) repaired Knuth's per-symbol §3 ALGORITHM — a set of
+  # graphs per symbol, tested for an oriented cycle — which this construct does NOT implement: gen
+  # has no productions, this condenses ONE declared graph, and the 1971 obligation is therefore not
+  # in force here; it is cited as the negative that keeps this construct from claiming the test.
+  #
+  # `declaredDependencies` is the contracted value `gen-graph.mkDeclaredEdges` returns — admitted by
+  # NAME and refused BY NAME, nominal and not structural: a hand-assembled attrset carrying an
+  # `index` and a `dependencies` has the right shape and is precisely the bypass. The type is
+  # `gen-graph`'s and the refusal is this library's, per `require-declared-dependencies.nix`'s own
+  # convention for the same contract. `nodes` is the registration set — a formal because the
+  # constructor's own index is grouped by source and omits sinks, and because this library holds no
+  # evaluator and must not acquire one. `admitsCycle` is the carve-out authority (Sloane 2009
+  # iterate-to-fixpoint is its ground) — REQUIRED AND TOTAL, no default, because a default is a
+  # decision nobody made and nobody can see — and it is `id -> bool`, `mkNodeRef`'s own shape: the
+  # membership authority arrives as a parameter about a registered substrate this library does not
+  # hold.
+  boundedWellDefinedSchedule =
+    args:
+    let
+      a = fields "boundedWellDefinedSchedule" [
+        "nodes"
+        "declaredDependencies"
+        "equations"
+        "admitsCycle"
+      ] args;
+      nodes = strings "boundedWellDefinedSchedule" "nodes" a.nodes;
+      declaredDependencies =
+        if graph.isDeclaredEdges a.declaredDependencies then
+          a.declaredDependencies
+        else if builtins.isAttrs a.declaredDependencies then
+          refuse "boundedWellDefinedSchedule" "field 'declaredDependencies' must be the relation `gen-graph.mkDeclaredEdges` returns; received an attrset that `mkDeclaredEdges` did not build"
+        else
+          refuse "boundedWellDefinedSchedule" "field 'declaredDependencies' must be the relation `gen-graph.mkDeclaredEdges` returns; received a ${builtins.typeOf a.declaredDependencies}";
+      edges = declaredDependencies.dependencies;
+      condensation = graph.condensation { inherit nodes edges; };
+      selfLoop = n: elem n (edges n);
+      isCyclicScc =
+        scc: (builtins.length scc > 1) || (builtins.length scc == 1 && selfLoop (builtins.head scc));
+      badSccs = filter (scc: isCyclicScc scc && !(builtins.all a.admitsCycle scc)) condensation.sccs;
+    in
+    if badSccs != [ ] then
+      refuse "boundedWellDefinedSchedule" "the declared relation has a cyclic component `admitsCycle` does not admit: ${builtins.toJSON badSccs}. Declare `admitsCycle` true for every member (Sloane 2009 iterate-to-fixpoint) or break the cycle"
+    else
+      {
+        inherit (a) equations;
+        inherit condensation edges;
+      };
 in
 {
   inherit
@@ -270,5 +338,6 @@ in
     accumulatorOrder
     orderedFoldOf
     materialized
+    boundedWellDefinedSchedule
     ;
 }
