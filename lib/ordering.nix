@@ -310,7 +310,15 @@ let
   # REQUIRED AND TOTAL, no default, because a default is a decision nobody made and nobody can see —
   # and it is `id -> bool`, `mkNodeRef`'s own shape: the membership authority arrives as a parameter
   # about a registered substrate this library does not hold. A value that is not a function is
-  # refused by name rather than left to abort uncatchably inside `builtins.all`.
+  # refused by name at the door. `builtins.isFunction` narrows the class but does not CLOSE it —
+  # Nix has no reliable arity predicate, so a wrong-arity or wrong-return-type `admitsCycle` still
+  # satisfies it and would otherwise reach `builtins.all` and abort uncatchably (`den-hoag-g8lo`'s
+  # ruling: "(a) add the isFunction arms AND (b) restate the bound honestly, because arity survives
+  # (a)"). At THIS site the residue is closable, because the value is consumed by `builtins.all`:
+  # `admits` below checks the APPLIED RESULT, not the function's shape, so forcing `a.admitsCycle n`
+  # to a bool subsumes arity — an under-applied function forces to a lambda, not a bool, and is
+  # refused the same way a wrong return type is. Both `g8lo` arms are therefore taken in full here:
+  # (a) stays at the door, and (b)'s bound is closed rather than merely restated.
   boundedWellDefinedSchedule =
     args:
     let
@@ -338,7 +346,19 @@ let
       selfLoop = n: elem n (edges n);
       isCyclicScc =
         scc: (builtins.length scc > 1) || (builtins.length scc == 1 && selfLoop (builtins.head scc));
-      badSccs = filter (scc: isCyclicScc scc && !(builtins.all a.admitsCycle scc)) condensation.sccs;
+      # The applied-result check: forcing `a.admitsCycle n` to a bool is what subsumes arity — see
+      # the header above. `a.admitsCycle` is already known to be a function here, because this
+      # binding is only ever forced after the `isFunction` refusal above has passed.
+      admits =
+        n:
+        let
+          r = a.admitsCycle n;
+        in
+        if builtins.isBool r then
+          r
+        else
+          refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must return a bool for every node identifier; for `${n}` it returned a ${builtins.typeOf r}";
+      badSccs = filter (scc: isCyclicScc scc && !(builtins.all admits scc)) condensation.sccs;
     in
     if missingEndpoints != [ ] then
       refuse "boundedWellDefinedSchedule" "field 'nodes' does not contain the declared relation's endpoint(s) ${quote missingEndpoints}; ADR-0008 §3's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`"

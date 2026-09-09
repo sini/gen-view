@@ -688,6 +688,42 @@ in
           msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' must be a function from a node identifier to a bool \\(`mkNodeRef`'s own shape\\); received a string$";
         };
       };
+
+      # ══ C-3 — `builtins.isFunction` ABOVE CLOSES ONLY THE NON-FUNCTION CASE; A FUNCTION OF THE
+      # WRONG RETURN TYPE OR THE WRONG ARITY STILL SATISFIED IT AND PREVIOUSLY REACHED
+      # `builtins.all` UNCATCHABLY. Measured before this repair, one run each, with `tryEval`:
+      # `admitsCycle = _: "yes"` unwound THROUGH `tryEval` to `error: expected a Boolean but found
+      # a string: "yes"`; `admitsCycle = _: _: true` unwound to `error: expected a Boolean but
+      # found a function`. Both are now named refusals, caught here the same way as the
+      # non-function case above, because `admits` checks the APPLIED result rather than the
+      # function's shape (`den-hoag-g8lo`; see `lib/ordering.nix`'s header on the same guard).
+      test-admitsCycle-wrong-return-type-is-named = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
+          wdsScheduleArgs
+          // {
+            admitsCycle = _: "yes";
+          }
+        )) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' must return a bool for every node identifier; for `child` it returned a string$";
+        };
+      };
+
+      # The wrong-arity case is the same guard: an under-applied `id -> id -> bool` forces to a
+      # lambda, not a bool, at the same site — arity is subsumed, not checked separately.
+      test-admitsCycle-wrong-arity-is-named = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
+          wdsScheduleArgs
+          // {
+            admitsCycle = _: _: true;
+          }
+        )) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' must return a bool for every node identifier; for `child` it returned a lambda$";
+        };
+      };
     };
   };
 }

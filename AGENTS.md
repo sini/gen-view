@@ -289,3 +289,13 @@ citation check does not read it and cannot catch it drifting. What binds this li
 export set is `ci/tests/surface.nix`'s `test-the-published-surface` cell, a pinned enumeration
 checked on every `nix-unit --flake ./ci#tests` run — that is the check to update alongside this
 block, not the citations tool.
+
+★ **`nix flake check ./ci` alone does not read `testsError`, the same way it does not read this
+block.** It prints `warning: unknown flake output 'testsError'` and quantifies `checks.default`
+over `flake.tests` only, so a guard covered solely by an `expectedError` cell can regress to
+radioactive and `nix flake check` still reports `all checks passed!` (measured: neutering
+`boundedWellDefinedSchedule`'s `admitsCycle` return-type check reddens two `ci-error` cells while
+`nix flake check ./ci` stays green). The pre-commit hook wired to this repository is what actually
+covers it — three entries, `ci` (`#tests`), `ci-error` (`#testsError`) and `treefmt` — so a CI lane
+gating on `nix flake check` alone, without that hook or an equivalent
+`nix-unit --flake ./ci#testsError` step, does not see these cells.
