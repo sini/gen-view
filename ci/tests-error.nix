@@ -778,11 +778,10 @@ in
       # ★ THE FIXTURE NAMES `parent`, AND THAT IS THE WHOLE CELL. Every other `admitsCycle` cell
       # hands in an authority that is ill-typed for EVERY node, so all of them name `child` —
       # element 0 in every fixture here. Narrowing `illTypedAdmissions`' domain to
-      # `[ (builtins.head nodes) ]` therefore leaves both suites at 223/223 and 70/70, exit 0,
-      # ❌ 0 ☢️ 0: every cell green at a red state. This cell is the only instrument in the
-      # repository that can see that, which is why `filter` over the whole of `nodes` — and not
-      # `builtins.all`, and not the first non-bool — is the mechanism the spec's §2.7.1 row 6
-      # requires.
+      # `[ (builtins.head nodes) ]` would leave every cell in BOTH suites reading green at a red
+      # state — this cell is the only instrument in the repository that can see that, which is
+      # why `filter` over the whole of `nodes` — and not `builtins.all`, and not the first
+      # non-bool — is the mechanism the spec's §2.7.1 row 6 requires.
       test-admitsCycle-ill-typed-on-a-later-node-is-named = {
         expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
           wdsScheduleArgs
