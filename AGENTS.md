@@ -115,8 +115,14 @@ file. Its input type is materialized at **construction**, not by a materialized-
 nothing else — except containment: `nodes` must name every endpoint of the declared relation it is
 handed, checked from the contracted value alone and refused BY NAME when it does not. A refusal
 here is `admitsCycle` (Sloane 2009 iterate-to-fixpoint) declining a declared cycle, or `nodes`
-missing an endpoint, or `admitsCycle` itself not being a function — none is evidence of
-ill-definedness, only that this construct did not admit the schedule, and it does not imply the
+missing an endpoint, or `admitsCycle` itself not being a function, or `admitsCycle` returning a
+non-bool for some node — ★ **and that list is NOT EXHAUSTIVE**: `declaredDependencies` is refused
+nominally, `fields` refuses a missing or unknown field, and `strings` refuses four further shapes
+of `nodes`. The enumeration that IS exhaustive is the library's own — the `refuse` calls in
+`lib/ordering.nix` and the cells in `ci/tests-error.nix` — and a closed list restated here goes
+stale silently, the same way the suite fraction quoted further down did. ★ **A refusal is not
+evidence of ill-definedness**, only that this construct did not admit the schedule, and it does not
+imply the
 schedule this construct refuses cannot be evaluated by something else (Knuth 1968, MST 2(2)
 127-145, cited for the ⟸ reduction only, never ⟺; Knuth 1971, MST 5(1) 95-96, cited as the negative
 that this construct does not implement — no productions, one declared graph, condensed once).
@@ -293,10 +299,13 @@ block, not the citations tool.
 ★ **`nix flake check ./ci` alone does not read `testsError`, the same way it does not read this
 block.** It prints `warning: unknown flake output 'testsError'` and quantifies `checks.default`
 over `flake.tests` only, so a guard covered solely by an `expectedError` cell can regress to a red
-`❌`, not `☢️`, and `nix flake check` still reports `all checks passed!` (measured: neutering
-`boundedWellDefinedSchedule`'s `admitsCycle` return-type check reddens two `ci-error` cells as
-`❌ Expected error type 'ThrownError', while 'TypeError' was thrown` — `66/68`, exit 1, `☢️` 0 —
-while `nix flake check ./ci` stays green). The pre-commit hook wired to this repository is what actually
+`❌` **or** a red `☢️`, and `nix flake check` still reports `all checks passed!` (measured: neutering
+`boundedWellDefinedSchedule`'s `admitsCycle` applied-result check reddens THREE `ci-error` cells —
+two as `❌ Expected error type 'ThrownError', while 'TypeError' was thrown` and the acyclic-fixture
+cell as `☢️ Expected error, but no error was caught` — `67/70`, exit 1, `❌` 2, `☢️` 1, while
+`nix flake check ./ci` exits **0** with `all checks passed!`). ★ Re-derive this fraction rather than
+citing it: it is a figure about a suite that grows, and the previous statement of it here was
+falsified by the very commit that wrote it. The pre-commit hook wired to this repository is what actually
 covers it — three entries, `ci` (`#tests`), `ci-error` (`#testsError`) and `treefmt` — so a CI lane
 gating on `nix flake check` alone, without that hook or an equivalent
 `nix-unit --flake ./ci#testsError` step, does not see these cells.

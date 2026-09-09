@@ -308,23 +308,60 @@ let
   # keys are the relation's sources, its values the targets — no evaluator, no second construction.
   # `admitsCycle` is the carve-out authority (Sloane 2009 iterate-to-fixpoint is its ground) —
   # REQUIRED AND TOTAL, no default, because a default is a decision nobody made and nobody can see —
-  # and it is `id -> bool`, `mkNodeRef`'s own shape: the membership authority arrives as a parameter
-  # about a registered substrate this library does not hold. A value that is not a function is
+  # and it is `id -> bool`, the shape of `isRegistered` — the membership authority `gen-graph`'s
+  # `mkNodeRef` itself TAKES AS A PARAMETER — a verdict about a registered substrate this library
+  # does not hold and never constructs. A value that is not a function is
   # refused by name at the door. `builtins.isFunction` narrows the class but does not CLOSE it —
   # Nix has no reliable arity predicate, so a wrong-arity or wrong-return-type `admitsCycle` still
   # satisfies it and would otherwise reach `builtins.all` and abort uncatchably. `den-hoag-g8lo`'s
   # SHIPPED predicate — its landed state, not the orchestrator's round-4 ruling this header used to
   # quote, which the bead's own record retires as wrong in its specifics — is
   # `isFunction v || (isAttrs v && v ? __functor)`. THIS DOOR IS DELIBERATELY NARROWER, lambda-only:
-  # the contracted shape here is `mkNodeRef`'s own, a lambda, and a `__functor` callable is refused
-  # BY NAME rather than admitted. `admits` below checks the APPLIED RESULT, not the function's
-  # shape: forcing `a.admitsCycle n` to a bool CLOSES UNDER-APPLICATION (a curried `_: _: true`
-  # forces to a lambda, not a bool, at the same site) and WRONG RETURN TYPE. It does NOT close a
-  # PATTERN FORMAL (`{ x }: true` or `{ x, ... }: true`) — such a value still satisfies
-  # `isFunction`, and applying it to a string node identifier aborts UNCATCHABLY while `r` is
-  # computed, before `admits`'s own check ever runs, escaping `builtins.tryEval` in the same way.
-  # No check on `r` can see a failure that happens computing `r`; that residue is pinned as a
-  # falsifier cell in `ci/tests-error.nix` rather than closed here.
+  # the contracted shape here is `isRegistered`'s, a plain lambda, and a `__functor` callable is
+  # refused BY NAME rather than admitted. ★ THE EXEMPLAR IS `isRegistered`, NOT `mkNodeRef`, AND
+  # THE DIFFERENCE IS MEASURED: at gen-graph `896433b` — the rev both `flake.lock` and
+  # `ci/flake.lock` pin — `builtins.functionArgs graph.mkNodeRef` is `{ isRegistered = false; }`.
+  # `mkNodeRef` is ITSELF A PATTERN FORMAL, of shape `{ isRegistered } -> id -> <nodeRef>`, whose
+  # ultimate codomain is a SET and not a bool; it satisfies `isFunction`, passes this door, and
+  # then aborts on application exactly as any other pattern formal does. Naming it as the `id ->
+  # bool` exemplar named a value that lands in the residue this door cannot close.
+  #
+  # ★★ THE APPLIED-RESULT CHECK IS TOTAL OVER `nodes`, BY CONSTRUCTION AND NOT BY THE CYCLE TEST'S
+  # GOOD BEHAVIOUR. `illTypedAdmissions` below forces `a.admitsCycle n` for EVERY member of `nodes`
+  # and refuses BY NAME on the first whose result is not a bool, which CLOSES UNDER-APPLICATION (a
+  # curried `_: _: true` forces to a lambda, not a bool, at that site) and WRONG RETURN TYPE — on
+  # every declared relation, not only on one that happens to carry a cyclic component. The earlier
+  # form checked the applied result INSIDE `badSccs`, behind `isCyclicScc scc &&`; Nix's `&&`
+  # short-circuits, so on an ACYCLIC declared relation `admitsCycle` was NEVER APPLIED AT ALL and
+  # an ill-typed authority was admitted GREEN — then aborted or refused on the same unchanged
+  # caller code the day a declared edge closed a cycle. Whether an ill-typed authority was caught
+  # at all was decided by DATA THE CALLER MAY NOT CONTROL; it is now decided by the authority
+  # alone. `nodes` is the right domain: containment is established above, so every endpoint is a
+  # member of `nodes`, and `condensation` partitions `nodes` — no application site inside
+  # `badSccs` is outside the checked set.
+  #
+  # ★ IT DOES NOT CLOSE A PATTERN FORMAL (`{ x }: true`, `{ x, ... }: true`), NOR AN `admitsCycle`
+  # WHOSE BODY ABORTS. Such a value still satisfies `isFunction`, and applying it to a string node
+  # identifier aborts UNCATCHABLY while the result is computed, before any check ON that result can
+  # run, escaping `builtins.tryEval`. No check on a value can see a failure that happens COMPUTING
+  # the value; and a body that throws or aborts of its own accord raises the CALLER's error, which
+  # is not this construct's to name. Both residues are pinned as falsifier cells in
+  # `ci/tests-error.nix` rather than claimed closed. Making the check total WIDENS THEIR REACH
+  # rather than narrowing it: they now fire on an acyclic relation too, where the same value was
+  # previously admitted in silence.
+  #
+  # COST. This construct is QUADRATIC in `|nodes|`, and it INHERITS that term rather than
+  # introducing it: `den-hoag-o29j` already prices `gen-graph.condensation` at a documented
+  # O(nodes²), and this library's own containment line is the second quadratic term (`elem e nodes`
+  # per endpoint, at `missingEndpoints`). Measured end-to-end on a linear chain (|E| = n−1, best of
+  # three, net of an n = 2 baseline of 42 ms): 82 / 314 / 1258 / 5300 ms at n = 400 / 800 / 1600 /
+  # 3200 — exponent 2.0 over three doublings. ★ THE TOTAL CHECK ADDS A LINEAR TERM, NOT A QUADRATIC
+  # ONE, and that is why `admissions` is an attrset rather than a second application site: the
+  # caller's authority is applied EXACTLY ONCE PER NODE, and the cycle test below RE-READS it
+  # instead of re-applying it. Against the inherited quadratic the addition does not register — the
+  # same chain measures 5300 ms before this repair and 5306 ms after, a 0.1 % delta smaller than
+  # the run-to-run spread. The price of the previous form was never speed; it was the silent
+  # admission above.
   boundedWellDefinedSchedule =
     args:
     let
@@ -352,30 +389,38 @@ let
       selfLoop = n: elem n (edges n);
       isCyclicScc =
         scc: (builtins.length scc > 1) || (builtins.length scc == 1 && selfLoop (builtins.head scc));
-      # The applied-result check: forcing `a.admitsCycle n` to a bool closes under-application and
-      # wrong return type — see the header above; a pattern formal still aborts uncatchably inside
-      # this binding, before this check runs. `a.admitsCycle` is already known to be a function
-      # here, because this binding is only ever forced after the `isFunction` refusal above has
-      # passed.
-      admits =
-        n:
-        let
-          r = a.admitsCycle n;
-        in
-        if builtins.isBool r then
-          r
-        else
-          refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must return a bool for every node identifier; for `${n}` it returned a ${builtins.typeOf r}";
-      # `builtins.all` SHORT-CIRCUITS at the first `false`: an ill-typed member of the same cyclic
-      # component that sits after a genuinely-false one is never forced, so the raised refusal is
-      # the (true, named, catchable) cycle refusal below rather than this type refusal, and the
-      # message will not name the ill-typed member.
-      badSccs = filter (scc: isCyclicScc scc && !(builtins.all admits scc)) condensation.sccs;
+      # ONE APPLICATION PER NODE, MEMOIZED, so the total check below and the cycle test after it
+      # share the caller's authority instead of paying for it twice. `a.admitsCycle` is already
+      # known to be a function here: this binding is only ever forced after the `isFunction`
+      # refusal below has passed. `strings` has already refused a duplicate in `nodes`, so these
+      # keys are exactly its members.
+      admissions = builtins.listToAttrs (
+        map (n: {
+          name = n;
+          value = a.admitsCycle n;
+        }) nodes
+      );
+      # ★ THE APPLIED-RESULT CHECK, HOISTED OUT OF THE CYCLE TEST — see the header above. `filter`
+      # forces its predicate over EVERY member of `nodes`, so every admission is typed here
+      # whatever shape the declared relation has, and a pattern formal aborts here rather than
+      # being short-circuited into silence on an acyclic relation.
+      illTypedAdmissions = filter (n: !(builtins.isBool admissions.${n})) nodes;
+      # `builtins.all` still SHORT-CIRCUITS at the first `false`, but it can no longer swallow a
+      # type refusal: every member of `nodes` is typed above before this is forced, and every SCC
+      # member is a member of `nodes` because `condensation` partitions it — so the values read
+      # here are bools, and the only refusal reachable from this line is the cycle refusal itself.
+      badSccs = filter (
+        scc: isCyclicScc scc && !(builtins.all (n: admissions.${n}) scc)
+      ) condensation.sccs;
     in
     if missingEndpoints != [ ] then
       refuse "boundedWellDefinedSchedule" "field 'nodes' does not contain the declared relation's endpoint(s) ${quote missingEndpoints}; ADR-0008 §3's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`"
     else if !(builtins.isFunction a.admitsCycle) then
-      refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must be a function from a node identifier to a bool (`mkNodeRef`'s own shape); received a ${builtins.typeOf a.admitsCycle}"
+      refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must be a function from a node identifier to a bool (`isRegistered`'s shape — the membership authority `mkNodeRef` itself takes); received a ${builtins.typeOf a.admitsCycle}"
+    else if illTypedAdmissions != [ ] then
+      refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must return a bool for every node identifier; for `${builtins.head illTypedAdmissions}` it returned a ${
+        builtins.typeOf admissions.${builtins.head illTypedAdmissions}
+      }"
     else if badSccs != [ ] then
       refuse "boundedWellDefinedSchedule" "the declared relation has a cyclic component `admitsCycle` does not admit: ${builtins.toJSON badSccs}. Declare `admitsCycle` true for every member (Sloane 2009 iterate-to-fixpoint) or break the cycle; this refusal is not a well-definedness verdict (well-definedness ⟸ absence of a declared cycle, never ⟺)"
     else

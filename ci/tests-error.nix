@@ -685,7 +685,7 @@ in
         )) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' must be a function from a node identifier to a bool \\(`mkNodeRef`'s own shape\\); received a string$";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' must be a function from a node identifier to a bool \\(`isRegistered`'s shape — the membership authority `mkNodeRef` itself takes\\); received a string$";
         };
       };
 
@@ -695,8 +695,8 @@ in
       # `admitsCycle = _: "yes"` unwound THROUGH `tryEval` to `error: expected a Boolean but found
       # a string: "yes"`; `admitsCycle = _: _: true` unwound to `error: expected a Boolean but
       # found a function`. Both are now named refusals, caught here the same way as the
-      # non-function case above, because `admits` checks the APPLIED result rather than the
-      # function's shape (`den-hoag-g8lo`; see `lib/ordering.nix`'s header on the same guard).
+      # non-function case above, because `illTypedAdmissions` checks the APPLIED result rather than
+      # the function's shape (`den-hoag-g8lo`; see `lib/ordering.nix`'s header on the same guard).
       test-admitsCycle-wrong-return-type-is-named = {
         expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
           wdsScheduleArgs
@@ -730,9 +730,10 @@ in
       };
 
       # ══ C-4 RESIDUE — A PATTERN FORMAL PASSES THE `isFunction` DOOR AND ABORTS UNCATCHABLY
-      # INSIDE `admits`, ESCAPING `builtins.tryEval` (den-hoag-6poeg landing gate 3, C-4). This is
-      # NOT a `ThrownError`: Nix's own evaluator raises it computing `r = a.admitsCycle n`, before
-      # `admits`'s bool check ever runs, so no `refuse` call in this library ever names it. The
+      # BUILDING `admissions`, ESCAPING `builtins.tryEval` (den-hoag-6poeg landing gate 3, C-4).
+      # This is NOT a `ThrownError`: Nix's own evaluator raises it computing `a.admitsCycle n`,
+      # before `illTypedAdmissions`' bool check runs, so no `refuse` call in this library names it.
+      # The
       # message is unanchored on purpose — it is the evaluator's own rendering, not authored text
       # this library controls, so pinning it end-to-end would freeze on an evaluator-version detail
       # rather than on this construct's behaviour.
@@ -743,6 +744,56 @@ in
         expectedError = {
           type = "TypeError";
           msg = "expected a set but found a string";
+        };
+      };
+
+      # ══ C-5 — THE APPLIED-RESULT CHECK IS TOTAL OVER `nodes`, NOT CONDITIONAL ON A CYCLE
+      # EXISTING (den-hoag-6poeg landing gate 4, C-5) ══
+      # ★ THE FIXTURE IS THE WHOLE POINT OF THIS CELL. Every other `admitsCycle` cell above rides
+      # `wdsScheduleArgs`, whose `declaredDependencies` is `wdsDeclaredCyclic`; this one overrides
+      # it to `wdsDeclaredAcyclic`. Before this repair the check lived inside `badSccs`, behind
+      # `isCyclicScc scc &&`, and Nix's `&&` short-circuits — so on an acyclic declared relation
+      # `admitsCycle` was NEVER APPLIED, and every ill-typed authority was admitted GREEN. Measured
+      # on this exact input at `f74c39da`: the construct RETURNED A SCHEDULE. Four successive
+      # landing gates could not see it because `wdsDeclaredAcyclic` was only ever paired with a
+      # well-typed authority — the FIXTURE PAIRING, not the assertions, is what hid it. The refusal
+      # text below is byte-identical to the cyclic-fixture cell above, and that identity IS the
+      # assertion: whether an ill-typed authority is caught no longer depends on the shape of the
+      # declared relation, which is data the caller may not control.
+      test-admitsCycle-wrong-return-type-is-named-on-an-acyclic-relation = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
+          wdsScheduleArgs
+          // {
+            declaredDependencies = wdsDeclaredAcyclic;
+            admitsCycle = _: "yes";
+          }
+        )) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' must return a bool for every node identifier; for `child` it returned a string$";
+        };
+      };
+
+      # ══ C-7 — THE CHECK REACHES PAST ELEMENT 0 OF `nodes` (den-hoag-6poeg landing gate 5) ══
+      # ★ THE FIXTURE NAMES `parent`, AND THAT IS THE WHOLE CELL. Every other `admitsCycle` cell
+      # hands in an authority that is ill-typed for EVERY node, so all of them name `child` —
+      # element 0 in every fixture here. Narrowing `illTypedAdmissions`' domain to
+      # `[ (builtins.head nodes) ]` therefore leaves both suites at 223/223 and 70/70, exit 0,
+      # ❌ 0 ☢️ 0: every cell green at a red state. This cell is the only instrument in the
+      # repository that can see that, which is why `filter` over the whole of `nodes` — and not
+      # `builtins.all`, and not the first non-bool — is the mechanism the spec's §2.7.1 row 6
+      # requires.
+      test-admitsCycle-ill-typed-on-a-later-node-is-named = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
+          wdsScheduleArgs
+          // {
+            declaredDependencies = wdsDeclaredAcyclic;
+            admitsCycle = n: if n == "child" then false else "yes";
+          }
+        )) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' must return a bool for every node identifier; for `parent` it returned a string$";
         };
       };
     };
