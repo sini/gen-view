@@ -44,6 +44,9 @@ let
     child = [ "parent" ];
     parent = [ "child" ];
   };
+  # `child` alone is a SOURCE in the index; `parent` (a sink only) is absent from its keys — the
+  # fixture C-1's third arm needs to show `nodes = attrNames index` silently omitting a sink.
+  wdsDeclaredAcyclic = wdsContracted { child = [ "parent" ]; };
   wdsScheduleArgs = {
     nodes = [
       "child"
@@ -587,11 +590,13 @@ in
       # ★★★ O5a — THE CITATION CELL. The full message, anchored start to end, so a stray occurrence
       # of the forbidden phrase anywhere in it — including the Knuth 1971 corrected per-symbol
       # algorithm this construct does NOT implement — fails this cell, not merely a substring probe.
+      # P-3: the message also states its DIRECTION now — a refusal is sufficient, never necessary —
+      # so this anchor moves in lockstep with `lib/ordering.nix`'s throw text.
       test-the-refusal-message-names-sloane-and-never-the-forbidden-phrase = {
         expr = builtins.deepSeq (v.boundedWellDefinedSchedule wdsScheduleArgs) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.boundedWellDefinedSchedule: the declared relation has a cyclic component `admitsCycle` does not admit: \\[\\[\"child\",\"parent\"\\]\\]\\. Declare `admitsCycle` true for every member \\(Sloane 2009 iterate-to-fixpoint\\) or break the cycle$";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: the declared relation has a cyclic component `admitsCycle` does not admit: \\[\\[\"child\",\"parent\"\\]\\]\\. Declare `admitsCycle` true for every member \\(Sloane 2009 iterate-to-fixpoint\\) or break the cycle; this refusal is not a well-definedness verdict \\(well-definedness ⟸ absence of a declared cycle, never ⟺\\)$";
         };
       };
 
@@ -603,13 +608,85 @@ in
           (v.boundedWellDefinedSchedule (
             wdsScheduleArgs
             // {
-              declaredDependencies = wdsContracted { child = [ "parent" ]; };
+              declaredDependencies = wdsDeclaredAcyclic;
             }
           )).condensation.sccs;
         expected = [
           [ "parent" ]
           [ "child" ]
         ];
+      };
+
+      # ══ C-1 — `nodes` MUST CONTAIN EVERY ENDPOINT OF THE DECLARED RELATION; CHECKED, NOT
+      # ASSUMED. Three arms, one per landing-gate finding: an endpoint outside `nodes` is refused
+      # BY NAME rather than silently narrowing the partition or reaching gen-graph's own
+      # partitioner for a node it never registered, which aborts uncatchably
+      # (`attribute … missing`, `lib/partition.nix`).
+
+      # Before this repair: `nodes = [ "other" ]` with the declared 2-cycle SILENTLY ADMITTED —
+      # `{ success = true; sccs = [ [ "other" ] ]; }` — because `graph.condensation` never saw
+      # `child` or `parent` at all.
+      test-nodes-omitting-every-endpoint-of-the-declared-relation-names-them-both = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
+          wdsScheduleArgs
+          // {
+            nodes = [ "other" ];
+            admitsCycle = _: false;
+          }
+        )) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'nodes' does not contain the declared relation's endpoint\\(s\\) child, parent; ADR-0008 §3's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`$";
+        };
+      };
+
+      # Before this repair: `nodes = [ "child" ]` reached gen-graph's own partitioner for `parent`,
+      # a node it never registered, and aborted UNCATCHABLY.
+      test-nodes-omitting-one-endpoint-of-a-declared-cycle-names-it = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
+          wdsScheduleArgs
+          // {
+            nodes = [ "child" ];
+            admitsCycle = _: false;
+          }
+        )) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'nodes' does not contain the declared relation's endpoint\\(s\\) parent; ADR-0008 §3's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`$";
+        };
+      };
+
+      # `index`'s keys are grouped by SOURCE, so a `nodes` built from `attrNames index` alone omits
+      # every sink — the same uncatchable abort as above, this time for a relation that has no
+      # cycle at all: containment is checked before the partition is ever forced.
+      test-nodes-derived-from-the-index-keys-alone-omits-a-sink-and-is-named = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
+          wdsScheduleArgs
+          // {
+            nodes = builtins.attrNames wdsDeclaredAcyclic.index;
+            declaredDependencies = wdsDeclaredAcyclic;
+            admitsCycle = _: false;
+          }
+        )) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'nodes' does not contain the declared relation's endpoint\\(s\\) parent; ADR-0008 §3's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`$";
+        };
+      };
+
+      # ══ C-1 — `admitsCycle` MUST BE A FUNCTION; A NON-FUNCTION IS NAMED rather than left to
+      # abort uncatchably inside `builtins.all` ══
+      test-admitsCycle-not-a-function-is-named = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
+          wdsScheduleArgs
+          // {
+            admitsCycle = "not-a-function";
+          }
+        )) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' must be a function from a node identifier to a bool \\(`mkNodeRef`'s own shape\\); received a string$";
+        };
       };
     };
   };

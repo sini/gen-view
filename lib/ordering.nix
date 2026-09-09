@@ -71,6 +71,7 @@ let
     fields
     choice
     strings
+    quote
     ;
   inherit (carrierLib) elementOf;
 
@@ -277,13 +278,21 @@ let
   # `boundedWellDefinedSchedule { nodes; declaredDependencies; equations; admitsCycle; }` — ADR-0008
   # §3's static well-definedness gate, re-homed as a query over gen-graph's CONTRACTED declared
   # relation (owner-ruled 2026-09-09). It is Vogt's `bounded well-defined` (Definition 3.14), NOT
-  # `well defined` — Theorem 3.2's first two conjuncts, finiteness omitted, at Vogt's own stated
-  # price. A REFUSAL DOES NOT IMPLY ILL-DEFINEDNESS: well-definedness ⟸ absence of a declared cycle
-  # (Knuth 1968, MST 2(2) 127-145, cited for the reduction and for that one direction only), never
-  # ⟺. The 1971 correction (MST 5(1) 95-96) repaired Knuth's per-symbol §3 ALGORITHM — a set of
-  # graphs per symbol, tested for an oriented cycle — which this construct does NOT implement: gen
-  # has no productions, this condenses ONE declared graph, and the 1971 obligation is therefore not
-  # in force here; it is cited as the negative that keeps this construct from claiming the test.
+  # `well defined`. Theorem 3.2 carries THREE conjuncts — completeness, no cycle under EDDP, and a
+  # once-per-path non-terminal bound; ADR-0008 §3 rules the gate takes the first two and omits
+  # finiteness. ★ THIS CONSTRUCT COMPUTES THE SECOND CONJUNCT ONLY. `equations` is accepted,
+  # required and returned unread — so a caller can pair the schedule with the equations it was built
+  # from — but no field of it is read HERE, so completeness (every attribute of every symbol is
+  # effectively computable) is neither checked nor assumed by this code. Whether it holds by
+  # construction elsewhere in gen, or is owed to a later construct, is not decided in this file; a
+  # caller relying on it must find that ground independently. AT VOGT'S OWN STATED PRICE FOR
+  # OMITTING FINITENESS: "Finite expansion of the structure tree, however, is no longer
+  # guaranteed." A REFUSAL DOES NOT IMPLY ILL-DEFINEDNESS: well-definedness ⟸ absence of a declared
+  # cycle (Knuth 1968, MST 2(2) 127-145, cited for the reduction and for that one direction only),
+  # never ⟺. The 1971 correction (MST 5(1) 95-96) repaired Knuth's per-symbol §3 ALGORITHM — a set
+  # of graphs per symbol, tested for an oriented cycle — which this construct does NOT implement:
+  # gen has no productions, this condenses ONE declared graph, and the 1971 obligation is therefore
+  # not in force here; it is cited as the negative that keeps this construct from claiming the test.
   #
   # `declaredDependencies` is the contracted value `gen-graph.mkDeclaredEdges` returns — admitted by
   # NAME and refused BY NAME, nominal and not structural: a hand-assembled attrset carrying an
@@ -291,11 +300,17 @@ let
   # `gen-graph`'s and the refusal is this library's, per `require-declared-dependencies.nix`'s own
   # convention for the same contract. `nodes` is the registration set — a formal because the
   # constructor's own index is grouped by source and omits sinks, and because this library holds no
-  # evaluator and must not acquire one. `admitsCycle` is the carve-out authority (Sloane 2009
-  # iterate-to-fixpoint is its ground) — REQUIRED AND TOTAL, no default, because a default is a
-  # decision nobody made and nobody can see — and it is `id -> bool`, `mkNodeRef`'s own shape: the
-  # membership authority arrives as a parameter about a registered substrate this library does not
-  # hold.
+  # evaluator and must not acquire one. ★ `nodes` MUST CONTAIN EVERY ENDPOINT OF THE DECLARED
+  # RELATION IT IS HANDED, and this is CHECKED rather than assumed: an endpoint outside `nodes`
+  # either narrows the partition silently (a cyclic component built from only the seen half is
+  # admitted) or reaches gen-graph's own partitioner for a node it never registered, which aborts
+  # uncatchably. Both regimes are refused BY NAME here, from the contracted value alone — `index`'s
+  # keys are the relation's sources, its values the targets — no evaluator, no second construction.
+  # `admitsCycle` is the carve-out authority (Sloane 2009 iterate-to-fixpoint is its ground) —
+  # REQUIRED AND TOTAL, no default, because a default is a decision nobody made and nobody can see —
+  # and it is `id -> bool`, `mkNodeRef`'s own shape: the membership authority arrives as a parameter
+  # about a registered substrate this library does not hold. A value that is not a function is
+  # refused by name rather than left to abort uncatchably inside `builtins.all`.
   boundedWellDefinedSchedule =
     args:
     let
@@ -313,6 +328,11 @@ let
           refuse "boundedWellDefinedSchedule" "field 'declaredDependencies' must be the relation `gen-graph.mkDeclaredEdges` returns; received an attrset that `mkDeclaredEdges` did not build"
         else
           refuse "boundedWellDefinedSchedule" "field 'declaredDependencies' must be the relation `gen-graph.mkDeclaredEdges` returns; received a ${builtins.typeOf a.declaredDependencies}";
+      # Containment, decided from the contracted value alone: `index`'s keys are the sources,
+      # its values the targets. No evaluator, no second construction — see the header above.
+      sources = builtins.attrNames declaredDependencies.index;
+      targets = builtins.concatLists (builtins.attrValues declaredDependencies.index);
+      missingEndpoints = unique (filter (e: !(elem e nodes)) (sources ++ targets));
       edges = declaredDependencies.dependencies;
       condensation = graph.condensation { inherit nodes edges; };
       selfLoop = n: elem n (edges n);
@@ -320,8 +340,12 @@ let
         scc: (builtins.length scc > 1) || (builtins.length scc == 1 && selfLoop (builtins.head scc));
       badSccs = filter (scc: isCyclicScc scc && !(builtins.all a.admitsCycle scc)) condensation.sccs;
     in
-    if badSccs != [ ] then
-      refuse "boundedWellDefinedSchedule" "the declared relation has a cyclic component `admitsCycle` does not admit: ${builtins.toJSON badSccs}. Declare `admitsCycle` true for every member (Sloane 2009 iterate-to-fixpoint) or break the cycle"
+    if missingEndpoints != [ ] then
+      refuse "boundedWellDefinedSchedule" "field 'nodes' does not contain the declared relation's endpoint(s) ${quote missingEndpoints}; ADR-0008 §3's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`"
+    else if !(builtins.isFunction a.admitsCycle) then
+      refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must be a function from a node identifier to a bool (`mkNodeRef`'s own shape); received a ${builtins.typeOf a.admitsCycle}"
+    else if badSccs != [ ] then
+      refuse "boundedWellDefinedSchedule" "the declared relation has a cyclic component `admitsCycle` does not admit: ${builtins.toJSON badSccs}. Declare `admitsCycle` true for every member (Sloane 2009 iterate-to-fixpoint) or break the cycle; this refusal is not a well-definedness verdict (well-definedness ⟸ absence of a declared cycle, never ⟺)"
     else
       {
         inherit (a) equations;

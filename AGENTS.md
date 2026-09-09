@@ -102,15 +102,24 @@ widen the claim back.
 `orderedFoldOf` `cell`.
 
 **A second, unrelated door on the same file**: `boundedWellDefinedSchedule` (ADR-0008 §3) — Vogt's
-`bounded well-defined` (Definition 3.14, Theorem 3.2's first two conjuncts, finiteness omitted) as a
-query over `gen-graph`'s CONTRACTED declared relation. Its input type is materialized at
-**construction**, not by a materialized-projection door: `gen-graph.mkDeclaredEdges`'s own
-`deepSeq`-forcing is the guarantee, and this construct owes it nothing else. A refusal here is
-`admitsCycle` (Sloane 2009 iterate-to-fixpoint) declining a declared cycle — it is NOT evidence of
-ill-definedness, only of a cycle this caller did not carve out, and it does not imply the schedule
-this construct refuses cannot be evaluated by something else (Knuth 1968, MST 2(2) 127-145, cited
-for the ⟸ reduction only, never ⟺; Knuth 1971, MST 5(1) 95-96, cited as the negative that this
-construct does not implement — no productions, one declared graph, condensed once).
+`bounded well-defined` (Definition 3.14) as a query over `gen-graph`'s CONTRACTED declared
+relation. Theorem 3.2 carries THREE conjuncts — completeness, no cycle under EDDP, and a
+once-per-path non-terminal bound; ADR-0008 §3 rules the gate takes the first two and omits
+finiteness, at Vogt's own stated price: "Finite expansion of the structure tree, however, is no
+longer guaranteed." ★ THIS CONSTRUCT COMPUTES THE SECOND CONJUNCT ONLY. `equations` is accepted,
+required and returned so a caller can pair the schedule with the equations it orders, but no field
+of it is read by this construct, so completeness is neither checked nor assumed here; whether it
+holds by construction elsewhere in gen, or is owed to a later construct, is not decided by this
+file. Its input type is materialized at **construction**, not by a materialized-projection door:
+`gen-graph.mkDeclaredEdges`'s own `deepSeq`-forcing is the guarantee, and this construct owes it
+nothing else — except containment: `nodes` must name every endpoint of the declared relation it is
+handed, checked from the contracted value alone and refused BY NAME when it does not. A refusal
+here is `admitsCycle` (Sloane 2009 iterate-to-fixpoint) declining a declared cycle, or `nodes`
+missing an endpoint, or `admitsCycle` itself not being a function — none is evidence of
+ill-definedness, only that this construct did not admit the schedule, and it does not imply the
+schedule this construct refuses cannot be evaluated by something else (Knuth 1968, MST 2(2)
+127-145, cited for the ⟸ reduction only, never ⟺; Knuth 1971, MST 5(1) 95-96, cited as the negative
+that this construct does not implement — no productions, one declared graph, condensed once).
 
 **Families beside the declaration**: `placement` · `transform`.
 
@@ -274,3 +283,9 @@ Current output (verbatim):
 The command observes **export names only**. The layering above is a reading of that one list, not a
 second thing this check measures: a rename inside a closed enumeration (`combines`, `tieSets`,
 `dedups`, `directions`) leaves it unmoved.
+
+★ This JSON block sits **below** `<!-- gen-citations:end -->`, so `gen-citations`'s awk-based
+citation check does not read it and cannot catch it drifting. What binds this list to the real
+export set is `ci/tests/surface.nix`'s `test-the-published-surface` cell, a pinned enumeration
+checked on every `nix-unit --flake ./ci#tests` run — that is the check to update alongside this
+block, not the citations tool.

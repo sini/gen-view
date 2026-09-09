@@ -459,8 +459,12 @@ in
     };
 
     # ══ O6 — THE GATE READS THE CONTRACTED DECLARED RELATION AND NOTHING ELSE (no readsAttrs
-    # anywhere): refuses a declared cycle, admits an acyclic one, and a LIVE CONTROL on an input the
-    # filtered arm does not share — the acyclic relation's UNFILTERED condensation is two singletons.
+    # anywhere): refuses a declared cycle, admits an acyclic one. ★ `directCondensation` IS NOT AN
+    # INDEPENDENT CONTROL — `boundedWellDefinedSchedule` never post-filters its success return:
+    # `.condensation` IS `graph.condensation { nodes; edges; }` unmodified, so this arm and the
+    # subject necessarily compute the identical value from the identical arguments. What it
+    # demonstrates is that identity — the returned field is the raw partition, not some filtered
+    # derivative of it — not a comparison against an unshared input.
     test-the-gate-reads-the-contracted-declared-relation-and-nothing-else = {
       expr = {
         cyclicRefuses = refuses (wdsSchedule {
@@ -472,7 +476,7 @@ in
             declaredDependencies = wdsDeclaredAcyclic;
             admitsCycle = wdsKindSynthesized;
           }).condensation.sccs;
-        acyclicUnfiltered =
+        directCondensation =
           (graph.condensation {
             nodes = wdsNodes;
             edges = wdsDeclaredAcyclic.dependencies;
@@ -484,7 +488,7 @@ in
           [ "parent" ]
           [ "child" ]
         ];
-        acyclicUnfiltered = [
+        directCondensation = [
           [ "parent" ]
           [ "child" ]
         ];

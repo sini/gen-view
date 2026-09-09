@@ -260,11 +260,11 @@
         "gen-schema": "gen-schema"
       },
       "locked": {
-        "lastModified": 1787413416,
-        "narHash": "sha256-n0SbtIqE2gk4kIFgz05BWMMTJ/O8w/On3CMINfeDn4I=",
+        "lastModified": 1788929516,
+        "narHash": "sha256-aHNBilfT7hvdQ0u8COpcdfVKkNuxFuLOzU7tFE0uMzM=",
         "owner": "sini",
         "repo": "gen-scope",
-        "rev": "6984433ba18d18dca455da5919c82e4e34d67827",
+        "rev": "f86ce3227e759a863d5d4c2ed73fdb5363efc073",
         "type": "github"
       },
       "original": {
