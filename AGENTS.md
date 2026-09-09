@@ -292,10 +292,11 @@ block, not the citations tool.
 
 ★ **`nix flake check ./ci` alone does not read `testsError`, the same way it does not read this
 block.** It prints `warning: unknown flake output 'testsError'` and quantifies `checks.default`
-over `flake.tests` only, so a guard covered solely by an `expectedError` cell can regress to
-radioactive and `nix flake check` still reports `all checks passed!` (measured: neutering
-`boundedWellDefinedSchedule`'s `admitsCycle` return-type check reddens two `ci-error` cells while
-`nix flake check ./ci` stays green). The pre-commit hook wired to this repository is what actually
+over `flake.tests` only, so a guard covered solely by an `expectedError` cell can regress to a red
+`❌`, not `☢️`, and `nix flake check` still reports `all checks passed!` (measured: neutering
+`boundedWellDefinedSchedule`'s `admitsCycle` return-type check reddens two `ci-error` cells as
+`❌ Expected error type 'ThrownError', while 'TypeError' was thrown` — `66/68`, exit 1, `☢️` 0 —
+while `nix flake check ./ci` stays green). The pre-commit hook wired to this repository is what actually
 covers it — three entries, `ci` (`#tests`), `ci-error` (`#testsError`) and `treefmt` — so a CI lane
 gating on `nix flake check` alone, without that hook or an equivalent
 `nix-unit --flake ./ci#testsError` step, does not see these cells.

@@ -710,8 +710,12 @@ in
         };
       };
 
-      # The wrong-arity case is the same guard: an under-applied `id -> id -> bool` forces to a
-      # lambda, not a bool, at the same site — arity is subsumed, not checked separately.
+      # The wrong-arity case is the same guard for UNDER-APPLICATION only: an under-applied
+      # `id -> id -> bool` forces to a lambda, not a bool, at the same site and is refused the
+      # same way a wrong return type is. This does NOT close arity generally: a PATTERN FORMAL
+      # (`{ x }: true`, `{ x, ... }: true`) still satisfies `isFunction` and aborts UNCATCHABLY
+      # computing `r`, before this check ever runs — pinned as a falsifier below rather than
+      # claimed closed.
       test-admitsCycle-wrong-arity-is-named = {
         expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
           wdsScheduleArgs
@@ -722,6 +726,23 @@ in
         expectedError = {
           type = "ThrownError";
           msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' must return a bool for every node identifier; for `child` it returned a lambda$";
+        };
+      };
+
+      # ══ C-4 RESIDUE — A PATTERN FORMAL PASSES THE `isFunction` DOOR AND ABORTS UNCATCHABLY
+      # INSIDE `admits`, ESCAPING `builtins.tryEval` (den-hoag-6poeg landing gate 3, C-4). This is
+      # NOT a `ThrownError`: Nix's own evaluator raises it computing `r = a.admitsCycle n`, before
+      # `admits`'s bool check ever runs, so no `refuse` call in this library ever names it. The
+      # message is unanchored on purpose — it is the evaluator's own rendering, not authored text
+      # this library controls, so pinning it end-to-end would freeze on an evaluator-version detail
+      # rather than on this construct's behaviour.
+      test-admitsCycle-pattern-formal-aborts = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
+          wdsScheduleArgs // { admitsCycle = { x }: true; }
+        )) true;
+        expectedError = {
+          type = "TypeError";
+          msg = "expected a set but found a string";
         };
       };
     };

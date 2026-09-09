@@ -312,13 +312,19 @@ let
   # about a registered substrate this library does not hold. A value that is not a function is
   # refused by name at the door. `builtins.isFunction` narrows the class but does not CLOSE it —
   # Nix has no reliable arity predicate, so a wrong-arity or wrong-return-type `admitsCycle` still
-  # satisfies it and would otherwise reach `builtins.all` and abort uncatchably (`den-hoag-g8lo`'s
-  # ruling: "(a) add the isFunction arms AND (b) restate the bound honestly, because arity survives
-  # (a)"). At THIS site the residue is closable, because the value is consumed by `builtins.all`:
-  # `admits` below checks the APPLIED RESULT, not the function's shape, so forcing `a.admitsCycle n`
-  # to a bool subsumes arity — an under-applied function forces to a lambda, not a bool, and is
-  # refused the same way a wrong return type is. Both `g8lo` arms are therefore taken in full here:
-  # (a) stays at the door, and (b)'s bound is closed rather than merely restated.
+  # satisfies it and would otherwise reach `builtins.all` and abort uncatchably. `den-hoag-g8lo`'s
+  # SHIPPED predicate — its landed state, not the orchestrator's round-4 ruling this header used to
+  # quote, which the bead's own record retires as wrong in its specifics — is
+  # `isFunction v || (isAttrs v && v ? __functor)`. THIS DOOR IS DELIBERATELY NARROWER, lambda-only:
+  # the contracted shape here is `mkNodeRef`'s own, a lambda, and a `__functor` callable is refused
+  # BY NAME rather than admitted. `admits` below checks the APPLIED RESULT, not the function's
+  # shape: forcing `a.admitsCycle n` to a bool CLOSES UNDER-APPLICATION (a curried `_: _: true`
+  # forces to a lambda, not a bool, at the same site) and WRONG RETURN TYPE. It does NOT close a
+  # PATTERN FORMAL (`{ x }: true` or `{ x, ... }: true`) — such a value still satisfies
+  # `isFunction`, and applying it to a string node identifier aborts UNCATCHABLY while `r` is
+  # computed, before `admits`'s own check ever runs, escaping `builtins.tryEval` in the same way.
+  # No check on `r` can see a failure that happens computing `r`; that residue is pinned as a
+  # falsifier cell in `ci/tests-error.nix` rather than closed here.
   boundedWellDefinedSchedule =
     args:
     let
@@ -346,9 +352,11 @@ let
       selfLoop = n: elem n (edges n);
       isCyclicScc =
         scc: (builtins.length scc > 1) || (builtins.length scc == 1 && selfLoop (builtins.head scc));
-      # The applied-result check: forcing `a.admitsCycle n` to a bool is what subsumes arity — see
-      # the header above. `a.admitsCycle` is already known to be a function here, because this
-      # binding is only ever forced after the `isFunction` refusal above has passed.
+      # The applied-result check: forcing `a.admitsCycle n` to a bool closes under-application and
+      # wrong return type — see the header above; a pattern formal still aborts uncatchably inside
+      # this binding, before this check runs. `a.admitsCycle` is already known to be a function
+      # here, because this binding is only ever forced after the `isFunction` refusal above has
+      # passed.
       admits =
         n:
         let
@@ -358,6 +366,10 @@ let
           r
         else
           refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must return a bool for every node identifier; for `${n}` it returned a ${builtins.typeOf r}";
+      # `builtins.all` SHORT-CIRCUITS at the first `false`: an ill-typed member of the same cyclic
+      # component that sits after a genuinely-false one is never forced, so the raised refusal is
+      # the (true, named, catchable) cycle refusal below rather than this type refusal, and the
+      # message will not name the ill-typed member.
       badSccs = filter (scc: isCyclicScc scc && !(builtins.all admits scc)) condensation.sccs;
     in
     if missingEndpoints != [ ] then
