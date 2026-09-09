@@ -164,6 +164,37 @@ in
       };
     };
 
+    # ── R§10.1, RIDER 1 — THE RETIREMENT RECORD SURVIVES ──
+    # `lib/enumerations.nix` carries, immediately above `combines.setUnion`, the record of what
+    # gen-resolve's retired `cascade` construct decided about its `acc` flag and what it only
+    # declared — R§10.1 (a retirement names what it carries forward or it is a deletion). This
+    # cell pins that the record SURVIVES, never that it is true; the flag-check behaviour it
+    # describes is the existing cells above, cited there and not rewritten here (`den-hoag-p3y9`).
+    #
+    # ★ THE LIVE CONTROL IS THE SECOND ARM OF THIS SAME EXPR, not a second cell — a one-armed
+    # `present = true` would still pass against a `match` that has stopped discriminating.
+    # `absentControl` is a probe DERIVED from the file's own content (its sha256), not a literal
+    # typed here: a hardcoded random string, once committed, is itself a published token that a
+    # later sweep can quote back as a false live control (measured, `den-hoag-n3or2` — 52 such
+    # forms already burned across 128 files in den-ag-design). A content hash is reproducible,
+    # changes automatically if the file changes, and cannot occur as a literal substring of the
+    # text it was hashed from.
+    test-r10-1-rider-acc-value-domain-record-survives =
+      let
+        src = builtins.readFile ../../lib/enumerations.nix;
+        absentToken = builtins.hashString "sha256" src;
+      in
+      {
+        expr = {
+          present = builtins.match ".*ANCHOR: R10\\.1-RIDER-ACC-VALUE-DOMAIN.*" src != null;
+          absentControl = builtins.match ".*${absentToken}.*" src != null;
+        };
+        expected = {
+          present = true;
+          absentControl = false;
+        };
+      };
+
     # ── THE UNIT CROSS-CHECK ──
     # A fold whose seed is not its operation's unit is not the fold it declares, and the mismatch
     # is silent in every answer it gives.

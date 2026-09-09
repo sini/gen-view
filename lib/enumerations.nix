@@ -79,6 +79,38 @@ let
     # a finite domain satisfies the ascending chain condition; union over an unbounded one need
     # not, and no inspection of the operation can tell which domain a caller is folding. That is
     # the undecidability the whitelist exists to convert into a declaration.
+    #
+    # The retiring `gen-resolve.cascade` admitted `combine = "semilattice-set"` only on a
+    # declared `acc = true`, and its assert checked that the caller had SET the boolean — no
+    # associativity, no idempotence, no finite height. That construct's ACC flag survives here
+    # and nowhere else.
+    #
+    # **What this surface DECIDES, and it is Datafun §9's own answer.** The `combineArms`
+    # whitelist closes the set of admissible operations; an arbitrary caller-supplied combine
+    # is refused because the ascending chain condition is undecidable from one. That half is
+    # enforced, not declared.
+    #
+    # **What this surface still only DECLARES.** `acc` is a claim about the fold's VALUE
+    # DOMAIN, and no inspection of the operation reaches it. Union over a finite domain
+    # satisfies ACC; union over an unbounded one need not. A false `acc = true` is not caught
+    # here and diverges at the fold.
+    #
+    # **The ecosystem's answer to the same question, where it HAS one, and it is not this
+    # shape.** gen-scope's `circular` attribute takes a carrier declaring `{ bottom, leq,
+    # height, quotient }`, derives the iteration bound `Σ hᵢ + 1` from it, and refuses BY NAME
+    # both when the step does not ascend the declared order and when the declared height is
+    # exceeded — refuting the DECLARATION, never clamping to a budget. That is Datafun's
+    # `FIX≤` without `FIX≤`'s silent truncation. Nothing of that shape exists for a fold's
+    # value domain, and constructing one is open work, not a residue this comment discharges.
+    #
+    # **Why a declaration and not a bound was the original choice, recorded because the reason
+    # is not the one a reader reconstructs.** Undecidability alone equally licenses a bound,
+    # and a bound that CLAMPS fails silently (`den-hoag-dtfn`). Declaration was chosen because
+    # the failure it produces — divergence — cannot hide. gen-scope's construction shows the
+    # third option: a declared bound that is CHECKED and REFUTED loudly. Whether this surface
+    # should take it is `den-hoag-uxnf`'s question, and it is open.
+    #
+    # ANCHOR: R10.1-RIDER-ACC-VALUE-DOMAIN
     setUnion =
       args:
       let
