@@ -300,12 +300,15 @@ block, not the citations tool.
 block.** It prints `warning: unknown flake output 'testsError'` and quantifies `checks.default`
 over `flake.tests` only, so a guard covered solely by an `expectedError` cell can regress to a red
 `❌` **or** a red `☢️`, and `nix flake check` still reports `all checks passed!` (measured: neutering
-`boundedWellDefinedSchedule`'s `admitsCycle` applied-result check reddens THREE `ci-error` cells —
-two as `❌ Expected error type 'ThrownError', while 'TypeError' was thrown` and the acyclic-fixture
-cell as `☢️ Expected error, but no error was caught` — `67/70`, exit 1, `❌` 2, `☢️` 1, while
-`nix flake check ./ci` exits **0** with `all checks passed!`). ★ Re-derive this fraction rather than
-citing it: it is a figure about a suite that grows, and the previous statement of it here was
-falsified by the very commit that wrote it. The pre-commit hook wired to this repository is what actually
+`boundedWellDefinedSchedule`'s `admitsCycle` applied-result check reddens **these four `ci-error`
+cells** — `test-admitsCycle-wrong-return-type-is-named` and `test-admitsCycle-wrong-arity-is-named`
+as `❌ Expected error type 'ThrownError', while 'TypeError' was thrown`, and the two acyclic-fixture
+cells `test-admitsCycle-wrong-return-type-is-named-on-an-acyclic-relation` and
+`test-admitsCycle-ill-typed-on-a-later-node-is-named` as `☢️ Expected error, but no error was caught` — exit 1, while `nix flake check ./ci` exits **0** with `all checks passed!`). ★ **This
+names the CELL SET and carries no fraction, deliberately.** A denominator moves whenever anyone adds
+a cell anywhere in `testsError`, and the fraction that used to sit here went stale on three
+consecutive commits — each time falsified by the very commit that wrote it. The cell set changes
+only when this guard's coverage changes, which is what a reader is checking. The pre-commit hook wired to this repository is what actually
 covers it — three entries, `ci` (`#tests`), `ci-error` (`#testsError`) and `treefmt` — so a CI lane
 gating on `nix flake check` alone, without that hook or an equivalent
 `nix-unit --flake ./ci#testsError` step, does not see these cells.
