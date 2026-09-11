@@ -12,7 +12,7 @@ This library publishes that calculus **raw** and the compositions **on top of it
 
 > ⚠️ **`gen-view` IS A TEMPORARY NAME AND A WAY-STATION.** Its constructs fold into a consolidated
 > library later, where they become a **sublibrary** of a larger domain library. **No consumer should
-> adopt this container as a stable home** — the ADR-0015 roster row carries the same marking. The
+> adopt this container as a stable home** — the hub's roster row carries the same marking. The
 > CONSTRUCT names are not temporary: they descend into that namespace and are grounded accordingly.
 
 ## The two layers
@@ -141,8 +141,8 @@ condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, 
   a datum's presence or its filing scope a function of the graph is infinite recursion.
 - **A datum's VALUE is the author's, and is not analysed.** A caller may compute one from the graph,
   and such a datum participates conditionally on graph shape. That is lawful and deliberate:
-  computing a datum **is** authoring it, which is the explicit declaration ADR-0024 arm F asks for.
-  What arm F forbids is **mechanical re-emission by the substrate**, and the substrate performs one
+  computing a datum **is** authoring it, which is the explicit declaration the carrier rule asks for.
+  What that rule forbids is **mechanical re-emission by the substrate**, and the substrate performs one
   gather, consults no accessor, and cannot re-emit. No constructor can tell a graph-derived thunk
   from a literal, and none tries.
 - **R17's shape requirement is met by that shape, not by a field and not by a check.** "A
