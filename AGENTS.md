@@ -1,5 +1,7 @@
 # gen-view — agent cheatsheet
 
+> **Library class: provisional.** Deletion requires only the named successor plan to fire, not a fresh domain argument; a usage count remains inadmissible, though unneeded once the plan lands.
+
 ## Scope
 
 The substrate's **derived-view constructor**. A view definition is plain data; a view relation is
