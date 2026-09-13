@@ -146,8 +146,8 @@ gen-scope is a **ci-only** input, on the same terms as nixpkgs, and
 rather than leaving it to prose. Do not "simplify" by importing the authority.
 
 ★★★ **THERE IS NO `codomain` FIELD AND DO NOT ADD ONE.** A literal such as `codomain = "atMostOne"`
-would be a constant *here* about a fact owned *there*, and it would be **false in the sense it
-claims**. D < I < P orders the three **sorts**; **nothing orders candidates among the imports.** The
+would be a constant *here* about a fact owned *there*, and **a refusal is not a cardinality**:
+D < I < P orders the three **sorts**; **nothing orders candidates among the imports.** The
 delegate **refuses** a multi-candidate import set by name — an import set contributed by more than
 one distinct node is an ambiguity (Neron 2015 §2.2, Duplicate Declarations) — so a successful
 resolution comes from exactly one contributing declaration. Pinned by
