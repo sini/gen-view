@@ -148,14 +148,14 @@ rather than leaving it to prose. Do not "simplify" by importing the authority.
 ★★★ **THERE IS NO `codomain` FIELD AND DO NOT ADD ONE.** A literal such as `codomain = "atMostOne"`
 would be a constant *here* about a fact owned *there*, and it would be **false in the sense it
 claims**. D < I < P orders the three **sorts**; **nothing orders candidates among the imports.** The
-delegate disposes a multi-candidate import set by the **runtime type of the projected datum** — an
-attrset shadow-folds across *every* candidate, anything else takes the first in the caller's own
-declared imports order. So the **cardinality is one and the provenance is not**: the value returned
-is not in general the datum of any one node. Pinned by
-`reference.test-a-multi-candidate-import-set-is-disposed-by-the-authority`, whose attrset arm
-expects `{ a = 1; b = 2; }` — a value present at **neither** contributing node. The fact is selected
-inside the delegate's closure on a runtime type, so no constructor can derive it and no
-construction-time check can know it; it is **pointed at**, never re-spelled.
+delegate **refuses** a multi-candidate import set by name — an import set contributed by more than
+one distinct node is an ambiguity (Neron 2015 §2.2, Duplicate Declarations) — so a successful
+resolution comes from exactly one contributing declaration. Pinned by
+`reference.test-a-multi-candidate-import-set-is-refused-by-the-authority`, whose attrset-valued and
+list-valued arms are caught separately and each expect a **refusal**; `referenceResolution` inherits
+it by total delegation and neither authors nor swallows it. The refusal fires inside the delegate's
+closure, so no constructor here can derive it and no construction-time check can know it; it is
+**pointed at**, never re-spelled.
 
 ★ **The relation is NOT declared here**, though `viewDefinition` requires one: the only honest
 source for the name is the delegate's traversal vocabulary, which is a private module there, so a
