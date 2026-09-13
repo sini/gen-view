@@ -50,23 +50,27 @@
 # implementations of one mechanism. A later author who "optimizes" a shadowing decision into this
 # file has built a second resolution implementation, and the delegation oracle is what fails then.
 #
-# ★★ THE DISPOSAL OF A MULTI-CANDIDATE IMPORT SET IS THE DELEGATE'S TOO — POINTED AT, NEVER
+# ★★ THE REFUSAL OF A MULTI-CANDIDATE IMPORT SET IS THE DELEGATE'S TOO — POINTED AT, NEVER
 # RESTATED HERE. D < I < P orders the three SORTS; nothing in Fig. 2 orders candidates AMONG the
-# imports. gen-scope's `query` disposes such a set BY THE RUNTIME TYPE OF THE PROJECTED DATUM: an
-# attrset folds a shadow across EVERY candidate, anything else takes the first in traversal order,
-# and that order is the caller's own DECLARED imports list — documented there, and nowhere claimed
-# as a precedence rule. ⇒ THE CARDINALITY IS ONE AND THE PROVENANCE IS NOT. Exactly one value (or
-# `null`) comes back, so `null` remains the delegate's "no visible binding" answer and never an
-# empty gather — but THE VALUE IS NOT IN GENERAL THE DATUM OF ANY ONE NODE, and Néron rule (X)
-# derives one declaration where this derives one DISPOSAL.
+# imports, and nothing here or there supplies an order in its place. gen-scope's `query` REFUSES
+# such a set BY NAME: an import set contributed by more than one DISTINCT declaring node is an
+# ambiguity in Néron's sense (§2.2, Duplicate Declarations), and the query throws rather than
+# choosing among the candidates or folding them together. A node reached along several routes — a
+# repeated edge, a diamond — is ONE declaration reached several ways, and is not refused. ⇒ A
+# SUCCESSFUL RESOLUTION COMES FROM EXACTLY ONE CONTRIBUTING DECLARATION, BY REFUSAL AND NOT BY
+# ORDERING, so the value IS the datum of one node and Néron rule (X)'s one declaration is exactly
+# what comes back; `null` remains the delegate's "no visible binding" answer and never an empty
+# gather.
 #
 # ★★★ WHICH IS WHY THERE IS NO `codomain` FIELD, AND THE REASON IS WORTH MORE THAN THE FIELD WAS. A
 # literal such as `codomain = "atMostOne"` written HERE would be a constant about a fact owned
-# THERE — false in the form it claims, and derived by nothing. The disposal is selected inside the
-# delegate's closure on the runtime type of a value this construct's own `project` produces: no
-# constructor can inspect a closure's branch, and no construction-time check can know the type of a
-# datum that does not exist until the query runs. The fact is therefore not derivable, so it is not
-# published as a field — it is POINTED AT, above. Nothing that could go stale is written down.
+# THERE — and A REFUSAL IS NOT A CARDINALITY: the delegate answers with one declaration or throws,
+# and a literal naming a bound would misdescribe the second arm as a count. The refusal fires
+# inside the delegate's closure, over the candidate set its walk assembles from the nodes
+# `wellFormed` admits — a set that does not exist until the query runs: no constructor can inspect
+# a closure's branch, and no construction-time check can know that set. The fact is therefore not
+# derivable here, and a field carrying it would duplicate a fact the delegate owns — so it is not
+# published; it is POINTED AT, above. Nothing that could go stale is written down.
 #
 # ── WHAT IS DELIBERATELY NOT A FIELD ─────────────────────────────────────────────────────────
 # THE RELATION. A view's defining query should name its relation and `viewDefinition` requires one.
