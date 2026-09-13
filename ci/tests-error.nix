@@ -131,8 +131,10 @@ in
 
         # The closed field set names the offender — and the name chosen here is the one a reader is
         # most likely to try, because a `codomain` literal is exactly what this construct declines
-        # to publish: the disposal is selected inside the authority's closure on a runtime type, so
-        # no constructor could derive it and no constant could stay true about it.
+        # to publish: A REFUSAL IS NOT A CARDINALITY. The authority answers with one declaration or
+        # throws, and the refusal fires inside its closure over a candidate set that does not exist
+        # until the query runs, so no constructor could derive it and no constant could stay true
+        # about it.
         test-an-undeclared-reference-field-is-named = {
           expr = builtins.deepSeq (v.referenceResolution (
             r.referenceArgs // { codomain = "atMostOne"; }

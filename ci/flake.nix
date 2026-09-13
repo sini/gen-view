@@ -12,8 +12,8 @@
     # keeps this library evaluator-free, and `ci/tests/reference.nix` asserts it over the library's
     # own source rather than leaving it to this comment. What the ORACLES need is different and
     # cannot be faked: the delegation cell must show the REAL authority answering where a stub's
-    # sentinel comes back, and the multi-candidate cell asserts the REAL delegate's disposal
-    # values. A hand-written engine would make both cells assertions about the fixture.
+    # sentinel comes back, and the multi-candidate cell reads the REAL delegate's REFUSAL through
+    # the construct. A hand-written engine would make both cells assertions about the fixture.
     gen-scope = {
       url = "github:sini/gen-scope";
       inputs.gen-prelude.follows = "gen-prelude";

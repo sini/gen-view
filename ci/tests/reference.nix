@@ -1,5 +1,5 @@
-# REFERENCE RESOLUTION — the cells whose subject is the DELEGATION itself, and the disposal the
-# delegate performs that no cell of the construct's own could see.
+# REFERENCE RESOLUTION — the cells whose subject is the DELEGATION itself, and the refusal of a
+# multi-candidate import set the delegate raises that no cell of the construct's own could see.
 #
 # The refusals live next door in `refusals.nix` (the boolean half) and in `ci/tests-error.nix` (the
 # message half), on this library's standing split. What is here is everything the construct claims

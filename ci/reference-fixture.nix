@@ -14,7 +14,7 @@
 # ★★ THE AUTHORITY IS REAL, AND THE ORACLES ARE WHY. A hand-written engine would turn the
 # delegation cell and the multi-candidate cell into assertions about the fixture: the first has to
 # show the REAL authority answering where a stub's sentinel comes back, and the second asserts the
-# disposal the real delegate performs on a candidate set nothing in the calculus orders. Neither
+# REFUSAL the real delegate raises over a candidate set nothing in the calculus orders. Neither
 # claim survives a mimic. This is a `ci/` dependency on the same terms as nixpkgs — the library
 # takes its authority as an INJECTED FIELD and reaches no evaluator, which
 # `ci/tests/reference.nix` asserts over `../lib`'s own source rather than leaving to this comment.
@@ -193,10 +193,11 @@ let
   };
 
   # ── THE MULTI-CANDIDATE FIXTURE ──
-  # `r` includes BOTH `A` and `B`, both admitted, so the candidate set the delegate must dispose is
-  # non-singleton — the case nothing in the specificity ordering decides. `q` includes EXACTLY ONE
-  # admitted node, which is the control: it exercises the same IMPORT PATH and answers one node's
-  # own datum, so a subject value below cannot be an artefact of a fixture that resolved nothing.
+  # `r` includes BOTH `A` and `B`, two DISTINCT declaring nodes and both admitted, so the delegate
+  # is handed a non-singleton candidate set and REFUSES it as an ambiguity — the case nothing in
+  # the specificity ordering decides. `q` includes EXACTLY ONE admitted node, which is the control:
+  # it exercises the same IMPORT PATH and answers one node's own datum, so a subject value below
+  # cannot be an artefact of a fixture that resolved nothing.
   # (A control node with NO imports would answer its own LOCAL datum and never enter the import
   # path at all, which is a different claim and a weaker one.)
   multiEdges = [
