@@ -55,6 +55,19 @@ class-discipline half ruled to a delivery-class realization surface not yet extr
 
 ## The published surface, by layer
 
+**Root entry.** Entry: `inputs.gen-view.lib` (flake), or the root `default.nix` — a **function** of
+`{ prelude, graph }`, per the gen root-file convention. Root `default.nix`'s
+`wire ? { deps, resolve }: import ./lib deps` formal is the seam that hands this exact substrate
+attrset to `./lib` as `deps`, and it is also the only channel by which the shim publishes anything
+outward — a formal is an INPUT channel and cannot carry a value out, so the lock-parameterised
+`follows` resolver rides out on the same record. Overriding `wire` is how a cell reads the shim's
+own formal-to-path map AND its own resolver, instead of restating either by hand; the `follows` rule
+is therefore declared once in this repository, in `default.nix`. The unresolved defaults resolve
+`prelude` and `graph` from `ci/flake.lock`, never the root `flake.lock` — and this repository's own
+`ci/flake.lock` is the discriminating counter-case where `gen-prelude`'s node key equals its literal
+label exactly, so a last-segment shortcut would read correctly here and hide behind this library's
+own data; `ci/tests/entry.nix`'s hermetic fixture is what actually catches that class of bug.
+
 **Raw calculus** (the five, each a named export): `edgeLabels` `labelWellFormedness` `labelOrder`
 `dataOrder` `relations` — plus `relatumLabels`, `carrier`, `scopeGraph`, `relationLookup`, and
 `carrierElements` as the checkable enumeration of the five.
