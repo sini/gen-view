@@ -146,6 +146,19 @@ let
   scan = srcs: lib.concatMap (tok: map (src: "${src.name}: '${tok}'") (hitsIn srcs tok)) forbidden;
 
   violations = scan sources;
+
+  # The live counterpart to `forbidden`: a name this library reaches for where a tether would reach
+  # for nixpkgs. `graph` is the second of the two substrates gen-view takes, and every gen-view
+  # source but SIX carries it — the exclusions are `lib/enumerations.nix`, `lib/placement.nix`,
+  # `lib/reference.nix`, `lib/refusal.nix`, `lib/trace.nix` and `lib/transform.nix`, the six modules
+  # whose formal is `{ prelude }` alone and which therefore never name the graph algebra. Those
+  # exclusions are what give the assertion its teeth: the expected list is a PROPER SUBSET of the
+  # manifest, so a read returning one fixed text for every file lands outside it either way — without
+  # the token the list collapses toward empty, with it the list swells to every source. (`prelude`,
+  # which the control below uses, is carried by ALL fourteen and so would name a list a constant read
+  # satisfies; it is a detector control, not a subject pin.)
+  liveToken = "graph";
+  liveReads = map (src: src.name) (hitsIn sources liveToken);
 in
 {
   flake.tests.purity.test-library-source-is-nixpkgs-lib-free = {
@@ -161,8 +174,60 @@ in
     expected = true;
   };
 
-  # And the corpus is the one intended: the scan reaches every module of the library plus both
-  # entries, so a file added to `lib/` is covered without anyone remembering to list it.
+  # What the invariant cell is a statement ABOUT. Its `[ ]` is produced just as readily by a scan
+  # that reads the wrong tree, or no tree, as by a library that is clean, and neither the two
+  # controls below nor a guard on the source list's SIZE can tell those apart — the first speak about
+  # a synthetic token or a count, and a count answers how many rather than which. Disconnection is an
+  # IDENTITY defect: a scan that had dropped the whole library tree and kept only the two root
+  # entries is non-empty, has non-empty content, and reports the invariant clean over a set
+  # containing none of the library. So membership is written down as the label list itself. Asserting
+  # the list also makes a new library file arrive as a RED rather than being absorbed silently, which
+  # is the point — the scope of an invariant is a declared surface, not a default.
+  flake.tests.purity.test-scan-subject-is-the-library-tree = {
+    expr = map (s: s.name) sources;
+    expected = [
+      "lib/carrier.nix"
+      "lib/compositions.nix"
+      "lib/default.nix"
+      "lib/definition.nix"
+      "lib/enumerations.nix"
+      "lib/ordering.nix"
+      "lib/placement.nix"
+      "lib/reference.nix"
+      "lib/refusal.nix"
+      "lib/relation.nix"
+      "lib/trace.nix"
+      "lib/transform.nix"
+      "flake.nix"
+      "default.nix"
+    ];
+  };
+
+  # And that those labels carry their files' text. The manifest above pins membership and is silent
+  # on content: a read that handed every entry one fixed string would satisfy it exactly, and a live
+  # `lib.types.str` sitting in a real library file would pass through all of the other cells here at
+  # exit 0. This is the same shape as the manifest — an exact list, not a count — asked of a token
+  # that is genuinely present rather than genuinely absent, so the reads are shown to carry this
+  # repository's source and not a constant.
+  flake.tests.purity.test-scan-reads-are-live = {
+    expr = liveReads;
+    expected = [
+      "lib/carrier.nix"
+      "lib/compositions.nix"
+      "lib/default.nix"
+      "lib/definition.nix"
+      "lib/ordering.nix"
+      "lib/relation.nix"
+      "flake.nix"
+      "default.nix"
+    ];
+  };
+
+  # And the CARDINALITY relation between the walk and the scanned list holds: every entry the walk
+  # found reached `sources`, plus the two root entries. This is a different statement from the
+  # manifest above and not a weaker copy of it — it relates two values computed here, so a walk that
+  # found the right files while `sources` silently dropped some of them reds here. What it cannot do
+  # is say WHICH files, which is why the manifest carries the subject.
   flake.tests.purity.test-control-the-corpus-covers-every-library-module = {
     expr =
       builtins.length sources == builtins.length libEntries + 2 && builtins.length libEntries >= 11;
