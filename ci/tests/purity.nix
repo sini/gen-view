@@ -166,6 +166,27 @@ in
     expected = [ ];
   };
 
+  # A SECOND POSITIVE CONTROL, coupled to `sources` itself rather than to a synthetic corpus.
+  # `test-control-the-scan-can-find-a-token-that-is-there` below shows `hasInfix` can fire, and
+  # `test-walk-descends-into-subdirectories` plants a real violation through the real
+  # scan/strip/walk pipeline — but over a fixture tree under `ci/tests/_fixtures/`, decoupled from
+  # `sources`. Neither can tell a clean guard cell above from one whose `scan` silently stopped
+  # reading the library tree `sources` names. This cell calls `scan` over `sources` with one entry
+  # appended — the exact call the guard cell makes, plus one real violation — so a green guard cell
+  # is evidence only when this also fires.
+  flake.tests.purity.test-detector-catches-injected-violation = {
+    expr = scan (
+      sources
+      ++ [
+        {
+          name = "<injected>";
+          code = stripComments "  foo = lib.types.str; # comment mentioning nixpkgs is stripped";
+        }
+      ]
+    );
+    expected = [ "<injected>: 'lib.'" ];
+  };
+
   # THE POSITIVE CONTROL. `prelude` is the injected substrate's own name and appears in the CODE of
   # every module here, so the same predicate over the same corpus must find it. A run where this
   # reads empty has not measured an absence — it has measured a broken instrument.
