@@ -129,7 +129,7 @@ let
   # `gen-prelude`'s node key happens to equal its label, so this one lock cannot discriminate the two
   # rules by itself — which is exactly why the fixture control below is the whole oracle for the
   # rule, not a supplement to it. Reading the lock is pure data; nothing here fetches.
-  lock = builtins.fromJSON (builtins.readFile ../flake.lock);
+  lock = builtins.fromJSON (builtins.readFile ../../flake.lock);
 
   # ★★ THE RESOLVER IS BOUND OVER ITS LOCK, AND THAT IS WHAT MAKES ITS CONTROL EXPRESSIBLE AT ALL. A
   # `repoOf` closed over THIS lock has no free parameter, so a control could only re-assert the main
