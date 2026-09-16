@@ -46,6 +46,7 @@ in
         "readsOf"
         "referenceResolution"
         "referenceResolutionFields"
+        "relationEntries"
         "relationLookup"
         "relations"
         "relatumLabels"

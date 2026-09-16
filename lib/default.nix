@@ -124,6 +124,7 @@ in
     carrier
     scopeGraph
     relationLookup
+    relationEntries
     ;
 
   # ★ Λ — THE RELATUM LABELS, PUBLISHED AS A CONSTRUCTOR AND DELIBERATELY ABSENT FROM

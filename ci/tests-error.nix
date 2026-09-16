@@ -348,7 +348,7 @@ in
         }) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.relationLookup: 'not-declared' is not a name in R \\(broadcast-in, expose-in, import, policy\\).*$";
+          msg = "^gen-view\\.relationEntries: 'not-declared' is not a name in R \\(broadcast-in, expose-in, import, policy\\).*$";
         };
       };
 
@@ -472,7 +472,7 @@ in
         }) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.scopeGraph: a datum carries the fields \\(admission, channel, datum, distance, path, relation, scope\\); a datum is exactly .* A WALK ANSWER CANNOT BE A DATUM.*$";
+          msg = "^gen-view\\.scopeGraph: a datum carries the fields \\(admission, channel, datum, distance, element, path, relation, scope\\); a datum is exactly .* A WALK ANSWER CANNOT BE A DATUM.*$";
         };
       };
 
@@ -544,11 +544,11 @@ in
       };
 
       # ★★★ THE MATERIALIZATION NAMES THE UNDECLARED RELATION AND THE SORT, through the PUBLISHED
-      # lookup rather than through a second refusal path. Before the fix this call answered `[ ]`
-      # and said nothing, indistinguishable from a declared relation with no datums — the failure
-      # `lib/refusal.nix` names as the precedent it exists to forbid, reproduced by the library
-      # against itself. The message is `relationLookup`'s own, which is the point: there is one
-      # refusal here, not two to keep in step.
+      # `relationEntries` rather than through a second refusal path. Before the fix this call
+      # answered `[ ]` and said nothing, indistinguishable from a declared relation with no datums
+      # — the failure `lib/refusal.nix` names as the precedent it exists to forbid, reproduced by
+      # the library against itself. The message is `relationEntries`'s own, which is the point:
+      # there is one refusal here, not two to keep in step.
       test-the-materialization-names-an-undeclared-relation = {
         expr =
           builtins.deepSeq
@@ -556,7 +556,7 @@ in
             true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.relationLookup: 'not-a-relation' is not a name in R \\(broadcast-in, expose-in, import, policy\\); an undeclared relation is refused rather than answered empty.*$";
+          msg = "^gen-view\\.relationEntries: 'not-a-relation' is not a name in R \\(broadcast-in, expose-in, import, policy\\); an undeclared relation is refused rather than answered empty.*$";
         };
       };
 
@@ -575,6 +575,210 @@ in
         expected = [ "inc/settings@input" ];
       };
     };
+
+    # ── AUTHORSHIP-VISIBILITY (den-hoag-2vzn) — §3's O1b AND O2c NAME THE REFUSAL BY MESSAGE ──
+    # `ci/tests/relation.nix` asserts these refusals as booleans (`tryEval` cannot carry a message);
+    # this suite is the half that pins WHICH refusal fired, on the same construction. Built locally
+    # rather than importing `ci/tests/relation.nix`'s bindings: this file's fixtures are
+    # self-contained by the same convention every suite above follows.
+    flake.testsError.authorship-visibility-refusals =
+      let
+        # §1.2's diamond alphabet — ASYMMETRIC so the two arrivals keep distinguishable admission
+        # states; `ci/fixture.nix`'s own `f.admission` is symmetric and would merge them (O0's
+        # masker #1). Never a custom label order: `f.flatOrder` below is the one O0 requires.
+        diamondAdmission = v.labelWellFormedness {
+          alphabet = f.labels;
+          expression = "parent(include)*|include(parent)*";
+        };
+
+        # O1b's subject — §1.2's diamond, `leaf →p a →i top` and `leaf →i b →p top`.
+        diamondScopes = [
+          "leaf"
+          "a"
+          "b"
+          "top"
+        ];
+        diamondEdges = {
+          parent =
+            id:
+            {
+              leaf = [ "a" ];
+              b = [ "top" ];
+            }
+            .${id} or [ ];
+          include =
+            id:
+            {
+              leaf = [ "b" ];
+              a = [ "top" ];
+            }
+            .${id} or [ ];
+        };
+        diamondData = [
+          {
+            scope = "top";
+            relation = "import";
+            datum = [ "X" ];
+          }
+        ];
+        diamondGraph = v.scopeGraph {
+          carrier = f.carrier;
+          scopes = diamondScopes;
+          edges = diamondEdges;
+          data = diamondData;
+        };
+
+        # O2c's Z/Y — Z has no diamond (`top` and `rival` each reached once, by the SAME route
+        # shape); Y is Z plus one more route to `top` alone.
+        zScopes = [
+          "leaf"
+          "a"
+          "top"
+          "rival"
+        ];
+        zEdges = {
+          parent = id: { leaf = [ "a" ]; }.${id} or [ ];
+          include =
+            id:
+            {
+              a = [
+                "top"
+                "rival"
+              ];
+            }
+            .${id} or [ ];
+        };
+        zData = [
+          {
+            scope = "top";
+            relation = "import";
+            datum = [ "X" ];
+          }
+          {
+            scope = "rival";
+            relation = "import";
+            datum = [ "R" ];
+          }
+        ];
+        zGraph = v.scopeGraph {
+          carrier = f.carrier;
+          scopes = zScopes;
+          edges = zEdges;
+          data = zData;
+        };
+
+        yScopes = zScopes ++ [ "b" ];
+        yEdges = {
+          parent =
+            id:
+            {
+              leaf = [ "a" ];
+              b = [ "top" ];
+            }
+            .${id} or [ ];
+          include =
+            id:
+            {
+              leaf = [ "b" ];
+              a = [
+                "top"
+                "rival"
+              ];
+            }
+            .${id} or [ ];
+        };
+        yGraph = v.scopeGraph {
+          carrier = f.carrier;
+          scopes = yScopes;
+          edges = yEdges;
+          data = zData;
+        };
+
+        # A SPLIT competition key: `c.admission` puts the two diamond arrivals in two DIFFERENT
+        # groups, which is what triggers 6a's spanning check (§2.6, §2.3.3).
+        splitKeyChannel = v.dataOrder {
+          channel = "settings";
+          keyOf = c: c.admission;
+        };
+
+        mkSplitKeyDef =
+          overrides:
+          v.viewDefinition (
+            {
+              channel = splitKeyChannel;
+              relation = "import";
+              root = "leaf";
+              direction = "outbound";
+              admission = diamondAdmission;
+              order = f.flatOrder;
+              wellFormed = f.admitAll;
+              distance = s: s.distance + 1;
+              tieSet = v.tieSets.union;
+              empty = [ ];
+              combine = v.combines.listAppend;
+              dedup = v.dedups.none;
+            }
+            // overrides
+          );
+      in
+      {
+        # ★★★ O1b — THE SPLIT-KEY REFUSAL NAMES THE PRODUCER, THE ORDINAL, THE COUNT AND THE KEYS.
+        # Anchored start to end: a caller resolving this reads the datum's coordinate and the
+        # colliding keys, not a generic "ambiguous key" complaint.
+        test-a-split-competition-key-names-the-producer-and-the-keys = {
+          expr =
+            builtins.deepSeq
+              (v.viewRelation {
+                definition = mkSplitKeyDef { };
+                graph = diamondGraph;
+                marks = f.noMarks;
+              }).value
+              true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.viewRelation: channel 'settings' declares a competition key that SPLITS one element: the datum authored at scope 'top' \\(data entry 0\\) survives under 2 competition keys \\(\"'include\\*\", \"'parent\\*\"\\), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived$";
+          };
+        };
+
+        # ★★★ O2c, fixture Z — NO DIAMOND: `top` and `rival` are genuinely distinct producers, and
+        # this refusal is the ORDINARY `tieSets.refuse` — the cross-group defect never reaches it,
+        # so this message must NEVER become the spanning message (that would be C1 reintroduced).
+        test-o2c-fixture-z-refuses-by-the-ordinary-tieset-message = {
+          expr =
+            builtins.deepSeq
+              (v.viewRelation {
+                definition = mkSplitKeyDef { tieSet = v.tieSets.refuse; };
+                graph = zGraph;
+                marks = f.noMarks;
+              }).value
+              true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.viewRelation: channel 'settings' declares tieSet 'refuse' and the competition key \"'include\\*\" survives with 2 contributions, from scopes rival, top; the declaration asked for exactly one$";
+          };
+        };
+
+        # ★★★ O2c, fixture Y — Z PLUS ONE ROUTE TO `top` ALONE. One pair of edges concerning `top`
+        # changes WHICH refusal fires: this is now 6a's spanning message, naming `top`'s element and
+        # its two competition keys, not the ordinary tieSet count. Z's message above and this one
+        # are asserted on the SAME construction differing in exactly one route, so a cross-group
+        # collapse that silenced Z's refusal (den-hoag-2vzn's C1) would turn this cell from a
+        # spanning refusal into a silent `n = 2` evaluation and fail here.
+        test-o2c-fixture-y-refuses-by-the-spanning-message-not-the-tieset-one = {
+          expr =
+            builtins.deepSeq
+              (v.viewRelation {
+                definition = mkSplitKeyDef { tieSet = v.tieSets.refuse; };
+                graph = yGraph;
+                marks = f.noMarks;
+              }).value
+              true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.viewRelation: channel 'settings' declares a competition key that SPLITS one element: the datum authored at scope 'top' \\(data entry 0\\) survives under 2 competition keys \\(\"'include\\*\", \"'parent\\*\"\\), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived$";
+          };
+        };
+      };
 
     # ── boundedWellDefinedSchedule's OWN REFUSALS: O2 NAMES THE CYCLE, O5a NAMES NOTHING ELSE ──
     flake.testsError.schedule-refusals = {

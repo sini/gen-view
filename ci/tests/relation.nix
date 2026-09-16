@@ -149,6 +149,230 @@ let
       graph = f.dupGraph;
       marks = f.noMarks;
     };
+
+  # ══════════════════════════════════════════════════════════════════════════════════════════
+  # ── §1.2's DIAMOND, AND ITS FAMILY — AUTHORSHIP-VISIBILITY (den-hoag-2vzn) ──
+  #
+  # `top` is reached from `leaf` by two paths whose residual derivative states differ:
+  #   leaf -parent-> a -include-> top     (state after: the "started on parent" residual)
+  #   leaf -include-> b -parent-> top     (state after: the "started on include" residual)
+  #
+  # ★★★ O0's TWO MASKERS, DEFEATED BOTH. A single-derivative-state admission (e.g. `f.admission`,
+  # `(parent|include)*`) collapses both arrivals to ONE class at step 4 before step 6a ever runs —
+  # `diamondAdmission` below is ASYMMETRIC so the two states stay distinct. A LAYERED label order
+  # (e.g. `f.order`, gen-view's own shipped default) shadows one arrival at step 6 before 6a/6b ever
+  # sees two — every declaration below states `f.flatOrder` explicitly, `ci/fixture.nix`'s existing
+  # flat binding, never a custom one.
+  diamondAdmission = v.labelWellFormedness {
+    alphabet = f.labels;
+    expression = "parent(include)*|include(parent)*";
+  };
+
+  authorshipScopes = [
+    "leaf"
+    "a"
+    "b"
+    "top"
+  ];
+
+  # `top` reached twice (the diamond); no `rival`. O0, O1, O1b, O2.
+  diamondEdges = {
+    parent =
+      id:
+      {
+        leaf = [ "a" ];
+        b = [ "top" ];
+      }
+      .${id} or [ ];
+    include =
+      id:
+      {
+        leaf = [ "b" ];
+        a = [ "top" ];
+      }
+      .${id} or [ ];
+  };
+  diamondData = [
+    {
+      scope = "top";
+      relation = "import";
+      datum = [ "X" ];
+    }
+  ];
+  diamondGraph = v.scopeGraph {
+    carrier = f.carrier;
+    scopes = authorshipScopes;
+    edges = diamondEdges;
+    data = diamondData;
+  };
+
+  # The SAME graph with `b`'s route removed — `top` reached ONCE. O1's negative control, and O4's
+  # single-route subject (multiplied to two declarations below).
+  singleRouteEdges = {
+    parent = id: { leaf = [ "a" ]; }.${id} or [ ];
+    include = id: { a = [ "top" ]; }.${id} or [ ];
+  };
+  singleRouteGraph = v.scopeGraph {
+    carrier = f.carrier;
+    scopes = authorshipScopes;
+    edges = singleRouteEdges;
+    data = diamondData;
+  };
+
+  # O4 — the same single route, `top`'s datum authored TWICE. Deliberately single-route: the
+  # diamond graph would give 2 arrivals × 2 declarations = 4 and make the cell's 2 ambiguous.
+  o4Graph = v.scopeGraph {
+    carrier = f.carrier;
+    scopes = authorshipScopes;
+    edges = singleRouteEdges;
+    data = diamondData ++ diamondData;
+  };
+
+  # ── Z / Y — O2c's discriminator, and O2/O2b's `rival` fixtures ──
+  # Z: no diamond, `top` reached ONCE via `a`; `rival` reached once, same route.
+  zScopes = [
+    "leaf"
+    "a"
+    "top"
+    "rival"
+  ];
+  zEdges = {
+    parent = id: { leaf = [ "a" ]; }.${id} or [ ];
+    include =
+      id:
+      {
+        a = [
+          "top"
+          "rival"
+        ];
+      }
+      .${id} or [ ];
+  };
+  zData = [
+    {
+      scope = "top";
+      relation = "import";
+      datum = [ "X" ];
+    }
+    {
+      scope = "rival";
+      relation = "import";
+      datum = [ "R" ];
+    }
+  ];
+  zGraph = v.scopeGraph {
+    carrier = f.carrier;
+    scopes = zScopes;
+    edges = zEdges;
+    data = zData;
+  };
+
+  # Y: Z PLUS one more route to `top` alone (`leaf -include-> b -parent-> top`) — `top` now reached
+  # twice, `rival` still once. This is the ONE-PAIR-OF-EDGES difference O2c turns on, and it is also
+  # O2b's group-of-3 subject (the diamond's two arrivals plus `rival`'s genuinely distinct element).
+  yScopes = authorshipScopes ++ [ "rival" ];
+  yEdges = {
+    parent =
+      id:
+      {
+        leaf = [ "a" ];
+        b = [ "top" ];
+      }
+      .${id} or [ ];
+    include =
+      id:
+      {
+        leaf = [ "b" ];
+        a = [
+          "top"
+          "rival"
+        ];
+      }
+      .${id} or [ ];
+  };
+  yGraph = v.scopeGraph {
+    carrier = f.carrier;
+    scopes = yScopes;
+    edges = yEdges;
+    data = zData;
+  };
+
+  # O3 — two producers, each reached by ONE route, equal content. Not diamond-shaped: O3's question
+  # is element identity across DIFFERENT producers, not path multiplicity at one.
+  pqScopes = [
+    "leaf"
+    "p"
+    "q"
+  ];
+  pqEdges = {
+    parent =
+      id:
+      if id == "leaf" then
+        [
+          "q"
+          "p"
+        ]
+      else
+        [ ];
+    include = _: [ ];
+  };
+  pqData = [
+    {
+      scope = "p";
+      relation = "import";
+      datum = [ "X" ];
+    }
+    {
+      scope = "q";
+      relation = "import";
+      datum = [ "X" ];
+    }
+  ];
+  pqGraph = v.scopeGraph {
+    carrier = f.carrier;
+    scopes = pqScopes;
+    edges = pqEdges;
+    data = pqData;
+  };
+
+  # The raw declaration builder shared by every cell below: asymmetric admission, flat order, a
+  # CONSTANT key (`_: "settings"`) by default — O0's precondition, satisfied by construction, with
+  # every field overridable by name so a cell can differ in exactly one respect.
+  mkAsymDef =
+    overrides:
+    v.viewDefinition (
+      {
+        channel = v.dataOrder {
+          channel = "settings";
+          keyOf = _: "settings";
+        };
+        relation = "import";
+        root = "leaf";
+        direction = "outbound";
+        admission = diamondAdmission;
+        order = f.flatOrder;
+        wellFormed = f.admitAll;
+        distance = s: s.distance + 1;
+        tieSet = v.tieSets.union;
+        empty = [ ];
+        combine = v.combines.listAppend;
+        dedup = v.dedups.none;
+      }
+      // overrides
+    );
+
+  runOn =
+    graph: definition:
+    v.viewRelation {
+      inherit definition graph;
+      marks = f.noMarks;
+    };
+
+  # `true` iff forcing `expr` throws — the same catchable-refusal test §2.8's `registry-split-key-
+  # refuses` cell uses, kept local so the throwing-vs-not arms live in `flake.tests` (no `checks
+  # .default` crash) rather than needing one `ci/tests-error.nix` cell per tie-set arm for a message
+  # that is IDENTICAL across all three (6a refuses before step 7's tieSet dispatch is ever reached).
+  throws = expr: !(builtins.tryEval (builtins.deepSeq expr expr)).success;
 in
 {
   flake.tests.relation = {
@@ -578,6 +802,520 @@ in
         2
         3
       ];
+    };
+
+    # ══ AUTHORSHIP-VISIBILITY (den-hoag-2vzn) — §3's oracles ══
+
+    # ★★★ O0 — THE PRECONDITION EVERY DIAMOND ORACLE BELOW DEPENDS ON. Three declarations, one
+    # graph, differing in EXACTLY the field each masker owns. The two masked arms read the SAME
+    # `n = 1` regardless of which library evaluates them — a single-derivative-state admission
+    # collapses both arrivals at step 4 before 6a/6b ever sees two, and a layered order shadows one
+    # at step 6 before 6a/6b ever sees two — so their non-discrimination is exhibited here directly,
+    # not asserted. The discriminating arm's RED reading (`n = 2`) is driven separately, against a
+    # stashed `lib/`, and recorded in the build report; GREEN is measured here.
+    test-o0-two-maskers-each-hide-the-diamond-defect = {
+      expr =
+        let
+          summarize = r: {
+            n = builtins.length r.contributions;
+            inherit (r) value;
+            shadowed = builtins.length r.shadowed;
+          };
+        in
+        {
+          discriminating = summarize (runOn diamondGraph (mkAsymDef { }));
+          maskedBySymmetricAdmission = summarize (
+            runOn diamondGraph (mkAsymDef {
+              admission = f.admission;
+            })
+          );
+          maskedByLayeredOrder = summarize (
+            runOn diamondGraph (mkAsymDef {
+              order = f.order;
+            })
+          );
+        };
+      expected = {
+        discriminating = {
+          n = 1;
+          value = [ "X" ];
+          shadowed = 0;
+        };
+        maskedBySymmetricAdmission = {
+          n = 1;
+          value = [ "X" ];
+          shadowed = 0;
+        };
+        maskedByLayeredOrder = {
+          n = 1;
+          value = [ "X" ];
+          shadowed = 1;
+        };
+      };
+    };
+
+    # ── O1 — A diamond mints exactly ONE element, and the collapsed arrival is recorded NOWHERE ──
+    # Asserts the count, the coordinate, the value, `shadowed` AND the survivor's `admission` — the
+    # last is the only thing in §3 that pins WHICH arrival 6b keeps (walk-first, never walk-last).
+    test-o1-diamond-mints-exactly-one-element = {
+      expr =
+        let
+          r = runOn diamondGraph (mkAsymDef { });
+          control = runOn singleRouteGraph (mkAsymDef { });
+        in
+        {
+          n = builtins.length r.contributions;
+          element = (builtins.head r.contributions).element;
+          value = r.value;
+          shadowed = builtins.length r.shadowed;
+          survivorAdmission = (builtins.head r.contributions).admission;
+          controlN = builtins.length control.contributions;
+          controlValue = control.value;
+        };
+      expected = {
+        n = 1;
+        element = {
+          producer = "top";
+          ordinal = 0;
+        };
+        value = [ "X" ];
+        shadowed = 0;
+        survivorAdmission = "'parent*";
+        controlN = 1;
+        controlValue = [ "X" ];
+      };
+    };
+
+    # ★ THE CONTROL, BENEATH THE PROJECTION: both arrivals really exist and really differ in
+    # residual admission state, so O1's `n = 1` is a fold and not a fixture with one route.
+    test-control-o1-diamond-has-two-distinguishable-arrivals-before-collapse = {
+      expr =
+        let
+          answers = graph.query {
+            mode = "paths";
+            graph = diamondGraph.labeled;
+            from = "leaf";
+            follow = diamondAdmission.expr;
+          };
+          atTop = builtins.filter (ans: ans.node == "top") answers;
+          stateOf =
+            ans:
+            diamondAdmission.stateKey (
+              builtins.foldl' (st: step: diamondAdmission.step step.label st) diamondAdmission.expr ans.path
+            );
+        in
+        {
+          witnesses = builtins.length atTop;
+          states = builtins.sort builtins.lessThan (map stateOf atTop);
+        };
+      expected = {
+        witnesses = 2;
+        states = [
+          "'include*"
+          "'parent*"
+        ];
+      };
+    };
+
+    # ── O1b — ★★★ A COMPETITION KEY THAT SPLITS AN ELEMENT IS REFUSED BY NAME ──
+    # O1's fixture, `keyOf = c: c.admission` — the one element's two arrivals fall into TWO
+    # competition groups. Nothing else in this suite reaches step 6a.
+    test-o1b-a-split-competition-key-refuses-by-name = {
+      expr =
+        let
+          splitChannel = v.dataOrder {
+            channel = "settings";
+            keyOf = c: c.admission;
+          };
+          defWith =
+            tieSet:
+            mkAsymDef {
+              channel = splitChannel;
+              inherit tieSet;
+            };
+        in
+        {
+          throwsUnderUnion = throws (runOn diamondGraph (defWith v.tieSets.union)).value;
+          throwsUnderRefuse = throws (runOn diamondGraph (defWith v.tieSets.refuse)).value;
+          throwsUnderOrderedFold =
+            throws
+              (runOn diamondGraph (defWith (v.tieSets.orderedFold { order = [ "top" ]; }))).value;
+        };
+      expected = {
+        throwsUnderUnion = true;
+        throwsUnderRefuse = true;
+        throwsUnderOrderedFold = true;
+      };
+    };
+
+    # ★ LIVE CONTROLS, SAME RUN: a merely path-READING key is not enough to reach 6a. Both give ONE
+    # group on this fixture and must NOT refuse — this is O2's GREEN on the same fixture, so without
+    # this arm O1b would pass for a step 6a that refuses everything.
+    test-control-o1b-path-reading-keys-do-not-split-the-element = {
+      expr =
+        let
+          byScope = v.dataOrder {
+            channel = "settings";
+            keyOf = c: c.scope;
+          };
+          byPathShape = v.dataOrder {
+            channel = "settings";
+            keyOf = c: "d${toString c.distance}-${toString (builtins.length c.path)}";
+          };
+          rScope = runOn diamondGraph (mkAsymDef {
+            channel = byScope;
+          });
+          rShape = runOn diamondGraph (mkAsymDef {
+            channel = byPathShape;
+          });
+        in
+        {
+          scopeKeyed = {
+            n = builtins.length rScope.contributions;
+            value = rScope.value;
+          };
+          shapeKeyed = {
+            n = builtins.length rShape.contributions;
+            value = rShape.value;
+          };
+        };
+      expected = {
+        scopeKeyed = {
+          n = 1;
+          value = [ "X" ];
+        };
+        shapeKeyed = {
+          n = 1;
+          value = [ "X" ];
+        };
+      };
+    };
+
+    # ★ NEGATIVE CONTROL, SAME RUN: it is the CONSTANT key that keeps O0's own reading out of 6a —
+    # its layered-order arm already reads `n = 1, shadowed = 1` with no refusal (O0, above).
+    # ★★ MEASURED THIS ROUND, AND STATED BECAUSE IT CONTRADICTS A LITERAL READING OF §3's OWN
+    # WORDING: swapping the layered order onto the genuinely SPLIT key (`keyOf = c: c.admission`)
+    # does NOT recover that reading. Grouping is a function of `keyOf` alone, fixed at step 6 before
+    # `order` is ever consulted for ranking — so a split key gives two SINGLETON groups under
+    # EITHER order, and a singleton group has nothing in it to shadow. The refusal fires under both
+    # orders; that is 6a's independence from `order`, exhibited rather than assumed, and it is the
+    # honest reading of "layered order + split key" on this construction.
+    test-control-o1b-the-split-key-refuses-under-either-label-order = {
+      expr =
+        let
+          splitChannel = v.dataOrder {
+            channel = "settings";
+            keyOf = c: c.admission;
+          };
+          flatSplit = runOn diamondGraph (mkAsymDef {
+            channel = splitChannel;
+          });
+          layeredSplit = runOn diamondGraph (mkAsymDef {
+            channel = splitChannel;
+            order = f.order;
+          });
+          layeredConstant = runOn diamondGraph (mkAsymDef {
+            order = f.order;
+          });
+        in
+        {
+          flatSplitThrows = throws flatSplit.value;
+          layeredSplitThrows = throws layeredSplit.value;
+          layeredConstantN = builtins.length layeredConstant.contributions;
+          layeredConstantShadowed = builtins.length layeredConstant.shadowed;
+        };
+      expected = {
+        flatSplitThrows = true;
+        layeredSplitThrows = true;
+        layeredConstantN = 1;
+        layeredConstantShadowed = 1;
+      };
+    };
+
+    # ── O2 — The same diamond does not trip `tieSets.refuse` ──
+    # Two positive controls (different producers under refuse; two separate declarations at one
+    # producer under refuse), both required to keep throwing at GREEN — without them O2 would pass
+    # for a `refuse` arm that stopped firing.
+    test-o2-diamond-does-not-trip-tieset-refuse = {
+      expr =
+        let
+          r = runOn diamondGraph (mkAsymDef {
+            tieSet = v.tieSets.refuse;
+          });
+          differentProducers = runOn zGraph (mkAsymDef {
+            tieSet = v.tieSets.refuse;
+          });
+          twoDeclarationsOneProducer = runOn o4Graph (mkAsymDef {
+            tieSet = v.tieSets.refuse;
+          });
+          singleArrival = runOn singleRouteGraph (mkAsymDef {
+            tieSet = v.tieSets.refuse;
+          });
+        in
+        {
+          n = builtins.length r.contributions;
+          value = r.value;
+          differentProducersThrows = throws differentProducers.value;
+          twoDeclarationsOneProducerThrows = throws twoDeclarationsOneProducer.value;
+          singleArrivalThrows = throws singleArrival.value;
+          singleArrivalN = builtins.length singleArrival.contributions;
+          singleArrivalValue = singleArrival.value;
+        };
+      expected = {
+        n = 1;
+        value = [ "X" ];
+        differentProducersThrows = true;
+        twoDeclarationsOneProducerThrows = true;
+        singleArrivalThrows = false;
+        singleArrivalN = 1;
+        singleArrivalValue = [ "X" ];
+      };
+    };
+
+    # ── O2b — ★★ Every tie-set arm is total on a group the collapse REDUCES ──
+    # `Y` is the RED subject (one group of 3: the diamond's two arrivals plus `rival`'s distinct
+    # element); `Z` is the GREEN post-collapse twin (the same group reduced to 2). All four arms,
+    # both graphs, in one run — four throw and four do not, so neither arm of the instrument is
+    # stuck.
+    test-o2b-every-tieset-arm-is-total-on-the-reduced-group = {
+      expr =
+        let
+          unionY = runOn yGraph (mkAsymDef {
+            tieSet = v.tieSets.union;
+          });
+          unionZ = runOn zGraph (mkAsymDef {
+            tieSet = v.tieSets.union;
+          });
+          refuseY = runOn yGraph (mkAsymDef {
+            tieSet = v.tieSets.refuse;
+          });
+          refuseZ = runOn zGraph (mkAsymDef {
+            tieSet = v.tieSets.refuse;
+          });
+          unrankedY = runOn yGraph (mkAsymDef {
+            tieSet = v.tieSets.orderedFold { order = [ "rival" ]; };
+          });
+          unrankedZ = runOn zGraph (mkAsymDef {
+            tieSet = v.tieSets.orderedFold { order = [ "rival" ]; };
+          });
+          rankedY = runOn yGraph (mkAsymDef {
+            tieSet = v.tieSets.orderedFold {
+              order = [
+                "rival"
+                "top"
+              ];
+            };
+          });
+          rankedZ = runOn zGraph (mkAsymDef {
+            tieSet = v.tieSets.orderedFold {
+              order = [
+                "rival"
+                "top"
+              ];
+            };
+          });
+        in
+        {
+          unionY = {
+            n = builtins.length unionY.contributions;
+            value = unionY.value;
+          };
+          unionZ = {
+            n = builtins.length unionZ.contributions;
+            value = unionZ.value;
+          };
+          refuseYThrows = throws refuseY.value;
+          refuseZThrows = throws refuseZ.value;
+          unrankedYThrows = throws unrankedY.value;
+          unrankedZThrows = throws unrankedZ.value;
+          rankedY = {
+            n = builtins.length rankedY.contributions;
+            value = rankedY.value;
+          };
+          rankedZ = {
+            n = builtins.length rankedZ.contributions;
+            value = rankedZ.value;
+          };
+        };
+      expected = {
+        unionY = {
+          n = 2;
+          value = [
+            "X"
+            "R"
+          ];
+        };
+        unionZ = {
+          n = 2;
+          value = [
+            "X"
+            "R"
+          ];
+        };
+        refuseYThrows = true;
+        refuseZThrows = true;
+        unrankedYThrows = true;
+        unrankedZThrows = true;
+        rankedY = {
+          n = 2;
+          value = [
+            "R"
+            "X"
+          ];
+        };
+        rankedZ = {
+          n = 2;
+          value = [
+            "R"
+            "X"
+          ];
+        };
+      };
+    };
+
+    # ── O3 — Two equal-content declarations at DIFFERENT producers stay two ──
+    # The RED arm is exhibited by an EXISTING declared policy (`dedups.byDatum`) rather than a
+    # mutation, so it is available at both states: the cell fails if the collapse ever reaches
+    # content.
+    test-o3-equal-content-at-different-producers-stays-two = {
+      expr =
+        let
+          r = runOn pqGraph (mkAsymDef { });
+          contentKeyed = runOn pqGraph (mkAsymDef {
+            dedup = v.dedups.byDatum;
+          });
+        in
+        {
+          n = builtins.length r.contributions;
+          producers = map (c: c.element.producer) r.contributions;
+          elements = map (c: c.element) r.contributions;
+          distinctElements =
+            (builtins.elemAt r.contributions 0).element != (builtins.elemAt r.contributions 1).element;
+          value = r.value;
+          dropped = builtins.length r.dropped;
+          contentKeyedN = builtins.length contentKeyed.contributions;
+          contentKeyedDropped = builtins.length contentKeyed.dropped;
+        };
+      expected = {
+        n = 2;
+        producers = [
+          "q"
+          "p"
+        ];
+        elements = [
+          {
+            producer = "q";
+            ordinal = 1;
+          }
+          {
+            producer = "p";
+            ordinal = 0;
+          }
+        ];
+        distinctElements = true;
+        value = [
+          "X"
+          "X"
+        ];
+        dropped = 0;
+        contentKeyedN = 1;
+        contentKeyedDropped = 1;
+      };
+    };
+
+    # ── O4 — Two equal-content declarations at ONE producer stay two ──
+    # This is the cell `ordinal` exists for: the two elements agree on `producer` and on content,
+    # and nothing but the component position separates them.
+    test-o4-equal-content-at-one-producer-stays-two = {
+      expr =
+        let
+          r = runOn o4Graph (mkAsymDef { });
+          contentKeyed = runOn o4Graph (mkAsymDef {
+            dedup = v.dedups.byDatum;
+          });
+        in
+        {
+          n = builtins.length r.contributions;
+          producers = map (c: c.scope) r.contributions;
+          ordinals = map (c: c.element.ordinal) r.contributions;
+          value = r.value;
+          contentKeyedN = builtins.length contentKeyed.contributions;
+          contentKeyedDropped = builtins.length contentKeyed.dropped;
+        };
+      expected = {
+        n = 2;
+        producers = [
+          "top"
+          "top"
+        ];
+        ordinals = [
+          0
+          1
+        ];
+        value = [
+          "X"
+          "X"
+        ];
+        contentKeyedN = 1;
+        contentKeyedDropped = 1;
+      };
+    };
+
+    # ── O5 — Every element coordinate comes from the COMPONENT, and nothing else does ──
+    # The projection is stated because the two shapes are NOT the same attrset: an entry is
+    # `{ scope; relation; datum; ordinal; }`, an element coordinate is `{ producer; ordinal; }`. The
+    # cell asserts `nEntries`, the coordinate list AND membership — membership alone passes
+    # vacuously against an empty contribution set.
+    test-o5-element-coordinates-come-from-the-component = {
+      expr =
+        let
+          coordsOf =
+            r:
+            map (e: {
+              producer = e.scope;
+              inherit (e) ordinal;
+            }) (builtins.concatMap (s: r.graph.datumsAt.${s} or [ ]) r.graph.scopes);
+          check =
+            r:
+            let
+              coords = coordsOf r;
+            in
+            {
+              nEntries = builtins.length coords;
+              inherit coords;
+              membershipHolds = builtins.all (c: builtins.elem c.element coords) r.contributions;
+            };
+        in
+        {
+          diamond = check (runOn diamondGraph (mkAsymDef { }));
+          o4 = check (runOn o4Graph (mkAsymDef { }));
+        };
+      expected = {
+        diamond = {
+          nEntries = 1;
+          coords = [
+            {
+              producer = "top";
+              ordinal = 0;
+            }
+          ];
+          membershipHolds = true;
+        };
+        o4 = {
+          nEntries = 2;
+          coords = [
+            {
+              producer = "top";
+              ordinal = 0;
+            }
+            {
+              producer = "top";
+              ordinal = 1;
+            }
+          ];
+          membershipHolds = true;
+        };
+      };
     };
   };
 }

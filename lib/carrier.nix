@@ -60,6 +60,7 @@ let
     filter
     foldl'
     head
+    imap0
     length
     map
     sort
@@ -582,7 +583,14 @@ let
       );
       # The per-scope index, DERIVED once and shared. It is a projection of the component, never a
       # second source: `data` remains the component the figure names, and this is how it is read.
-      datumsAt = builtins.groupBy (e: e.scope) a.data;
+      #
+      # `ordinal` is the entry's position in `data` AS AUTHORED — indexed here, at the component,
+      # never in a materialization: an author's own declaration is one coordinate regardless of
+      # how many paths later reach it. It is stamped AFTER the checks above run over the raw
+      # `a.data`, so an authored `ordinal` field is refused by name (the closed set is the three)
+      # before this index is ever built.
+      indexed = imap0 (i: e: e // { ordinal = i; }) a.data;
+      datumsAt = builtins.groupBy (e: e.scope) indexed;
     in
     if !(builtins.isAttrs a.edges) then
       refuse "scopeGraph" "edges must be an attrset of label → (scope → [ scope ]); it is the per-label accessor the walk steps"
@@ -621,27 +629,31 @@ let
   # graph and get a different answer at the same scope — which is the walk-dependence the component
   # shape removes. A membership test against a value has no such parameter, and its absence is what
   # makes the rule total.
-  relationLookup =
+  relationEntries =
     args:
     let
-      a = fields "relationLookup" [
+      a = fields "relationEntries" [
         "graph"
         "scope"
         "relation"
         "wellFormed"
       ] args;
-      g = elementOf "relationLookup" "graph" "scopeGraph" a.graph;
+      g = elementOf "relationEntries" "graph" "scopeGraph" a.graph;
     in
     if !(g.carrier.relations.member a.relation) then
-      refuse "relationLookup" "'${a.relation}' is not a name in R (${quote g.carrier.relations.names}); an undeclared relation is refused rather than answered empty, because an empty answer cannot be told from a relation with no datums"
+      refuse "relationEntries" "'${a.relation}' is not a name in R (${quote g.carrier.relations.names}); an undeclared relation is refused rather than answered empty, because an empty answer cannot be told from a relation with no datums"
     else if !(builtins.isFunction a.wellFormed) then
-      refuse "relationLookup" "wellFormed must be a predicate on data terms; it is WFD, the visibility parameter that decides whether the datum found at the path's end is the one being looked for"
+      refuse "relationEntries" "wellFormed must be a predicate on data terms; it is WFD, the visibility parameter that decides whether the datum found at the path's end is the one being looked for"
     else
-      map (entry: entry.datum) (
-        filter (entry: entry.relation == a.relation && a.wellFormed entry.datum) (
-          g.datumsAt.${a.scope} or [ ]
-        )
+      filter (entry: entry.relation == a.relation && a.wellFormed entry.datum) (
+        g.datumsAt.${a.scope} or [ ]
       );
+
+  # `relationLookup` — the datum projection over `relationEntries`. It carries no refusal of its
+  # own: every site above belongs to `relationEntries`, the component reading, and this is
+  # `map (entry: entry.datum)` composed onto it — unchanged in shape and behavior from the single
+  # layer it replaces, for the callers that want the datum and not its authored coordinate.
+  relationLookup = args: map (entry: entry.datum) (relationEntries args);
 in
 {
   inherit
@@ -654,6 +666,7 @@ in
     carrier
     scopeGraph
     relationLookup
+    relationEntries
     elementOf
     ;
 }

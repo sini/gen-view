@@ -372,6 +372,26 @@ in
       expected = true;
     };
 
+    # ★★★ O7 (den-hoag-2vzn) — `relationLookup` IS `relationEntries`'s DATUM PROJECTION, on the SAME
+    # args, not a private twin computing the same answer by a second route. `relationEntries` is the
+    # component reading with the ordinal every element coordinate needs (O5); `relationLookup` is
+    # kept for callers that want only the datum. Asserted as an EQUALITY over the shared fixture's
+    # own args, so a future edit that lets the two drift — a second filter, a second refusal, a
+    # cache — reds here rather than passing because each answers its own fixture correctly.
+    test-relation-lookup-is-relation-entries-datum-projection = {
+      expr =
+        let
+          args = {
+            graph = f.graph;
+            scope = "inc";
+            relation = "import";
+            wellFormed = f.admitAll;
+          };
+        in
+        v.relationLookup args == map (e: e.datum) (v.relationEntries args);
+      expected = true;
+    };
+
     # ══ THE SURVIVOR OF THE RETIRED ORACLE'S POSITIVE ARM ══
     # ★★ NOTHING WAS LOST WITH THE MECHANISM. A datum AUTHORED at `child` competes, and wins on its
     # empty path against the host's at distance 1. Under the retired design this arm proved the

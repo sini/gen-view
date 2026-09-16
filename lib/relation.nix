@@ -182,19 +182,28 @@ let
             ) measured
           );
 
-      # 5 — (NR-Rel), over the WALK-INDEPENDENT data component.
+      # 5 — (NR-Rel), over the WALK-INDEPENDENT data component. Reached through `relationEntries`,
+      # not the datum-only `relationLookup`, so each contribution carries the component ENTRY'S
+      # authored `ordinal` beside its `datum` — `element` is the declaration COORDINATE this entry
+      # was read off, fixed at the component and never at the walk: the (a1) precision rider that
+      # element identity is `(producer, ordinal)`, never the pair `(l, X)`, and that path-multiplicity
+      # never enters it.
       contributions = concatMap (
         m:
-        map (datum: {
+        map (entry: {
           scope = m.node;
           inherit (m) distance path admission;
           inherit (def) relation;
-          inherit datum;
+          datum = entry.datum;
           channel = def.name;
+          element = {
+            producer = m.node;
+            inherit (entry) ordinal;
+          };
         }) (relationAt m.node)
       ) projected;
 
-      # ★★★ THE LOOKUP IS THE PUBLISHED `relationLookup`, NOT A PRIVATE TWIN OF IT — and that is
+      # ★★★ THE LOOKUP IS THE PUBLISHED `relationEntries`, NOT A PRIVATE TWIN OF IT — and that is
       # the whole of the fix, because the twin was identical BUT FOR THE REFUSAL. Reaching the data
       # component inline dropped (NR-Rel)'s undeclared-relation check, so a misspelled relation and
       # a declared relation with no datums both answered `[ ]`, indistinguishable in the result.
@@ -212,7 +221,7 @@ let
       # reading — is gone with the divergence that made two readings possible.
       relationAt =
         scope:
-        carrierLib.relationLookup {
+        carrierLib.relationEntries {
           graph = g;
           inherit scope;
           inherit (def) relation wellFormed;
@@ -257,6 +266,62 @@ let
         }
       ) (groupsInWalkOrder (c: def.channel.keyOf c) contributions);
 
+      # 6a — the SPANNING REFUSAL, and 6b — the PER-GROUP ELEMENT COLLAPSE. AUTHORSHIP-VISIBILITY:
+      # the element is the DECLARATION's, not the walk's, so it competes ONCE regardless of how
+      # many paths reach it. This runs over `competed`'s `visible` ONLY — a contribution step 6
+      # already shadowed never reaches an element check, or a declaration that competes cleanly
+      # would be refused for a rival it already beat.
+      #
+      # 6a flattens every surviving contribution to a pair of ⟨its element key, its group's key⟩
+      # and groups BY THE ELEMENT KEY. An element whose pairs carry more than one DISTINCT group
+      # key spans groups: `k` split one authored declaration across two competitions, and nothing
+      # downstream is handed a set `k` did not define (ADR-0024 ruling 5 — tie-set disposition is
+      # within the group k defines, never across groups). Refused by name, not resolved by a
+      # priority nobody declared.
+      elementKeyOf =
+        c:
+        builtins.toJSON [
+          c.element.producer
+          c.element.ordinal
+        ];
+
+      spanningElements = filter (eg: length (groupsInWalkOrder (p: p.groupKeyStr) eg.members) > 1) (
+        groupsInWalkOrder (p: p.elementKey) (
+          concatMap (
+            grp:
+            map (c: {
+              inherit c;
+              groupKey = grp.key;
+              groupKeyStr = builtins.toJSON grp.key;
+              elementKey = elementKeyOf c;
+            }) grp.visible
+          ) competed
+        )
+      );
+
+      # 6b runs only once 6a has passed, so every element left is visible under exactly one group:
+      # the collapse is LOCAL to that group — `builtins.groupBy` its `visible` by the element key
+      # and keep each sub-group's `head`, which `groupBy`'s own list-order-preservation makes the
+      # WALK-FIRST arrival, matching a diamond minting exactly one element and a collision minting
+      # two (distinct producers never share an element key).
+      competedCollapsed =
+        if spanningElements != [ ] then
+          let
+            eg = head spanningElements;
+            groups = groupsInWalkOrder (p: p.groupKeyStr) eg.members;
+            keys = map (g0: (head g0.members).groupKey) groups;
+            c0 = (head eg.members).c;
+          in
+          refuse "viewRelation" "channel '${def.name}' declares a competition key that SPLITS one element: the datum authored at scope '${c0.element.producer}' (data entry ${toString c0.element.ordinal}) survives under ${toString (length keys)} competition keys (${quote (map builtins.toJSON keys)}), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived"
+        else
+          map (
+            grp:
+            grp
+            // {
+              visible = map (g0: head g0.members) (groupsInWalkOrder elementKeyOf grp.visible);
+            }
+          ) competed;
+
       # 7 — the tie-set disposition.
       disposed = map (
         grp:
@@ -290,7 +355,7 @@ let
                 x: y: indexOf def.tieSet.order x.scope < indexOf def.tieSet.order y.scope
               ) grp.visible;
             }
-      ) competed;
+      ) competedCollapsed;
 
       surviving = concatMap (grp: grp.visible) disposed;
       shadowed = concatMap (grp: grp.shadowed) disposed;
