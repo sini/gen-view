@@ -388,6 +388,33 @@ let
 in
 {
   flake.tests.relation = {
+    # ★ THE CONSTRUCTING CONTROL FOR THE DEFINITION⟂GRAPH ALPHABET SEAM. The refusing arms live in
+    # `ci/tests-error.nix`'s `alphabet-seam-refusals`; these are the SAME TWO CALLS differing in
+    # exactly one respect — the definition's alphabet is the graph's own rather than a foreign one —
+    # so those refusals are verdicts on the ALPHABET and on nothing else. The `void` row is the one
+    # that carries the weight: it materializes EMPTY, which is what makes the error plane's
+    # empty-gather cell a refusal rather than a restatement of "this root has no datum".
+    test-a-definition-over-the-graphs-own-alphabet-materializes-at-both-roots = {
+      expr =
+        let
+          at =
+            root:
+            map (c: c.datum)
+              (f.mkRelation {
+                definition = f.mkDefinition { inherit root; };
+                graph = f.voidGraph;
+              }).contributions;
+        in
+        {
+          rooted = at "root";
+          gathersNothing = at "void";
+        };
+      expected = {
+        rooted = [ [ "root" ] ];
+        gathersNothing = [ ];
+      };
+    };
+
     # ── THE PROJECTION: A MIN-FOLD OVER `distance` WITHIN EACH ⟨node, derivative-state⟩ CLASS ──
     # Two witnesses reach `a`; one survives, and it is the nearer one. ★ A CARRIER KEYED FINER THAN
     # THE DECLARATION IS NOT A MISMATCH — the projection is part of the materialization and not a

@@ -985,6 +985,112 @@ in
         };
       };
 
+    # ── THE OTHER HALF OF THE ALPHABET SEAM — THE DEFINITION AGAINST THE GRAPH ────────────────
+    #
+    # ★★★ WHAT THESE GATE, AND IT IS NOT THE ORDER MARK. The section above pins the mark against the
+    # DEFINITION; these pin the DEFINITION against the GRAPH it is composed with, and neither
+    # implies the other — the cells below hand a mark that AGREES with the definition, so the mark's
+    # check cannot fire and only this one can. Measured before it existed: a definition over one
+    # alphabet composed with a graph over a disjoint one CONSTRUCTED AND ANSWERED, `contributions`
+    # carrying the root's own datum at exit 0, while `viewDefinition`'s intra-object check,
+    # `carrier`'s intra-object check and the mark check above all fired as controls beside it.
+    #
+    # ★★ THE ANSWER IT GAVE IS WHY THIS IS A DEFECT AND NOT A MISSING CONVENIENCE.
+    # `labelWellFormedness` refuses a literal outside its OWN alphabet, so a foreign admission
+    # expression is perfectly well-formed over letters the graph does not carry and matches NO edge
+    # of it: the walk reaches the root and stops, and the result is the root's own datum wearing the
+    # shape of a gather. There is no reading of that answer in which a caller learns anything.
+    #
+    # ★ CONTROL, IN `ci/tests/relation.nix`: the same two calls with the graph's own alphabet in
+    # place of the foreign one materialize — `[ "root" ]` at `root` and EMPTY at `void` — so these
+    # are verdicts on the ALPHABET and not on the fixture or on the empty gather.
+    flake.testsError.alphabet-seam-refusals =
+      let
+        # A world sharing NO letter with `f`'s (`include`, `parent`), internally consistent so that
+        # neither intra-object check has anything to say about it. It is never built into a carrier:
+        # the point is a DEFINITION over it, composed with `f.graph`, which is over the other.
+        foreignLabels = v.edgeLabels {
+          letters = [
+            "alpha"
+            "beta"
+          ];
+        };
+        foreignDef =
+          root:
+          f.mkDefinition {
+            inherit root;
+            admission = v.labelWellFormedness {
+              alphabet = foreignLabels;
+              expression = "(alpha|beta)*";
+            };
+            order = v.labelOrder {
+              alphabet = foreignLabels;
+              layers = [
+                [ "alpha" ]
+                [ "beta" ]
+              ];
+              endOfPath = -1;
+            };
+          };
+        # ★★★ THE MARK IS THE DEFINITION'S OWN, AND THE CELL IS WORTHLESS OTHERWISE. Handing
+        # `f.identityMark` — the identity over the GRAPH's L — makes the section above's check fire
+        # instead, and MEASURED that way against the library before this seam was closed, the cells
+        # went red on the ORDER MARK's message rather than on a silent answer. A cell built that way
+        # is green on any build that merely reorders two guards, and it never once sees the defect
+        # it is named for. The mark therefore agrees with the definition, the mark check cannot
+        # fire, and what these cells refuse is the definition against the graph and nothing else.
+        foreignMark = v.labelOrder {
+          alphabet = foreignLabels;
+          layers = [
+            [
+              "alpha"
+              "beta"
+            ]
+          ];
+          endOfPath = 0;
+        };
+        run =
+          root:
+          builtins.deepSeq
+            (v.viewRelation {
+              definition = foreignDef root;
+              graph = f.voidGraph;
+              marks = f.noMarks;
+              orderMark = foreignMark;
+            }).contributions
+            true;
+        # `quote` sorts, so both alphabets print sorted regardless of how they were declared.
+        msg = "^gen-view\\.viewRelation: the definition's alphabet is not the graph's \\(alpha, beta vs include, parent\\); one composition has one L$";
+      in
+      {
+        # THE GATHERING ARM. `root` holds a datum, so before this refusal existed the call answered
+        # `[ [ "root" ] ]` at exit 0 — a short, plausible, entirely wrong answer.
+        test-a-definition-over-an-alphabet-the-graph-does-not-carry-refuses-by-name = {
+          expr = run "root";
+          expectedError = {
+            type = "ThrownError";
+            inherit msg;
+          };
+        };
+
+        # ★★★ AND THE ARM A CARELESS LANDING OMITS — the query that GATHERS NOTHING. Competition
+        # runs per group, so a materialization with no groups never forces the effective order at
+        # all, and a guard bound there alone would let this call answer `[ ]`: AN EMPTY ANSWER
+        # STANDING IN FOR A REFUSAL, which is the precise defect this library's refusal discipline
+        # exists to forbid and which it has been caught committing against itself once already. The
+        # cell above cannot see this arm — its fixture has contributions.
+        # ★ CONTROL: `void` under a definition over the graph's OWN alphabet materializes EMPTY
+        # rather than refusing (`ci/tests/relation.nix`), so the refusal here is a verdict on the
+        # alphabet and not on the absent gather.
+        test-a-foreign-alphabet-definition-refuses-even-where-the-query-gathers-nothing = {
+          expr = run "void";
+          expectedError = {
+            type = "ThrownError";
+            inherit msg;
+          };
+        };
+      };
+
     # ── boundedWellDefinedSchedule's OWN REFUSALS: O2 NAMES THE CYCLE, O5a NAMES NOTHING ELSE ──
     flake.testsError.schedule-refusals = {
       # ★★ O2 — THE REFUSAL NAMES THE SCC. Not merely that a declared cycle was refused, but WHICH

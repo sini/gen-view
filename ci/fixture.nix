@@ -172,6 +172,17 @@ let
     );
   };
 
+  # The same graph plus a scope with NO datum and NO out-edge, so a query rooted there gathers
+  # NOTHING under the fixture's own alphabet. That is the one shape under which a missing refusal
+  # cannot be seen — an empty answer and a refusal that never fired are the same reading — so both
+  # arms of the definition⟂graph alphabet seam need a root here, the refusing one to fire on it and
+  # the constructing one to show that it materializes empty rather than refusing.
+  voidGraph = v.scopeGraph {
+    inherit carrier edges;
+    scopes = scopes ++ [ "void" ];
+    data = authored datums;
+  };
+
   # WFD, hoisted to ONE binding rather than written inline at each call site. Two structurally
   # identical Nix lambdas are NOT equal, so a fixture that wrote this predicate twice would make
   # two declarations differing in nothing compare unequal — and any "these differ in exactly one
@@ -299,6 +310,7 @@ in
     authored
     graph
     dupGraph
+    voidGraph
     admitAll
     mkDefinition
     definition

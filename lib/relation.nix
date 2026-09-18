@@ -290,8 +290,32 @@ let
           # at it: where `$` holds a composite rank no letter shares, the empty layer is how a rank
           # belonging to `$` alone gets written down in a declaration made of letters.
           layers = map (k: filter (l: keyOf l == k) q.alphabet.letters) ranked;
+          # L IS A SET — `edgeLabels` refuses a duplicate letter and nothing in this library gives
+          # the list an ordering meaning — so the seam below compares the alphabets SORTED. The
+          # rendering already is: `quote` sorts, so a raw-order predicate could print two identical
+          # lists and claim they differ, which is a diagnostic saying nothing in the shape of one.
+          asSet = xs: sort builtins.lessThan xs;
         in
-        if markOrder.alphabet.letters != q.alphabet.letters then
+        if asSet q.alphabet.letters != asSet g.carrier.labels.letters then
+          # ★★★ THE OTHER HALF OF THE SAME SEAM — THE DECLARATION AGAINST THE GRAPH IT IS COMPOSED
+          # WITH. The check below compares the ORDER MARK against the definition; this one compares
+          # the DEFINITION against the graph's carrier, and neither implies the other. Both
+          # intra-object checks still have nothing to say about it: `viewDefinition` compares a
+          # definition's OWN admission against its OWN order and `carrier` a carrier's OWN members
+          # against its OWN labels, so a definition wholly over one alphabet and a graph wholly over
+          # a disjoint one are each internally consistent and, measured at the rev before this
+          # arrived, CONSTRUCTED AND ANSWERED SILENTLY.
+          #
+          # ★★ AND THE ANSWER IT GAVE IS THE WORST SHAPE AVAILABLE: not an error one layer down but
+          # a PLAUSIBLE SHORT ANSWER. `labelWellFormedness` refuses a literal outside its own
+          # alphabet, so a foreign admission expression is well-formed over letters the graph does
+          # not carry and matches NO edge of it — the walk therefore reaches the root and nothing
+          # else, and the materialization returns the root's own datum as though that were the
+          # gather. A composition over the wrong graph is indistinguishable from one whose query
+          # legitimately found only the root.
+          refuse "viewRelation"
+            "the definition's alphabet is not the graph's (${quote q.alphabet.letters} vs ${quote g.carrier.labels.letters}); one composition has one L"
+        else if markOrder.alphabet.letters != q.alphabet.letters then
           # ★★★ THE SEAM'S OWN REFUSAL, AND IT IS NOT INHERITED FROM ANYWHERE. The two checks that
           # look like they cover this are both INTRA-OBJECT: `viewDefinition` compares a
           # definition's OWN admission against its OWN order, and `carrier` compares a carrier's
@@ -333,11 +357,17 @@ let
       # the ordinary case — against Θ(n²) for the pairwise definition.
       # `ci/tests/relation.nix` runs both forms against each other on the same fixtures.
       #
-      # ★ THE `seq` IS THE ALPHABET REFUSAL'S ONLY REACH INTO THE EMPTY CASE, and it is here rather
+      # ★ THE `seq` IS BOTH ALPHABET REFUSALS' ONLY REACH INTO THE EMPTY CASE, and it is here rather
       # than at the binding because `map` over NO groups would never force the order at all — a
-      # cross-alphabet mark on a query that happens to gather nothing would then answer `[ ]`
-      # instead of refusing, which is this library's own named defect: an empty answer standing in
-      # for a refusal.
+      # cross-alphabet mark, or a definition composed with a foreign graph, on a query that happens
+      # to gather nothing would then answer `[ ]` instead of refusing, which is this library's own
+      # named defect: an empty answer standing in for a refusal.
+      #
+      # ★★ AND "THERE IS A GROUP" DOES NOT MAKE IT FORCED, which is the reading that gets this `seq`
+      # deleted. MEASURED by removing it: a SINGLETON group forces nothing either — `sort` never
+      # calls its comparator on one element and `builtins.any` over an empty accumulator never calls
+      # `pathPrecedes` — so a fixture that DOES gather went radioactive alongside the empty-root one.
+      # The order is forced here or at no reachable point of the ordinary case.
       competed = builtins.seq effectiveOrder (
         map (
           grp:
