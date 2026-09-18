@@ -97,38 +97,62 @@ let
     dataOrder = key;
   };
 
-  graph = v.scopeGraph {
-    inherit carrier;
-    scopes = [
-      "H"
-      "M"
-      "D"
-      # No datum, no out-edge: a query rooted here gathers nothing. It is the CONTROL for the
-      # error plane's empty-answer cell — under a well-formed mark this root must MATERIALIZE
-      # EMPTY, so that cell's refusal is a verdict on the alphabet and not on the empty gather.
-      "Z"
-    ];
-    edges = {
-      mandate = id: if id == "H" then [ "M" ] else [ ];
-      default = id: if id == "H" then [ "D" ] else [ ];
+  # The DECLINE fixture's wiring: the mandate arrives on `mandate`, the default on `default`.
+  declineEdges = {
+    mandate = id: if id == "H" then [ "M" ] else [ ];
+    default = id: if id == "H" then [ "D" ] else [ ];
+  };
+  # O2's CONTROL wiring. `M` still holds the mandate's DATUM; only the LETTER it arrives on moves.
+  mandateByDefaultEdges = {
+    mandate = _: [ ];
+    default =
+      id:
+      if id == "H" then
+        [
+          "M"
+          "D"
+        ]
+      else
+        [ ];
+  };
+
+  # The two axes O2 varies — the host's DATUM and the mandate's arrival LETTER — are the only
+  # arguments, so an O2 arm differs from every cell above in one named field and nothing else.
+  mkGraph =
+    { hostDatum, edges }:
+    v.scopeGraph {
+      inherit carrier edges;
+      scopes = [
+        "H"
+        "M"
+        "D"
+        # No datum, no out-edge: a query rooted here gathers nothing. It is the CONTROL for the
+        # error plane's empty-answer cell — under a well-formed mark this root must MATERIALIZE
+        # EMPTY, so that cell's refusal is a verdict on the alphabet and not on the empty gather.
+        "Z"
+      ];
+      data = [
+        {
+          scope = "H";
+          relation = "import";
+          datum = hostDatum;
+        }
+        {
+          scope = "M";
+          relation = "import";
+          datum = [ "from-MANDATE" ];
+        }
+        {
+          scope = "D";
+          relation = "import";
+          datum = [ "from-DEFAULT" ];
+        }
+      ];
     };
-    data = [
-      {
-        scope = "H";
-        relation = "import";
-        datum = [ "from-HOST-own" ];
-      }
-      {
-        scope = "M";
-        relation = "import";
-        datum = [ "from-MANDATE" ];
-      }
-      {
-        scope = "D";
-        relation = "import";
-        datum = [ "from-DEFAULT" ];
-      }
-    ];
+
+  graph = mkGraph {
+    hostDatum = [ "from-HOST-own" ];
+    edges = declineEdges;
   };
 
   # `run querySpec markSpec` — the WHOLE answer, never a single projection. A cell asserting only
@@ -139,34 +163,52 @@ let
 
   runFrom =
     root: querySpec: markSpec:
-    let
-      r = v.viewRelation {
-        definition = v.compositions.movement {
-          channel = "settings";
-          relation = "import";
-          inherit root;
-          direction = "outbound";
-          inherit admission;
-          order = order querySpec;
-          wellFormed = _: true;
-          tieSet = v.tieSets.union;
-          empty = [ ];
-          combine = v.combines.listAppend;
-          dedup = v.dedups.none;
-        };
-        inherit graph;
-        marks = _: [ ];
-        orderMark = order markSpec;
+    project (relationOn graph root querySpec markSpec);
+
+  # O2 is the one oracle that varies the GRAPH, so it runs the same projection over a fixture of
+  # its own. Everything above reads `run`/`runFrom` and is untouched by that.
+  runOn =
+    g: querySpec: markSpec:
+    project (relationOn g "H" querySpec markSpec);
+
+  relationOn =
+    g: root: querySpec: markSpec:
+    v.viewRelation {
+      definition = v.compositions.movement {
+        channel = "settings";
+        relation = "import";
+        inherit root;
+        direction = "outbound";
+        inherit admission;
+        order = order querySpec;
+        wellFormed = _: true;
+        tieSet = v.tieSets.union;
+        empty = [ ];
+        combine = v.combines.listAppend;
+        dedup = v.dedups.none;
       };
-    in
-    {
-      contributions = map (c: c.scope) r.contributions;
-      inherit (r) value;
-      shadowed = map (c: {
-        inherit (c) scope;
-        path = map (s: s.label) c.path;
-      }) r.shadowed;
+      graph = g;
+      marks = _: [ ];
+      orderMark = order markSpec;
     };
+
+  project = r: {
+    contributions = map (c: c.scope) r.contributions;
+    inherit (r) value;
+    shadowed = map (c: {
+      inherit (c) scope;
+      path = map (s: s.label) c.path;
+    }) r.shadowed;
+  };
+
+  # O5's SIBLING projection, deliberately not an extension of `project`. The nine cells above are
+  # written against `project`'s shape and none of them is about the losing DATUM; widening it would
+  # rewrite every one of their `expected` for a field only this oracle reads.
+  shadowedDatums =
+    querySpec: markSpec:
+    map (c: {
+      inherit (c) scope datum;
+    }) (relationOn graph "H" querySpec markSpec).shadowed;
 
   # ── O8c's CLOSURE ARMS — rank maps over three letters, and the exhaustive search over them ──
   abc = [
@@ -539,6 +581,105 @@ in
     test-o8d-control-an-empty-gather-under-a-well-formed-mark-materializes-empty = {
       expr = (runFrom "Z" hostileQuery mandateMark).contributions;
       expected = [ ];
+    };
+
+    # ══ O2 — AUTHORITY IS A FUNCTION OF THE LABEL, NOT THE VALUE ══════════════════════════════
+    # §3's O2, retained as a cell rather than left in the ephemeral probe it was first measured in.
+    # It is the axis the M1 property rests on: what decides a competition is the LETTER a datum
+    # arrives on, never the datum's content.
+    #
+    # ★★ BOTH ARMS SHIP, IN ONE CELL, OVER ONE MARK AND ONE QUERY. The invariant arm alone is
+    # consistent with a fixture in which nothing could ever have moved the answer — a dead probe
+    # reading green. The control is what makes it a measurement: the same `mandateMark` and the
+    # same hostile query, with the mandate's datum re-labelled to arrive on `default`, and the
+    # reading FLIPS to the declined answer. The two `expected` values below disagree on every
+    # field, so a build that ignored the arrival letter would red the control here.
+    test-o2-authority-follows-the-arrival-letter-and-the-relabelled-control-flips = {
+      expr = {
+        # The host's datum rewritten, and NOTHING else. Content moved; authority did not.
+        invariantHostDatumRewritten = runOn (mkGraph {
+          hostDatum = [ "from-HOST-REWRITTEN" ];
+          edges = declineEdges;
+        }) hostileQuery mandateMark;
+        # The arrival letter moved, and nothing else. `M` still holds `["from-MANDATE"]`.
+        controlMandateArrivesByDefault = runOn (mkGraph {
+          hostDatum = [ "from-HOST-own" ];
+          edges = mandateByDefaultEdges;
+        }) hostileQuery mandateMark;
+      };
+      expected = {
+        # Byte for byte the O8 GREEN answer above — the mandate still binds, and `H`'s new content
+        # appears nowhere in the reading.
+        invariantHostDatumRewritten = {
+          contributions = [ "M" ];
+          value = [ "from-MANDATE" ];
+          shadowed = [
+            {
+              scope = "H";
+              path = [ ];
+            }
+            {
+              scope = "D";
+              path = [ "default" ];
+            }
+          ];
+        };
+        # `mandate <l $ <l default`, so a datum arriving on `default` loses to the host's own empty
+        # path no matter what it contains. The mark is unchanged; only the letter moved.
+        controlMandateArrivesByDefault = {
+          contributions = [ "H" ];
+          value = [ "from-HOST-own" ];
+          shadowed = [
+            {
+              scope = "M";
+              path = [ "default" ];
+            }
+            {
+              scope = "D";
+              path = [ "default" ];
+            }
+          ];
+        };
+      };
+    };
+
+    # ══ O5 — EVERY LOSS STAYS OBSERVABLE, WITH THE LOSING DATUM ═══════════════════════════════
+    # §3's O5. `shadowed` carries the losing contribution WHOLE, so the value that lost is readable
+    # off the answer and a shadowed declaration is never a silent drop.
+    #
+    # ★ THE TWO ARMS ARE THE SAME TWO READINGS O8 ASSERTS THE WINNERS OF, so the losing datum is
+    # measured against a winner already pinned next door: `from-HOST-own` wins in RED and is the
+    # LOSS carried in GREEN, `from-MANDATE` the converse. A build that emitted `shadowed` without
+    # the datum, or that carried the WINNER's datum onto the losing record, reds here and nowhere
+    # else — no cell above projects this field.
+    # ★ Attribution — WHICH mark shadowed it — is a separate surface and is not asserted here.
+    test-o5-the-losing-datum-is-readable-off-shadowed-in-both-readings = {
+      expr = {
+        redTargetDeclines = shadowedDatums hostileQuery identityMark;
+        greenMandateBinds = shadowedDatums hostileQuery mandateMark;
+      };
+      expected = {
+        redTargetDeclines = [
+          {
+            scope = "D";
+            datum = [ "from-DEFAULT" ];
+          }
+          {
+            scope = "M";
+            datum = [ "from-MANDATE" ];
+          }
+        ];
+        greenMandateBinds = [
+          {
+            scope = "H";
+            datum = [ "from-HOST-own" ];
+          }
+          {
+            scope = "D";
+            datum = [ "from-DEFAULT" ];
+          }
+        ];
+      };
     };
   };
 }
