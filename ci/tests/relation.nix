@@ -25,6 +25,14 @@ let
     layers = [ [ "parent" ] ];
     endOfPath = -1;
   };
+  # The diamond's OWN identity mark. `f.identityMark` is built over the fixture's two letters and
+  # this carrier has one, so the shared mark cannot be reused here — the alphabet seam refuses it,
+  # which is the refusal doing its job on the first fixture that could have tripped over it.
+  dMark = v.labelOrder {
+    alphabet = dLabels;
+    layers = [ [ "parent" ] ];
+    endOfPath = 0;
+  };
   dKey = v.dataOrder {
     channel = "d";
     keyOf = c: c.scope;
@@ -81,6 +89,7 @@ let
     };
     graph = diamond;
     marks = f.noMarks;
+    orderMark = dMark;
   };
 
   # ── THE DIVERGENT-AT-POSITION-0 FIXTURE, for the visibility order ──
@@ -131,6 +140,7 @@ let
       };
       graph = divergentGraph;
       marks = f.noMarks;
+      orderMark = f.identityMark;
     };
   divergentFlat = divergentWith f.flatOrder;
   divergentLayered = divergentWith f.order;
@@ -148,6 +158,7 @@ let
       );
       graph = f.dupGraph;
       marks = f.noMarks;
+      orderMark = f.identityMark;
     };
 
   # ══════════════════════════════════════════════════════════════════════════════════════════
@@ -366,6 +377,7 @@ let
     v.viewRelation {
       inherit definition graph;
       marks = f.noMarks;
+      orderMark = f.identityMark;
     };
 
   # `true` iff forcing `expr` throws — the same catchable-refusal test §2.8's `registry-split-key-

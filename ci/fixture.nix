@@ -221,6 +221,23 @@ let
 
   noMarks = _: [ ];
 
+  # THE IDENTITY ORDER MARK — one layer holding every letter, with `$` tied to them. It is what "this
+  # query carries no order mark" is WRITTEN DOWN as, and writing it down is the whole of why the
+  # field is required: the library defaults nothing on the axis that decides who wins, so a suite
+  # whose subject is some other step still has to SAY that this one is vacuous. Under it the
+  # lexicographic product degenerates to the identity and the effective order is the declaration's
+  # own order exactly — which is what keeps every cell below measuring what it measured before.
+  identityMark = v.labelOrder {
+    alphabet = labels;
+    layers = [
+      [
+        "include"
+        "parent"
+      ]
+    ];
+    endOfPath = 0;
+  };
+
   # A boundary mark on `leaf` refusing the containment letter. `boundedBy`'s contract: a mark is
   # `{ name; admits; }` — a NAME the diagnostic can quote and a `label → bool` predicate.
   includeMark =
@@ -250,6 +267,7 @@ let
       {
         inherit definition graph;
         marks = noMarks;
+        orderMark = identityMark;
       }
       // args
     );
@@ -286,6 +304,7 @@ in
     definition
     definitionArgs
     noMarks
+    identityMark
     includeMark
     admitAllMark
     mkRelation

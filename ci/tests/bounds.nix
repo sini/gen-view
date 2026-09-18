@@ -41,6 +41,7 @@ in
           definition = f.definition;
           graph = f.graph;
           marks = f.noMarks;
+          orderMark = f.identityMark;
           widen = _: true;
         }
       );

@@ -149,6 +149,7 @@ let
       definition = tDefinition dedup;
       graph = tGraph;
       marks = tMark;
+      orderMark = f.identityMark;
     };
   # The SAME graph with no isolation bound. The trace cases use this one because its WALK order
   # (`inc` first, the containment edge being walked before the ancestor edges) differs from its
@@ -158,6 +159,7 @@ let
     definition = tDefinition v.dedups.none;
     graph = tGraph;
     marks = f.noMarks;
+    orderMark = f.identityMark;
   };
 
   # ── TWO PRESENTATIONS OF ONE EDGE SET, AND ONE SET SHORT OF IT ──
@@ -518,6 +520,7 @@ let
               definition = tDefinition v.dedups.none;
               graph = tGraph;
               marks = f.noMarks;
+              orderMark = f.identityMark;
             }).contributions;
         deduped =
           map (c: c.scope)
@@ -525,6 +528,7 @@ let
               definition = tDefinition v.dedups.byDatum;
               graph = tGraph;
               marks = f.noMarks;
+              orderMark = f.identityMark;
             }).contributions;
         isolated = map (c: c.scope) (tRelation v.dedups.none).contributions;
       };
@@ -536,6 +540,7 @@ let
               definition = tDefinition v.dedups.none;
               graph = tGraph;
               marks = f.noMarks;
+              orderMark = f.identityMark;
             }).contributions;
         deduped =
           map (c: c.scope)
@@ -543,6 +548,7 @@ let
               definition = tDefinition v.dedups.none;
               graph = tGraph;
               marks = f.noMarks;
+              orderMark = f.identityMark;
             }).contributions;
         isolated = map (c: c.scope) (tRelation v.dedups.none).contributions;
       };

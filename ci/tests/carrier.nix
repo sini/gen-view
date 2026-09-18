@@ -76,11 +76,13 @@ let
     definition = roleDefinition;
     graph = roleGraph;
     marks = f.noMarks;
+    orderMark = f.identityMark;
   };
   plainRelation = v.viewRelation {
     definition = roleDefinition;
     graph = plainGraph;
     marks = f.noMarks;
+    orderMark = f.identityMark;
   };
 in
 {

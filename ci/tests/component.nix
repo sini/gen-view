@@ -73,6 +73,7 @@ let
       definition = f.mkDefinition { root = "child"; };
       graph = g;
       marks = f.noMarks;
+      orderMark = f.identityMark;
     };
 
   # ── THE SWEEP'S MATERIAL ──
@@ -597,6 +598,7 @@ in
               definition = f.mkDefinition { wellFormed = d: d == [ "admit" ]; };
               graph = g;
               marks = f.noMarks;
+              orderMark = f.identityMark;
             };
           withEdge = mk true;
           without = mk false;
@@ -652,6 +654,7 @@ in
                   ];
                 };
                 marks = f.noMarks;
+                orderMark = f.identityMark;
               }).contributions;
         in
         {

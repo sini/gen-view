@@ -26,7 +26,9 @@
 #     datum where a later step reads one, and a walk-emitted contribution is not a thing that can
 #     exist rather than a thing that is filtered out.
 #  6. competition — contributions are grouped by k and the surviving-maximal set of each group is
-#     taken under the label order's lexicographic lift.
+#     taken under the EFFECTIVE order's lexicographic lift: the lexicographic product of the
+#     declared ORDER MARK with the declaration's own order, MARK OUTER. An all-tied mark is the
+#     identity, so a declaration that marks nothing competes exactly as it did before.
 #  7. the tie-set disposition — `union`, `refuse` or `orderedFold`, named by the declaration.
 #  8. dedup — declared, and EVERY DROP IS A RECORD.
 #  9. the fold — ASSOCIATIVE-ONLY, WITH NO REORDER AND NO DEDUP BY RANK. The lawful shape states
@@ -41,6 +43,12 @@
 # placement, the terminal sink and content transformation are not fields either — folding those in
 # would reconstruct the released edge grammar under new names. They live in their own construct
 # families (`placement.nix`, `transform.nix`), reachable and separate.
+#
+# ★★★ THE ORDER MARK IS THE SAME ARGUMENT-NOT-A-FIELD FOR THE SAME REASON, and the reason is the
+# whole of what it buys. An order mark declared INSIDE the definition would be a mark the query
+# SETS, and a query that sets its own mark can set the identity and decline — which is precisely
+# the state a mandate has to be able to bind out of. `def.order` is untouched by this: every
+# declaration written before the mark existed means exactly what it meant.
 { prelude, graph }:
 let
   inherit (prelude)
@@ -108,9 +116,15 @@ let
         # the unmarked case a decision nobody made, on the one axis where silence must never read
         # as access.
         "marks"
+        # REQUIRED on the same terms, and "no order mark" is the one-layer order over L̂ written
+        # down. A defaulted identity would make the unmarked competition a decision nobody made on
+        # the one axis that decides who wins, and `labelOrder` already refuses an unranked letter
+        # for the same reason: a rank nobody declared is not a rank.
+        "orderMark"
       ] args;
       def = elementOf "viewRelation" "definition" "viewDefinition" a.definition;
       g = elementOf "viewRelation" "graph" "scopeGraph" a.graph;
+      markOrder = elementOf "viewRelation" "orderMark" "labelOrder" a.orderMark;
 
       # 1 — direction.
       directed = if def.direction == "inbound" then graph.labeledTranspose g.labeled else g.labeled;
@@ -227,6 +241,76 @@ let
           inherit (def) relation wellFormed;
         };
 
+      # ── THE EFFECTIVE ORDER — the LEXICOGRAPHIC PRODUCT of the mark with the declared order,
+      # MARK OUTER ────────────────────────────────────────────────────────────────────────────────
+      #   `a <ₑ b  ⟺  a <ₘ b  ∨  (a ≃ₘ b ∧ a <q b)`
+      # The query may only refine INSIDE the mark's ties. It can never erase or reverse a pair the
+      # mark declares, and an all-tied mark is the identity, under which `<ₑ` is `<q` exactly.
+      #
+      # ★★ IT IS PER QUERY ROOT, NOT PER NODE, BY CONSTRUCTION AND NOT BY CHOICE. `E` is consumed
+      # per STEP, which is what lets its marks be per node. `<` is consumed ONCE PER COMPETITION
+      # GROUP, and a group spans scopes — so per-node order marks composed along each arrival path
+      # would compare members of ONE group under SEVERAL relations, under which transitivity is not
+      # even statable. There is exactly one order per competition, hence one per root.
+      #
+      # ★★★ AND IT FLATTENS BACK ONTO THE SHIPPED CARRIER rather than putting a pair-keyed
+      # comparator at step 6. The composite key of `l` is the pair `(rankₘ l, rank_q l)` under the
+      # lex order on pairs; lex on pairs is TOTAL, so the induced relation is a strict WEAK order
+      # and the distinct pairs number consecutively with equal pairs sharing a rank. What step 6
+      # reads is therefore one ordinary `labelOrder` — `pathPrecedes` and `rankLess` are untouched,
+      # and the one-sort-plus-survivors-scan bound survives unchanged. THE PAIR IS AN INTERMEDIATE
+      # OF THE COMPOSITION AND NEVER A DURABLE SECOND NUMBER LINE: nothing downstream of the
+      # flattening ever sees it.
+      #
+      # ★ Intersection was the literal transfer and it is NOT what this is. `<ₘ ∩ <q` leaves the
+      # carrier — a weak order's incomparability is an equivalence and that class is not closed
+      # under ∩ — and it is the FAIL-OPEN direction here, because the composition rule is
+      # minimality and removing pairs ENLARGES the antichain. A mark composed by ∩ would be
+      # powerless rather than binding.
+      effectiveOrder =
+        let
+          q = def.order;
+          # `rankOf` answers for `$` as well as for every letter, so ONE function covers L̂.
+          keyOf = l: [
+            (markOrder.rankOf l)
+            (q.rankOf l)
+          ];
+          lexLess =
+            x: y:
+            let
+              x0 = builtins.elemAt x 0;
+              y0 = builtins.elemAt y 0;
+            in
+            x0 < y0 || (x0 == y0 && builtins.elemAt x 1 < builtins.elemAt y 1);
+          distinct = foldl' (acc: k: if builtins.any (seen: seen == k) acc then acc else acc ++ [ k ]) [ ] (
+            map keyOf q.alphabet.extended
+          );
+          ranked = sort lexLess distinct;
+          # A layer MAY BE EMPTY, and that is the representation doing its job rather than failing
+          # at it: where `$` holds a composite rank no letter shares, the empty layer is how a rank
+          # belonging to `$` alone gets written down in a declaration made of letters.
+          layers = map (k: filter (l: keyOf l == k) q.alphabet.letters) ranked;
+        in
+        if markOrder.alphabet.letters != q.alphabet.letters then
+          # ★★★ THE SEAM'S OWN REFUSAL, AND IT IS NOT INHERITED FROM ANYWHERE. The two checks that
+          # look like they cover this are both INTRA-OBJECT: `viewDefinition` compares a
+          # definition's OWN admission against its OWN order, and `carrier` compares a carrier's
+          # OWN members against its OWN labels. THIS is where an order authored elsewhere MEETS the
+          # declaration's order, and measured at the rev this arrived in, nothing looked across the
+          # seam — a definition over one alphabet composed with a graph over a disjoint one
+          # CONSTRUCTED AND ANSWERED SILENTLY while both of those checks fired as controls beside
+          # it. `carrier`'s "one carrier has one L" is the PATTERN this follows; it was never the
+          # enforcer that covered it. Without this, the product is taken over pairs in which one
+          # component ranks letters the other has never heard of.
+          refuse "viewRelation"
+            "orderMark is built over a different alphabet than the definition's `order` (${quote markOrder.alphabet.letters} vs ${quote q.alphabet.letters}); one competition has one L"
+        else
+          carrierLib.labelOrder {
+            inherit (q) alphabet;
+            inherit layers;
+            endOfPath = indexOf ranked (keyOf "$");
+          };
+
       # 6 — competition, over a STRICT PARTIAL ORDER.
       #
       # ★★★ "NOT BEATEN BY THE MINIMUM" IS WRONG HERE AND THE PROSE THAT CLAIMED IT WAS THE TELL.
@@ -248,23 +332,32 @@ let
       # The cost is Θ(n log n) plus the antichain's width, which is 1 wherever the order is total —
       # the ordinary case — against Θ(n²) for the pairwise definition.
       # `ci/tests/relation.nix` runs both forms against each other on the same fixtures.
-      competed = map (
-        grp:
-        let
-          byRank = sort (x: y: def.order.rankLess x.path y.path) grp.members;
-          kept = foldl' (
-            acc: c: if builtins.any (o: def.order.pathPrecedes o.path c.path) acc then acc else acc ++ [ c ]
-          ) [ ] byRank;
-          # Emitted in WALK order, never in the sort key's: the sort is a bound on the computation
-          # and has no business pinning the answer's order.
-          survives = c: elem c kept;
-        in
-        {
-          inherit (grp) key;
-          visible = filter survives grp.members;
-          shadowed = filter (c: !(survives c)) grp.members;
-        }
-      ) (groupsInWalkOrder (c: def.channel.keyOf c) contributions);
+      #
+      # ★ THE `seq` IS THE ALPHABET REFUSAL'S ONLY REACH INTO THE EMPTY CASE, and it is here rather
+      # than at the binding because `map` over NO groups would never force the order at all — a
+      # cross-alphabet mark on a query that happens to gather nothing would then answer `[ ]`
+      # instead of refusing, which is this library's own named defect: an empty answer standing in
+      # for a refusal.
+      competed = builtins.seq effectiveOrder (
+        map (
+          grp:
+          let
+            byRank = sort (x: y: effectiveOrder.rankLess x.path y.path) grp.members;
+            kept = foldl' (
+              acc: c:
+              if builtins.any (o: effectiveOrder.pathPrecedes o.path c.path) acc then acc else acc ++ [ c ]
+            ) [ ] byRank;
+            # Emitted in WALK order, never in the sort key's: the sort is a bound on the computation
+            # and has no business pinning the answer's order.
+            survives = c: elem c kept;
+          in
+          {
+            inherit (grp) key;
+            visible = filter survives grp.members;
+            shadowed = filter (c: !(survives c)) grp.members;
+          }
+        ) (groupsInWalkOrder (c: def.channel.keyOf c) contributions)
+      );
 
       # 6a — the SPANNING REFUSAL, and 6b — the PER-GROUP ELEMENT COLLAPSE. AUTHORSHIP-VISIBILITY:
       # the element is the DECLARATION's, not the walk's, so it competes ONCE regardless of how

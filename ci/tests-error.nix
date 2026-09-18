@@ -93,6 +93,7 @@ in
             definition = f.definition;
             graph = f.graph;
             marks = f.noMarks;
+            orderMark = f.identityMark;
             widen = _: true;
           }) true;
           expectedError = {
@@ -732,6 +733,7 @@ in
                 definition = mkSplitKeyDef { };
                 graph = diamondGraph;
                 marks = f.noMarks;
+                orderMark = f.identityMark;
               }).value
               true;
           expectedError = {
@@ -750,6 +752,7 @@ in
                 definition = mkSplitKeyDef { tieSet = v.tieSets.refuse; };
                 graph = zGraph;
                 marks = f.noMarks;
+                orderMark = f.identityMark;
               }).value
               true;
           expectedError = {
@@ -771,11 +774,213 @@ in
                 definition = mkSplitKeyDef { tieSet = v.tieSets.refuse; };
                 graph = yGraph;
                 marks = f.noMarks;
+                orderMark = f.identityMark;
               }).value
               true;
           expectedError = {
             type = "ThrownError";
             msg = "^gen-view\\.viewRelation: channel 'settings' declares a competition key that SPLITS one element: the datum authored at scope 'top' \\(data entry 0\\) survives under 2 competition keys \\(\"'include\\*\", \"'parent\\*\"\\), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived$";
+          };
+        };
+      };
+
+    # ── O8d's REFUSING HALF — THE ORDER MARK IS REFUSED AT THE DEFINITION AND TAKEN AT THE
+    # RELATION, plus the SEAM's own alphabet check ────────────────────────────────────────────
+    #
+    # ★★★ WHAT THESE GATE. M9's placement claim — the order mark arrives as an ARGUMENT to
+    # `viewRelation` and NEVER as a field of the view definition — which is the whole of its
+    # anti-decline guarantee. An order mark declared inside the definition would be a mark the
+    # query SETS, and a query that sets its own mark can set the identity and decline. The
+    # constructing half of the cell, with the live control that all three build when handed no
+    # extra field, is `ci/tests/order-mark.nix`.
+    #
+    # ★★ AND THE FIRST TWO PIN A `required` LIST THAT MUST NOT MOVE. A build that placed the mark
+    # in the definition would red them by making the refusal they assert disappear — which is the
+    # wrong build this cell exists to discriminate, and the reason the lists are quoted in full
+    # rather than elided to `.*`.
+    flake.testsError.order-mark-refusals =
+      let
+        # TWO ALPHABETS, each wrapped in an INTERNALLY CONSISTENT world, so neither of the two
+        # intra-object checks gen already ships has anything to say about the pair. `A` is the
+        # definition's; `B` shares no letter with it.
+        mkWorld = letters: rec {
+          labels = v.edgeLabels { inherit letters; };
+          admission = v.labelWellFormedness {
+            alphabet = labels;
+            expression = "(" + builtins.concatStringsSep "|" letters + ")*";
+          };
+          order = v.labelOrder {
+            alphabet = labels;
+            layers = map (l: [ l ]) letters;
+            endOfPath = -1;
+          };
+          identity = v.labelOrder {
+            alphabet = labels;
+            layers = [ letters ];
+            endOfPath = 0;
+          };
+          carrier = v.carrier {
+            inherit labels;
+            relations = v.relations { names = [ "import" ]; };
+            relatumLabels = v.relatumLabels { names = [ "relatum-target" ]; };
+            labelWellFormedness = admission;
+            labelOrder = order;
+            dataOrder = v.dataOrder {
+              channel = "settings";
+              keyOf = _: "settings";
+            };
+          };
+        };
+        A = mkWorld [
+          "mandate"
+          "default"
+        ];
+        B = mkWorld [
+          "alpha"
+          "beta"
+        ];
+        aGraph = v.scopeGraph {
+          carrier = A.carrier;
+          scopes = [
+            "H"
+            "M"
+            # A scope with NO datum and NO out-edge. A query rooted here gathers nothing, which is
+            # the one shape under which a refusal can go missing without any answer looking wrong.
+            "Z"
+          ];
+          edges = {
+            mandate = id: if id == "H" then [ "M" ] else [ ];
+            default = _: [ ];
+          };
+          data = [
+            {
+              scope = "H";
+              relation = "import";
+              datum = [ "from-H" ];
+            }
+            {
+              scope = "M";
+              relation = "import";
+              datum = [ "from-M" ];
+            }
+          ];
+        };
+        aDefArgs = {
+          channel = "settings";
+          relation = "import";
+          root = "H";
+          direction = "outbound";
+          inherit (A) admission order;
+          wellFormed = _: true;
+          tieSet = v.tieSets.union;
+          empty = [ ];
+          combine = v.combines.listAppend;
+          dedup = v.dedups.none;
+        };
+      in
+      {
+        # ★ THE DEFINITION SIDE, ARM ONE. Unchanged by the build: `orderMark` is not and must not
+        # become a field of the composition, and the `required` list below is the same eleven
+        # fields it named before the mark existed.
+        test-o8d-the-order-mark-is-refused-as-a-field-of-the-movement-composition = {
+          expr = builtins.deepSeq (v.compositions.movement (aDefArgs // { orderMark = A.identity; })) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.compositions\\.movement: field 'orderMark' is not a field of this construct; the field set is closed \\(required: admission, channel, combine, dedup, direction, empty, order, relation, root, tieSet, wellFormed\\)$";
+          };
+        };
+
+        # ★ THE DEFINITION SIDE, ARM TWO — the RAW declaration, whose field set is the substrate's
+        # own twelve. Also unchanged.
+        test-o8d-the-order-mark-is-refused-as-a-field-of-the-view-definition = {
+          expr = builtins.deepSeq (v.viewDefinition (
+            aDefArgs
+            // {
+              channel = v.dataOrder {
+                channel = "settings";
+                keyOf = _: "settings";
+              };
+              distance = s: s.distance + 1;
+              orderMark = A.identity;
+            }
+          )) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.viewDefinition: field 'orderMark' is not a field of this construct; the field set is closed \\(required: admission, channel, combine, dedup, direction, distance, empty, order, relation, root, tieSet, wellFormed\\)$";
+          };
+        };
+
+        # ★★★ THE RELATION SIDE — the seam that DID open, pinned by the one message that prints the
+        # `required` list. Before the build this list read `definition, graph, marks` and the mark
+        # was refused here too; the cell asserts that it now reads EXACTLY those three plus
+        # `orderMark`, so a build that opened the field set wider than the design, or that left it
+        # shut, reds here. `contributions` is forced deliberately: `.__element` would return
+        # `"viewRelation"` at exit 0 with the undeclared field still present.
+        test-o8d-the-relations-field-set-is-closed-and-now-names-the-order-mark = {
+          expr =
+            builtins.deepSeq
+              (v.viewRelation {
+                definition = v.compositions.movement aDefArgs;
+                graph = aGraph;
+                marks = f.noMarks;
+                orderMark = A.identity;
+                widen = _: true;
+              }).contributions
+              true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.viewRelation: field 'widen' is not a field of this construct; the field set is closed \\(required: definition, graph, marks, orderMark\\)$";
+          };
+        };
+
+        # ★★★ THE SEAM'S OWN ALPHABET REFUSAL, AND IT IS NOT INHERITED FROM ANYWHERE. The two
+        # checks that look like they cover this are both INTRA-OBJECT — `viewDefinition` compares a
+        # definition's OWN admission against its OWN order, `carrier` a carrier's OWN members
+        # against its OWN labels — and measured before this refusal existed, a definition over one
+        # alphabet composed at `viewRelation` with a graph over a DISJOINT one constructed and
+        # answered SILENTLY while both of those fired as controls beside it. So the order mark
+        # inherits nothing here and ships its own check, in `carrier`'s "one … has one L" form.
+        # ★ Its control is the cell above it and the constructing cells next door: the same call
+        # with `A.identity` in place of `B.identity` answers, so this is a verdict on the ALPHABET
+        # and not on the fixture.
+        test-o8d-an-order-mark-over-a-foreign-alphabet-refuses-by-name = {
+          expr =
+            builtins.deepSeq
+              (v.viewRelation {
+                definition = v.compositions.movement aDefArgs;
+                graph = aGraph;
+                marks = f.noMarks;
+                orderMark = B.identity;
+              }).contributions
+              true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.viewRelation: orderMark is built over a different alphabet than the definition's `order` \\(alpha, beta vs default, mandate\\); one competition has one L$";
+          };
+        };
+
+        # ★★★ AND THE SAME REFUSAL ON A QUERY THAT GATHERS NOTHING — the arm where a check can go
+        # missing with NO answer looking wrong. The competition runs per group, so a materialization
+        # with no groups would never force the effective order at all, and an ill-typed mark would
+        # come back as `[ ]`: AN EMPTY ANSWER STANDING IN FOR A REFUSAL, which is the precise defect
+        # this library's refusal discipline exists to forbid and which it has already been caught
+        # committing once against itself. The cell above cannot see this arm — its fixture has
+        # contributions — so without this one the guard that closes it is untested.
+        # ★ CONTROL: the same root under a WELL-FORMED mark, asserted next door in
+        # `ci/tests/order-mark.nix`, materializes empty rather than refusing.
+        test-o8d-a-foreign-alphabet-mark-refuses-even-where-the-query-gathers-nothing = {
+          expr =
+            builtins.deepSeq
+              (v.viewRelation {
+                definition = v.compositions.movement (aDefArgs // { root = "Z"; });
+                graph = aGraph;
+                marks = f.noMarks;
+                orderMark = B.identity;
+              }).contributions
+              true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.viewRelation: orderMark is built over a different alphabet than the definition's `order` \\(alpha, beta vs default, mandate\\); one competition has one L$";
           };
         };
       };

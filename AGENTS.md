@@ -245,9 +245,22 @@ resolves.
 
 ## Rules that will bite you
 
-- **Nothing is defaulted.** Every field of a view definition is required, and so is `marks` at the
-  materialization — "no marks" is `_: [ ]` written down. If you are about to add a default, the
-  answer is a refusal instead.
+- **Nothing is defaulted.** Every field of a view definition is required, and so are `marks` and
+  `orderMark` at the materialization — "no marks" is `_: [ ]` written down and "no order mark" is
+  the one-layer order over L̂ written down. If you are about to add a default, the answer is a
+  refusal instead.
+- **The order mark is an ARGUMENT of `viewRelation`, never a field of the definition**, and that is
+  the whole of what it buys: a mark the query SETS is a mark the query can set to the identity and
+  decline. The effective order at the competition is the lexicographic product of the mark with the
+  definition's own `order`, **mark outer**, and it flattens back onto one ordinary `labelOrder` — so
+  `pathPrecedes` and `rankLess` are untouched and there is no pair-keyed comparator at step 6.
+  `ci/tests/order-mark.nix` and `testsError.order-mark-refusals` are its oracle.
+- **The order mark's alphabet check is the SEAM's OWN and is inherited from nothing.**
+  `viewDefinition`'s *"one definition has one L"* and `carrier`'s *"one carrier has one L"* are both
+  **intra-object**; `viewRelation` is where a mark authored elsewhere meets the declaration's order,
+  and measured before the check existed, a definition and a graph over disjoint alphabets composed
+  and answered silently there. Cite `lib/definition.nix`'s check as the **pattern**, never as the
+  enforcer.
 - **The competition key and the distance rule are mandatory** for measured reasons: a per-node key
   default makes competition vacuous, and a defaulted distance rule is a semantics nobody wrote.
 - **`L` is structural-only.** Content lives in `R` and is reached at the path's end. An admission

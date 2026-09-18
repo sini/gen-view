@@ -106,6 +106,15 @@ view.viewRelation {
     data = [ { scope = "mid"; relation = "import"; datum = [ "x" ]; } ];
   };
   marks = _: [ ];   # required: "no marks" is written down, never defaulted
+  # Required on the same terms. The effective order at the competition is the LEXICOGRAPHIC PRODUCT
+  # of this mark with the definition's own `order`, MARK OUTER — the query may refine INSIDE the
+  # mark's ties and can never erase or reverse a pair the mark declares. The identity is the
+  # one-layer order over L̂, as here, under which the effective order is the definition's exactly.
+  orderMark = view.labelOrder {
+    alphabet = labels;
+    layers = [ [ "include" "parent" ] ];
+    endOfPath = 0;
+  };
 }
 ```
 
