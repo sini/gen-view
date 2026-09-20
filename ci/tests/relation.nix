@@ -145,6 +145,61 @@ let
   divergentFlat = divergentWith f.flatOrder;
   divergentLayered = divergentWith f.order;
 
+  # ── THE EQUAL-DEPTH SIBLING PAIR, WITH NOTHING ELSE IN THE GROUP — the structural-authority
+  # spec's O3 arms A and B (den-hoag-fmj7s item 4). `A1` and `A2` are BOTH one hop from `origin`,
+  # on DIFFERENT labels, and neither is a prefix of the other — unlike `divergentGraph` above
+  # (`A` at length 1, `D` at length 2) and unlike the base fixture's own `inc`/`mid` pair (which
+  # always competes against `root`, a longer extension of `mid`'s own path). Those two fixtures
+  # can show order-dependence; neither can show it with NOTHING ELSE in the group, which is what
+  # the spec's arm A needs (`shadowed = [ ]`, not merely "shadowed something else too") and what
+  # arm B needs (exactly one loser, not a loser plus an unrelated deeper contender).
+  siblingScopes = [
+    "origin"
+    "A1"
+    "A2"
+  ];
+  siblingEdges = {
+    include = id: if id == "origin" then [ "A1" ] else [ ];
+    parent = id: if id == "origin" then [ "A2" ] else [ ];
+  };
+  siblingGraph = v.scopeGraph {
+    carrier = f.carrier;
+    scopes = siblingScopes;
+    edges = siblingEdges;
+    data = f.authored {
+      A1 = [
+        {
+          relation = "import";
+          datum = [ "from-A1" ];
+        }
+      ];
+      A2 = [
+        {
+          relation = "import";
+          datum = [ "from-A2" ];
+        }
+      ];
+    };
+  };
+  siblingWith =
+    order:
+    v.viewRelation {
+      definition = f.mkDefinition {
+        root = "origin";
+        inherit order;
+      };
+      graph = siblingGraph;
+      marks = f.noMarks;
+      orderMark = f.identityMark;
+    };
+  # Arm A: the FLAT order leaves the two labels tied, so `<p` calls the pair incomparable and both
+  # survive — the antichain the spec's M4 calls "the correct answer for a partial order".
+  siblingTied = siblingWith f.flatOrder;
+  # Arm B: the LAYERED order (`include` outranks `parent`) discriminates on the arrival label
+  # alone — M4's "discrimination is available and requires exactly one thing: the siblings arrive
+  # by different ranked labels".
+  siblingRanked = siblingWith f.order;
+
   # ── THE PER-SCOPE-KEY RELATION OVER THE DUPLICATE GRAPH, for the dedup records ──
   dupWith =
     dedup:
@@ -495,6 +550,51 @@ in
             distance = 2;
           }
         ];
+      };
+    };
+
+    # ── THE EQUAL-DEPTH SIBLING CASE (den-hoag-fmj7s item 4; spec §3 O3) ──
+    # `A1` and `A2` are both one hop from `origin`, on different labels, and NOTHING ELSE is in the
+    # competition — unlike the cell above, whose `shadowed` set is confounded by `root` (a longer
+    # extension of `mid`'s own path, always shadowed regardless of order) and unlike
+    # `divergentGraph` (a genuine sibling structure, but at UNEQUAL depth). O3 arm A: under a FLAT
+    # order the pair is tied, `<p` calls it incomparable, and both survive as an antichain. O3 arm
+    # B: under a LAYERED order the pair is discriminated on the arrival label alone, and the loser
+    # is reported in `shadowed`, not dropped. (O3 arm C — siblings under `tieSets.refuse` — is
+    # already landed as `materialization-refusals.test-a-refused-tie-names-the-channel-and-the-tied-scopes`
+    # in `ci/tests-error.nix`; not re-landed here.)
+    test-equal-depth-siblings-tie-flat-and-discriminate-layered = {
+      expr = {
+        tied = {
+          visible = scopesOf siblingTied;
+          shadowed = siblingTied.shadowed;
+        };
+        ranked = {
+          visible = scopesOf siblingRanked;
+          shadowed = map (c: {
+            inherit (c) scope distance;
+            datum = c.datum;
+          }) siblingRanked.shadowed;
+        };
+      };
+      expected = {
+        tied = {
+          visible = [
+            "A1"
+            "A2"
+          ];
+          shadowed = [ ];
+        };
+        ranked = {
+          visible = [ "A1" ];
+          shadowed = [
+            {
+              scope = "A2";
+              distance = 1;
+              datum = [ "from-A2" ];
+            }
+          ];
+        };
       };
     };
 
