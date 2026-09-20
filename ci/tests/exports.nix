@@ -208,6 +208,41 @@ let
       inherit placement;
     };
 
+  # ── ONE SORT KEY, TWO PLACEMENTS ──
+  # `pathKey` joins the placement path with `"."`, so a single segment CONTAINING the separator
+  # renders the same string as the two segments it was joined from. Both placements come from the
+  # published `place`, so the colliding pair is one a caller can actually build; the third differs
+  # from the second in a field the entry does not carry, which is the stability arm.
+  placedAt =
+    p: n:
+    v.placement.place {
+      mode = "merge";
+      path = p;
+      name = n;
+      value = f.relation.value;
+    };
+  dottedSegment = placedAt [ "a.b" ] "settings";
+  twoSegments = placedAt [
+    "a"
+    "b"
+  ] "settings";
+  twoSegmentsRenamed = placedAt [
+    "a"
+    "b"
+  ] "other";
+  traceUnder =
+    placement:
+    v.trace {
+      relation = tUnbounded;
+      inherit placement;
+    };
+  fingerprintUnder =
+    placement:
+    v.hashTrace {
+      relation = tUnbounded;
+      inherit placement;
+    };
+
   # ── THE SIXTEEN CASES ────────────────────────────────────────────────────────────────────────
   cases = {
     # ── gen-pipe ──
@@ -737,6 +772,45 @@ in
       test-control-the-fingerprint-separates-a-one-edge-difference = {
         expr = fingerprintOf tUnbounded == fingerprintOf oneEdgeFewer;
         expected = false;
+      };
+
+      # ★★★ THE PREIMAGE ARGUMENT, ASSERTED RATHER THAN ONLY ARGUED. `lib/trace.nix` takes the
+      # fingerprint over the TRACE and never over the sort key, because the key is a `" | "`-join
+      # over free strings and two structurally distinct entries can render one key. Today that holds
+      # by construction — and a construction with no cell is an invariant someone has to maintain,
+      # which regresses silently on any later edit. Hashing the rendered keys instead of the
+      # structured trace mints ONE fingerprint for the pair below; this is what notices.
+      test-the-fingerprint-separates-a-sort-key-collision = {
+        expr = {
+          # The pair really does collide on the key. Without this arm the separation below would be
+          # about a pair the key had already told apart, which is no claim at all.
+          sortKeysCollide =
+            map v.edgeSortKey (traceUnder dottedSegment) == map v.edgeSortKey (traceUnder twoSegments);
+          # …and the traces really are distinct, so a fingerprint that agreed would be losing
+          # information rather than reporting a sameness the topologies carry.
+          tracesDiffer = traceUnder dottedSegment != traceUnder twoSegments;
+          fingerprintsSeparate = fingerprintUnder dottedSegment != fingerprintUnder twoSegments;
+        };
+        expected = {
+          sortKeysCollide = true;
+          tracesDiffer = true;
+          fingerprintsSeparate = true;
+        };
+      };
+
+      # ★★ THE STABILITY ARM, ON THE SAME AXIS, and it is what keeps the cell above from being
+      # satisfied by an instrument that separates every pair it is shown. These two placements
+      # genuinely differ — `place` gave them different names — while the entry carries neither a
+      # name nor a value, so they are ONE topology and must mint one fingerprint.
+      test-control-the-fingerprint-agrees-on-one-topology-placed-twice = {
+        expr = {
+          placementsDiffer = twoSegments != twoSegmentsRenamed;
+          fingerprintsAgree = fingerprintUnder twoSegments == fingerprintUnder twoSegmentsRenamed;
+        };
+        expected = {
+          placementsDiffer = true;
+          fingerprintsAgree = true;
+        };
       };
 
       # And every case really carries all three parts — a case with a missing mutant would generate a
