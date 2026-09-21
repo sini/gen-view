@@ -504,20 +504,39 @@ let
           # The index is an ATTRSET rather than a rescan of what has been kept. A rescan pays the
           # kept list once per contribution, which is quadratic in the group's size on the one
           # step whose whole purpose is to make a large gather smaller.
+          #
+          # ★ THE ENCODING IS THE ADDRESS, NEVER THE DECISION. `idx` selects a BUCKET; what decides
+          # survival is `same`, the relation the arm's own constructor declares — `byDatum` is
+          # "structural equality on the datum itself" and `byKey` "a declared key", and in both SAME
+          # means Nix `==`. Deciding on `builtins.toJSON` instead would record a drop asserting a
+          # duplicate that does not exist: `toJSON` serialises an `outPath`/`__toString` attrset as
+          # its string coercion, so `{ outPath = "X"; }` and `"X"` — Nix-distinct — encode alike.
+          # The bucket scan is not the rescan rejected above: bucket size is 1 for every input that
+          # does not collide in the encoding, so the asymptotics are unchanged.
+          #
+          # ★ THE BOUND, stated where the construction is: `toJSON` is not a congruence for Nix
+          # `==` (`1 == 1.0` is true while the encodings differ), so two data the declaration calls
+          # the same can still land in different buckets and never meet. This decides SOUNDNESS —
+          # every recorded drop is one the declaration licenses — and leaves COMPLETENESS exactly
+          # as it was: a licensed collapse across encoding classes is still not made, and still not
+          # recorded.
           foldl'
             (
               acc: c:
               let
                 k = dedupKey c;
                 idx = builtins.toJSON k;
+                bucket = acc.seen.${idx} or [ ];
+                same = s: if def.dedup.arm == "byDatum" then c.datum == s.c.datum else k == s.k;
+                matches = filter same bucket;
               in
-              if acc.seen ? ${idx} then
+              if matches != [ ] then
                 acc
                 // {
                   dropped = acc.dropped ++ [
                     {
                       contribution = c;
-                      collapsedInto = acc.seen.${idx};
+                      collapsedInto = (head matches).c;
                       policy = def.dedup.arm;
                       key = k;
                     }
@@ -528,7 +547,7 @@ let
                 // {
                   kept = acc.kept ++ [ c ];
                   seen = acc.seen // {
-                    ${idx} = c;
+                    ${idx} = bucket ++ [ { inherit c k; } ];
                   };
                 }
             )

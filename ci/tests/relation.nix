@@ -216,6 +216,102 @@ let
       orderMark = f.identityMark;
     };
 
+  # ── THE DECIDING PATH: A RECORDED DROP IS ONE THE DECLARATION LICENSES (den-hoag-behm0) ──
+  #
+  # `dedups.byDatum` declares "structural equality on the datum itself" and `dedups.byKey` "a
+  # domain where two structurally distinct datums are the same thing"; in both, SAME is Nix `==`.
+  # Step 8 addresses a bucket by `builtins.toJSON` and DECIDES by that relation. Deciding on the
+  # encoding instead records a drop asserting a duplicate that does not exist, because `toJSON`
+  # serialises an `outPath`/`__toString` attrset as its string coercion.
+  #
+  # ★ ONE PREDICATE SERVES BOTH ARMS, because both are the same defect stated over the arm's own
+  # declared relation — which is also why `byKey` compares KEYS: under `byKey` a drop of unequal
+  # DATA is the declared semantics, so "what was lost equals what was kept" is the wrong
+  # discriminator there.
+  coercionDatum = scope: datum: {
+    inherit scope datum;
+    relation = "import";
+  };
+  coercionGraph =
+    data:
+    v.scopeGraph {
+      inherit (f) carrier scopes edges;
+      inherit data;
+    };
+  # `{ outPath = "X"; }` and `"X"` are Nix-DISTINCT and `toJSON`-IDENTICAL — the collision itself.
+  collideData = [
+    (coercionDatum "inc" [ { outPath = "X"; } ])
+    (coercionDatum "mid" [ "X" ])
+  ];
+  # The reference differs in EXACTLY ONE TOKEN — `inner` for `outPath` — so it does not coerce and
+  # does not collide. Subject and reference disagreeing on that one token is what makes the pair a
+  # measurement of the coercion rather than of the fixture.
+  separateData = [
+    (coercionDatum "inc" [ { inner = "X"; } ])
+    (coercionDatum "mid" [ "X" ])
+  ];
+  identicalData = [
+    (coercionDatum "inc" [ "X" ])
+    (coercionDatum "mid" [ "X" ])
+  ];
+  distinctData = [
+    (coercionDatum "inc" [ "a" ])
+    (coercionDatum "mid" [ "b" ])
+  ];
+
+  # THE PREDICATE, read off the RESULT alone: `definition` is carried inside `viewRelation`'s
+  # return, so the cell needs nothing the caller did not already hand it.
+  noFalseDedup =
+    r:
+    let
+      arm = r.definition.dedup.arm;
+    in
+    builtins.all (
+      d:
+      if arm == "byDatum" then
+        d.contribution.datum == d.collapsedInto.datum
+      else if arm == "byKey" then
+        d.key == r.definition.dedup.keyOf d.collapsedInto
+      else
+        true
+    ) r.dropped;
+
+  # `tryEval` keeps `holds` REMEDY-NEUTRAL: a refusal recorded nothing false either, so it passes.
+  # `refused` is reported SEPARATELY so a cell can pin WHICH outcome it got — at `byDatum` the
+  # refuse arm is closed by the declaration (refusing a coercible datum narrows what the view can
+  # carry), so the subject cell there pins `refused = false` and a narrowing remedy reds it.
+  dedupOracle =
+    r:
+    let
+      t = builtins.tryEval (builtins.deepSeq r (noFalseDedup r));
+    in
+    {
+      holds = !t.success || t.value;
+      refused = !t.success;
+      kept = builtins.length r.contributions;
+      dropped = builtins.length r.dropped;
+    };
+
+  # `f.flatOrder` — one layer, no letter outranks another — so `inc` and `mid` are mutually
+  # incomparable and TWO contributions reach step 8. The `precondition` cells assert that before
+  # any dedup arm is declared: an oracle whose fixture has ONE survivor cannot discriminate.
+  coercionDef = overrides: f.mkDefinition ({ order = f.flatOrder; } // overrides);
+  coercionRun =
+    dedup: data:
+    dedupOracle (
+      v.viewRelation {
+        definition = coercionDef { inherit dedup; };
+        graph = coercionGraph data;
+        marks = f.noMarks;
+        orderMark = f.identityMark;
+      }
+    );
+  byDatumOn = coercionRun v.dedups.byDatum;
+  dedupNoneOn = coercionRun v.dedups.none;
+  # Data held at [ "a" ] / [ "b" ] throughout so `byDatum` cannot fire and the KEY is the only
+  # variable. In both subject and reference the caller's two keys are Nix-distinct.
+  byKeyWith = keyOf: coercionRun (v.dedups.byKey { inherit keyOf; }) distinctData;
+
   # ══════════════════════════════════════════════════════════════════════════════════════════
   # ── §1.2's DIAMOND, AND ITS FAMILY — AUTHORSHIP-VISIBILITY (den-hoag-2vzn) ──
   #
@@ -738,6 +834,136 @@ in
           "mid"
           "root"
         ];
+      };
+    };
+
+    # ══════════════════════════════════════════════════════════════════════════════════════
+    # ── THE DEDUP DECIDES ON THE DECLARED RELATION, NEVER ON THE ENCODING (den-hoag-behm0) ──
+    #
+    # The cells above establish that every drop is a RECORD. These establish that the record is
+    # TRUE: a `dropped` entry asserts a duplicate, and under an encoding-decided dedup it could
+    # assert one that does not exist under the declaration's own equality.
+    #
+    # ★★ `CONTROL-genuineDuplicate` IS WHAT MAKES THIS AN ORACLE rather than a "nothing was
+    # dropped" check in disguise. It drops one contribution and PASSES, because that drop is one
+    # the declaration licenses. A cell asserting `dropped == 0` would pass the subject fixture the
+    # moment the construction over-corrected into refusing all dedup, and would fail the corpus's
+    # own legitimate collapses.
+
+    # ── THE MULTI-SURVIVOR PRECONDITION, ASSERTED RATHER THAN ASSUMED ──
+    # Under `dedups.none` both fixtures keep TWO contributions, so step 8 has something to decide.
+    # Without this the subject cells below are consistent with a gather that only ever found one.
+    test-the-colliding-fixture-puts-two-survivors-into-the-dedup-step = {
+      expr = dedupNoneOn collideData;
+      expected = {
+        kept = 2;
+        dropped = 0;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    test-the-separating-fixture-puts-two-survivors-into-the-dedup-step = {
+      expr = dedupNoneOn separateData;
+      expected = {
+        kept = 2;
+        dropped = 0;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    # ── `byDatum` — THE SUBJECT AND ITS ONE-TOKEN REFERENCE ──
+    # `{ outPath = "X"; }` and `"X"` are Nix-UNEQUAL, so `dedups.byDatum` — "structural equality on
+    # the datum itself" — licenses no collapse between them and BOTH survive.
+    #
+    # ★ `refused = false` is pinned HERE and only here. The refuse remedy at this arm — refusing a
+    # coercible datum — narrows what the view can carry, and is closed by the declaration rather
+    # than open as a choice. Pinning the outcome is what tells this construction apart from a build
+    # that bought the same `holds` by narrowing admission.
+    test-a-coercible-datum-is-not-deduped-into-its-string-coercion = {
+      expr = byDatumOn collideData;
+      expected = {
+        kept = 2;
+        dropped = 0;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    # THE REFERENCE, differing from the subject in one token: an attribute named `inner` rather
+    # than `outPath`. It never coerced, so it reads the same before and after — which is what makes
+    # the subject's move attributable to the coercion and to nothing else about the fixture.
+    test-control-a-non-coercing-attrset-datum-is-not-deduped-either = {
+      expr = byDatumOn separateData;
+      expected = {
+        kept = 2;
+        dropped = 0;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    # ★ THE DISCRIMINATOR: two genuinely equal data DO collapse, one drop IS recorded, and the
+    # oracle PASSES. This is the cell that fails if the construction over-corrects into dropping
+    # nothing.
+    test-control-two-equal-datums-still-collapse-and-the-drop-still-holds = {
+      expr = byDatumOn identicalData;
+      expected = {
+        kept = 1;
+        dropped = 1;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    test-control-two-unequal-datums-are-both-kept-under-bydatum = {
+      expr = byDatumOn distinctData;
+      expected = {
+        kept = 2;
+        dropped = 0;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    # ── `byKey` — THE SAME DEFECT AT THE CALLER'S KEY ──
+    # `dedups.byKey` checks `isFunction keyOf` and nothing about its RETURN, so a caller key of
+    # `{ outPath = "K"; }` reaches the fold and encodes as `"K"`. The declared relation is `==` on
+    # the keys, and those two keys are Nix-unequal.
+    #
+    # ★ `refused` is deliberately NOT pinned at this arm: whether a deciding key must be a String
+    # is an open question above this construction, and an oracle that pinned the outcome here would
+    # presume its answer. `holds` admits either.
+    test-a-coercible-caller-key-is-not-deduped-into-its-string-coercion = {
+      expr = (byKeyWith (c: if c.scope == "inc" then { outPath = "K"; } else "K")).holds;
+      expected = true;
+    };
+
+    test-control-a-non-coercing-caller-key-is-not-deduped-either = {
+      expr = (byKeyWith (c: if c.scope == "inc" then { inner = "K"; } else "K")).holds;
+      expected = true;
+    };
+
+    # ★ THE DISCRIMINATOR AT THIS ARM. One key for both contributions: the collapse is declared, the
+    # drop is recorded, and the oracle passes — on the OPPOSITE `dropped` count from the cell above.
+    test-control-one-declared-key-for-both-still-collapses-and-the-drop-still-holds = {
+      expr = byKeyWith (_: "K");
+      expected = {
+        kept = 1;
+        dropped = 1;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    test-control-two-distinct-declared-keys-are-both-kept-under-bykey = {
+      expr = byKeyWith (c: c.scope);
+      expected = {
+        kept = 2;
+        dropped = 0;
+        holds = true;
+        refused = false;
       };
     };
 
