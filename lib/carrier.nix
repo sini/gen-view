@@ -323,7 +323,20 @@ let
         # `<l` itself: the strict partial order over L̂ the figure defines. Two DISTINCT letters of
         # one layer are incomparable — `precedes` is false in BOTH directions — and a letter is
         # never `<l` itself. Same label ⇒ same rank, so the rank comparison already says this.
-        precedes = x: y: rankOf x < rankOf y;
+        # A label outside L̂ is refused by name before `rankOf` reads it: `ranks.${l}` aborts past
+        # `tryEval` on an unranked name and on a non-string. `==` and `member` never coerce, so the
+        # test itself is total.
+        precedes =
+          x: y:
+          let
+            known =
+              l:
+              if l == "$" || alphabet.member l then
+                l
+              else
+                refuse "labelOrder" "precedes was given ${renderSubject l}, which is not a label of L̂ (${quote alphabet.letters}, or `$`)";
+          in
+          rankOf (known x) < rankOf (known y);
 
         # ★ A PROJECTION FOR DIAGNOSTICS AND LAYERING, AND EXPLICITLY *NOT* THE BASIS OF THE
         # COMPARISON. It is published because the ranks of a path's labels are worth reading; it is
@@ -650,6 +663,9 @@ let
       refuse "relationEntries" "${renderSubject a.relation} is not a name in R (${quote g.carrier.relations.names}); an undeclared relation is refused rather than answered empty, because an empty answer cannot be told from a relation with no datums"
     else if !(builtins.isFunction a.wellFormed) then
       refuse "relationEntries" "wellFormed must be a predicate on data terms; it is WFD, the visibility parameter that decides whether the datum found at the path's end is the one being looked for"
+    # `datumsAt.${scope}` aborts past `tryEval` on a non-string, so the type is refused by name.
+    else if !(builtins.isString a.scope) then
+      refuse "relationEntries" "scope is ${renderValue a.scope}; a scope is named by a string"
     else
       filter (entry: entry.relation == a.relation && a.wellFormed entry.datum) (
         g.datumsAt.${a.scope} or [ ]

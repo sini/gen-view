@@ -353,6 +353,29 @@ in
         };
       };
 
+      # A non-string scope is refused by name, where the index read would abort past `tryEval`.
+      test-a-non-string-scope-is-named = {
+        expr = builtins.deepSeq (v.relationEntries {
+          graph = f.graph;
+          scope = 42;
+          relation = "import";
+          wellFormed = f.admitAll;
+        }) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.relationEntries: scope is 42; a scope is named by a string$";
+        };
+      };
+
+      # A label outside L̂ is refused by name, where the rank read would abort past `tryEval`.
+      test-precedes-names-an-unknown-label = {
+        expr = f.order.precedes "nope" "parent";
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.labelOrder: precedes was given 'nope', which is not a label of L̂ \\(include, parent, or `\\$`\\)$";
+        };
+      };
+
       # The overlapping name, at the one place that can see both sorts at once.
       test-a-name-in-both-sorts-is-named = {
         expr = builtins.deepSeq (v.carrier {
