@@ -967,6 +967,119 @@ in
       };
     };
 
+    # ── THE GROUPS EMIT IN WALK-FIRST KEY ORDER ──
+    # One scope, three data entries, keys spelled per entry. The competition groups by key, and
+    # the groups must come out in order of each key's FIRST appearance in the walk — not its last
+    # appearance, and not its spelling. `revKeys` is what separates walk-first from key spelling:
+    # on `interleaved` the two coincide.
+    test-groups-emit-in-walk-first-key-order = {
+      expr =
+        let
+          labels = v.edgeLabels { letters = [ "parent" ]; };
+          admission = v.labelWellFormedness {
+            alphabet = labels;
+            expression = "parent*";
+          };
+          flat = v.labelOrder {
+            alphabet = labels;
+            layers = [ [ "parent" ] ];
+            endOfPath = 0;
+          };
+          key = v.dataOrder {
+            channel = "cfg";
+            keyOf = c: (builtins.head c.datum).k;
+          };
+          run =
+            ks:
+            let
+              carrier = v.carrier {
+                inherit labels;
+                relations = v.relations { names = [ "cfg" ]; };
+                relatumLabels = v.relatumLabels { names = [ "relatum-target" ]; };
+                labelWellFormedness = admission;
+                labelOrder = flat;
+                dataOrder = key;
+              };
+              g = v.scopeGraph {
+                inherit carrier;
+                scopes = [ "root" ];
+                edges.parent = _: [ ];
+                data = builtins.genList (i: {
+                  scope = "root";
+                  relation = "cfg";
+                  datum = [
+                    {
+                      k = builtins.elemAt ks i;
+                      tag = "${builtins.elemAt ks i}${toString i}";
+                    }
+                  ];
+                }) (builtins.length ks);
+              };
+              r = v.viewRelation {
+                definition = v.viewDefinition {
+                  channel = key;
+                  inherit admission;
+                  order = flat;
+                  wellFormed = _: true;
+                  relation = "cfg";
+                  root = "root";
+                  direction = "outbound";
+                  distance = s: s.distance + 1;
+                  tieSet = v.tieSets.union;
+                  empty = [ ];
+                  combine = v.combines.listAppend;
+                  dedup = v.dedups.none;
+                };
+                graph = g;
+                marks = _: [ ];
+                orderMark = flat;
+              };
+            in
+            {
+              ordinals = map (c: c.element.ordinal) r.contributions;
+              value = map (d: d.tag) r.value;
+            };
+        in
+        {
+          interleaved = run [
+            "x"
+            "y"
+            "x"
+          ];
+          revKeys = run [
+            "y"
+            "x"
+            "y"
+          ];
+        };
+      expected = {
+        interleaved = {
+          ordinals = [
+            0
+            2
+            1
+          ];
+          value = [
+            "x0"
+            "x2"
+            "y1"
+          ];
+        };
+        revKeys = {
+          ordinals = [
+            0
+            2
+            1
+          ];
+          value = [
+            "y0"
+            "y2"
+            "x1"
+          ];
+        };
+      };
+    };
+
     # ── THE FOLD IS ASSOCIATIVE-ONLY: NO REORDER, NO DEDUP BY RANK ──
     # The list's order IS the authority, so the value is the concatenation of the surviving
     # sequence exactly as the tie-set left it. A fold that sorted its answer set — or required a

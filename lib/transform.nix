@@ -27,6 +27,7 @@
 let
   inherit (prelude) foldl' map length;
   refusal = import ./refusal.nix { inherit prelude; };
+  enums = import ./enumerations.nix { inherit prelude; };
   inherit (refusal) refuse fields;
 
   refold =
@@ -34,7 +35,7 @@ let
     r
     // {
       inherit name contributions;
-      value = foldl' r.definition.combine.op r.definition.empty (map (c: c.datum) contributions);
+      value = enums.foldCombine r.definition.combine r.definition.empty (map (c: c.datum) contributions);
     };
 
   named =

@@ -461,8 +461,9 @@ let
           (f.mkRelation { definition = f.mkDefinition { root = "mid"; }; }).contributions;
     };
 
-    # THE CONTENT FOLD: seeded buckets, ORDERED LEFT FOLD, per-mode dispatch, declared-cell write.
-    # ★ The capability pins the ORDER, because "ordered left fold" is the half a
+    # THE CONTENT FOLD: seeded buckets, ORDERED FOLD (the left fold's value, bracketed balanced
+    # under the arm's declared associativity), per-mode dispatch, declared-cell write.
+    # ★ The capability pins the ORDER, because "ordered fold" is the half a
     # commutative-idempotent successor would silently drop.
     materialize = {
       capability =

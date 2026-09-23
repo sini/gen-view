@@ -534,6 +534,29 @@ in
         ];
       };
 
+      # ★ STEP 9 READS THE ARM'S ASSOCIATIVITY DECLARATION. The fold is a balanced bracketing,
+      # which only associativity licenses, so an arm declaring `associative = false` is refused by
+      # name rather than re-bracketed into a different answer. The arm here is hand-built (no
+      # whitelisted arm is non-associative); the control above is the same fixture with the
+      # declaration intact.
+      test-a-non-associative-combine-is-refused-at-the-fold = {
+        expr =
+          builtins.deepSeq
+            (f.mkRelation {
+              definition = f.mkDefinition {
+                order = f.flatOrder;
+                combine = v.combines.listAppend // {
+                  associative = false;
+                };
+              };
+            }).value
+            true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.foldCombine: the combine arm 'listAppend' does not declare associative = true.*$";
+        };
+      };
+
       # The ordering door names the raw labelled-edge accessor specifically, so the reader meets
       # the REASON and not just the denial: the input type is the stratification.
       test-the-ordering-door-names-the-raw-accessor = {

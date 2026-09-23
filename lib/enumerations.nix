@@ -135,6 +135,46 @@ let
     "setUnion"
   ];
 
+  # `foldCombine combine empty xs` — step 9's fold, the ONE declaration both step-9 sites use
+  # (`viewRelation`'s `value` and `transform`'s `refold`), so they cannot drift apart.
+  #
+  # ★★ A BALANCED BRACKETING, LICENSED BY THE ARM'S DECLARED ASSOCIATIVITY AND NOTHING ELSE. B5's
+  # own statement is gen-pipe REFERENCE.md L1: "Left fold in the pinned canonical traversal under
+  # the associative-only combine. No silent reorder, no silent dedup." Under an associative `op`
+  # every bracketing of one sequence has one value, so "left fold" fixes the VALUE and not an
+  # evaluation order: pairing adjacent elements level by level keeps every left operand earlier in
+  # the list than its right one, and keeping `empty` leftmost makes the result equal
+  # `foldl' op empty xs` without leaning on the unit law. Nothing is sorted, deduped or reordered.
+  #
+  # ★ WHY NOT `foldl'`. Under `listAppend` (and `//` under `attrsShallow`) a left fold copies the
+  # accumulator on every step, Θ(N²) in the list's length. This is Θ(N log N), and its recursion
+  # depth is ⌈log₂ N⌉ levels rather than a WHNF chain N deep.
+  #
+  # ★ THE DECLARATION IS READ, NOT ASSUMED. An arm that does not declare `associative = true` is
+  # refused by name, because re-bracketing it would change its answer silently.
+  foldCombine =
+    combine: empty: xs:
+    let
+      op = combine.op;
+      pairUp =
+        ys:
+        let
+          m = builtins.length ys;
+        in
+        builtins.genList (
+          i:
+          if 2 * i + 1 < m then
+            op (builtins.elemAt ys (2 * i)) (builtins.elemAt ys (2 * i + 1))
+          else
+            builtins.elemAt ys (2 * i)
+        ) ((m + 1) / 2);
+      go = ys: if builtins.length ys == 1 then builtins.head ys else go (pairUp ys);
+    in
+    if combine.associative != true then
+      refuse "foldCombine" "the combine arm '${combine.arm}' does not declare associative = true; step 9 re-brackets its fold, which B5 (gen-pipe L1) licenses under an associative-only combine and no other"
+    else
+      go ([ empty ] ++ xs);
+
   # ── TIE-SET DISPOSITIONS ────────────────────────────────────────────────────────────────────
   # Every declaration names its per-channel tie-set disposition, because the SURVIVING-MAXIMAL SET
   # is where specificity hands off to the merge that follows it, and a coarser order grows that
@@ -260,6 +300,7 @@ in
   inherit
     combines
     combineArms
+    foldCombine
     tieSets
     tieSetArms
     dedups

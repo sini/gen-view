@@ -35,7 +35,9 @@
 #     it in its own words: "NOTHING IS SORTED, DEDUPED OR FILTERED BY RANK. The list's order IS
 #     the authority." ★ A fold over the SORTED answer set requiring a commutative-idempotent
 #     monoid is NOT a successor to this and must not be reached for — it is the exact
-#     reorder-and-dedup this step forbids.
+#     reorder-and-dedup this step forbids. The fold is bracketed as a BALANCED TREE under the arm's
+#     declared associativity (`foldCombine`); the list's order is still the authority, and nothing
+#     is sorted, deduped or reordered.
 #
 # ── WHAT IS DELIBERATELY NOT A DECLARATION FIELD ────────────────────────────────────────────
 # Boundary marks belong to the NODE: a declaration CONSUMES marks and never sets, waives or names
@@ -60,7 +62,9 @@ let
     length
     map
     sort
+    unique
     ;
+  enums = import ./enumerations.nix { inherit prelude; };
   refusal = import ./refusal.nix { inherit prelude; };
   carrierLib = import ./carrier.nix { inherit prelude graph; };
   inherit (refusal) refuse fields quote;
@@ -89,22 +93,19 @@ let
   # KEY SPELLING and not about the walk. Within a group the order is already the walk's; across
   # groups it has to be too, or the fold's "the list's order is the authority" is authority over
   # an order nobody chose.
+  #
+  # The order is walk-FIRST appearance because gen-prelude's `unique` builds a key→first-index
+  # table with `listToAttrs`, which keeps the FIRST binding of a repeated name, and emits the keys
+  # by ascending index — linear in list elements where an `acc ++ [ k ]` fold is quadratic.
   groupsInWalkOrder =
     keyOf: xs:
     let
       grouped = builtins.groupBy keyOf xs;
-      seen = foldl' (
-        acc: x:
-        let
-          k = keyOf x;
-        in
-        if elem k acc then acc else acc ++ [ k ]
-      ) [ ] xs;
     in
     map (k: {
       key = k;
       members = grouped.${k};
-    }) seen;
+    }) (unique (map keyOf xs));
 
   viewRelation =
     args:
@@ -558,8 +559,9 @@ let
             }
             surviving;
 
-      # 9 — the fold. `foldl'` over the list AS IT STANDS: no sort, no dedup by rank, no reorder.
-      value = foldl' def.combine.op def.empty (map (c: c.datum) deduped.kept);
+      # 9 — the fold, over the list AS IT STANDS: balanced bracketing under the declared
+      # associativity, the list's order still the authority; no sort, no dedup by rank, no reorder.
+      value = enums.foldCombine def.combine def.empty (map (c: c.datum) deduped.kept);
 
       # The boundary diagnostic, MATERIALIZED AS DATA AND CARRIED INSIDE THE RESULT. A side channel
       # a consumer may ignore is exactly the fail-open shape that "boundary as a query property the
