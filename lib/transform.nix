@@ -28,6 +28,7 @@ let
   inherit (prelude) map length;
   refusal = import ./refusal.nix { inherit prelude; };
   enums = import ./enumerations.nix { inherit prelude; };
+  elements = import ./elements.nix { inherit prelude; };
   inherit (refusal)
     refuse
     fields
@@ -52,10 +53,12 @@ let
     else
       refuse site "field 'name' must be the non-empty name of the result this operator produces; an operator that renamed nothing would return a second value under the first one's name";
 
+  # The tag test is `elementOf`'s, the one intake that re-checks what a tag claims; an attrset
+  # carrying another tag (a definition, say) is refused there, naming the tag it carries.
   viewIn =
     site: value:
-    if builtins.isAttrs value && (value.__element or null) == "viewRelation" then
-      value
+    if builtins.isAttrs value then
+      elements.elementOf site "relation" "viewRelation" value
     else
       refuse site "field 'relation' must be a materialized view relation; these operators produce a new NAMED RESULT from an existing one, and a definition has no contributions to transform yet";
 
@@ -76,7 +79,9 @@ let
     if !(builtins.isFunction a.f) then
       refuse "map" "field 'f' must be a function from a contribution to its new datum"
     else
-      decided [ name ] (refold r name (map (c: c // { datum = a.f c; }) r.contributions));
+      decided [ name ] (
+        refold r name (map (c: c // { datum = a.f c; }) (elements.contributionsOf "map" r))
+      );
 
   # `scan { relation; name; f; empty; }` — the PREFIX SCAN. Measured absent from every candidate
   # successor library and from the utility base, which is why it is built rather than pointed at.
@@ -93,7 +98,7 @@ let
       ] args;
       r = viewIn "scan" a.relation;
       name = named "scan" a.name;
-      cs = r.contributions;
+      cs = elements.contributionsOf "scan" r;
       states = builtins.genList (
         i: a.f (if i == 0 then a.empty else builtins.elemAt states (i - 1)) (builtins.elemAt cs i)
       ) (length cs);
@@ -118,7 +123,7 @@ let
       ] args;
       r = viewIn "over" a.relation;
       name = named "over" a.name;
-      out = a.f r.contributions;
+      out = a.f (elements.contributionsOf "over" r);
     in
     if !(builtins.isFunction a.f) then
       refuse "over" "field 'f' must be a function from the contribution sequence to a new sequence"
@@ -142,8 +147,8 @@ let
         # ★ MEASURED, NOT PROMISED. A rewrite that returns the sequence unchanged says so; one that
         # reorders or resizes says that instead, and a consumer whose ordering law cares can read
         # it rather than re-derive it.
-        reordered = out != r.contributions;
-        resized = length out != length r.contributions;
+        reordered = out != (elements.contributionsOf "over" r);
+        resized = length out != length (elements.contributionsOf "over" r);
       };
 in
 {

@@ -69,8 +69,9 @@ let
   # constructor's field checks are decided where the element is BUILT, never where a field is first
   # READ. Each check is a pass-through (`strings`, `choice`, `elementOf`, `materialized`, `named`)
   # whose WHNF is its verdict. A check bound in a `let` and only inherited into the record would run
-  # when the field is read, and `elementOf` forces only the tag, so a consumer would accept the
-  # element and meet the refusal, or an abort, later. The same rule as `rootNames` in placement.nix.
+  # when the field is read, and an intake testing only the tag would not force it, so a consumer
+  # would accept the element and meet the refusal, or an abort, later. The same rule as `rootNames`
+  # in placement.nix.
   #
   # ★ THE TRADE-OFF. Checks are forced; content is not: a datum, `place.value`, `scan.empty`, an
   # edge accessor's or `wellFormed`'s result stay lazy. But a decided FIELD is no longer lazy: a

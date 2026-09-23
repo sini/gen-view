@@ -81,6 +81,7 @@ let
     renderSubject
     ;
   inherit (carrierLib) elementOf;
+  elements = import ./elements.nix { inherit prelude; };
 
   # A CELL is the unit both sets range over: a ⟨scope, channel, SIDE⟩ bucket, rendered to a string
   # so set intersection is a comparison rather than a structural scan. The string is the JSON of the
@@ -129,7 +130,7 @@ let
     let
       v = materialized "readsOf" "relation" r;
     in
-    unique (map (c: cell c.scope v.name "input") v.contributions);
+    unique (map (c: cell c.scope v.name "input") (elements.contributionsOf "readsOf" v));
 
   # `writesOf { relation; target; mode; }` — the cell a placed view relation PRODUCES.
   #
@@ -333,6 +334,38 @@ let
       ) order
     );
 
+  # ★ GEN-GRAPH'S MARKER IS A CLAIM TOO (p79do Q1). `isDeclaredEdges` tests `_type` alone, so a
+  # hand-built attrset carrying the marker reaches here without passing `mkDeclaredEdges`. The
+  # structure this construct reads — `index`, an attrset from a source's name to the list of its
+  # targets, and `dependencies`, a function — is re-checked and refused BY NAME here, the refusal
+  # this library states for its own door (the factoring den-hoag-r25-consumer-side-gen-scope-dgxo9
+  # accepted: gen-graph publishes the type, the consumer states the refusal). `index`'s ELEMENTS
+  # are checked where they are read (`missingEndpoints`). A forged `index` of the right shape
+  # indexing other edges is the cooperative-caller residue (den-hoag-8rkc).
+  declaredShape =
+    d:
+    let
+      site = "boundedWellDefinedSchedule";
+      build = "build it with `gen-graph.mkDeclaredEdges`";
+      nonLists = sort builtins.lessThan (
+        filter (k: !(builtins.isList d.index.${k})) (builtins.attrNames d.index)
+      );
+    in
+    if !(d ? index) then
+      refuse site "field 'declaredDependencies' carries gen-graph's declared-edges marker with no 'index'; ${build}"
+    else if !(builtins.isAttrs d.index) then
+      refuse site "field 'declaredDependencies.index' is ${refusal.renderValue d.index}; a declared relation's 'index' is an attrset from a source's name to the list of its targets. ${build}"
+    else if nonLists != [ ] then
+      refuse site "field 'declaredDependencies.index' maps ${renderSubject (builtins.head nonLists)} to ${
+        refusal.renderValue d.index.${builtins.head nonLists}
+      }; a declared relation's 'index' maps a source to the LIST of its targets. ${build}"
+    else if !(d ? dependencies) then
+      refuse site "field 'declaredDependencies' carries gen-graph's declared-edges marker with no 'dependencies'; ${build}"
+    else if !(builtins.isFunction d.dependencies) then
+      refuse site "field 'declaredDependencies.dependencies' is ${refusal.renderValue d.dependencies}; a declared relation's 'dependencies' is a function. ${build}"
+    else
+      d;
+
   # `boundedWellDefinedSchedule { nodes; declaredDependencies; equations; admitsCycle; }` — ADR-0008
   # §3's static well-definedness gate, re-homed as a query over gen-graph's CONTRACTED declared
   # relation (owner-ruled 2026-09-09). It is Vogt's `bounded well-defined` (Definition 3.14), NOT
@@ -437,7 +470,7 @@ let
       nodes = strings "boundedWellDefinedSchedule" "nodes" a.nodes;
       declaredDependencies =
         if graph.isDeclaredEdges a.declaredDependencies then
-          a.declaredDependencies
+          declaredShape a.declaredDependencies
         else if builtins.isAttrs a.declaredDependencies then
           refuse "boundedWellDefinedSchedule" "field 'declaredDependencies' must be the relation `gen-graph.mkDeclaredEdges` returns; received an attrset that `mkDeclaredEdges` did not build"
         else
@@ -452,7 +485,11 @@ let
           sources ++ targets
         )
       );
-      edges = declaredDependencies.dependencies;
+      # DERIVED FROM THE CHECKED `index`, never read off the marked value: `dependencies` is
+      # gen-graph's one-line accessor over the same index (`mkDeclaredEdges`), so restating it here
+      # leaves a forged `dependencies` (returning a non-list, or disagreeing with `index`) nothing to
+      # reach, rather than a result to check after the fact.
+      edges = id: declaredDependencies.index.${attrKey id} or [ ];
       condensation = graph.condensation { inherit nodes edges; };
       selfLoop = n: elem n (edges n);
       isCyclicScc =

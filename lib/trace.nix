@@ -27,6 +27,7 @@ let
     ;
   refusal = import ./refusal.nix { inherit prelude; };
   placement = import ./placement.nix { inherit prelude; };
+  elements = import ./elements.nix { inherit prelude; };
   inherit (refusal)
     fields
     refuse
@@ -123,10 +124,13 @@ let
           contribution = c;
           inherit (a) placement;
         }
-      ) a.relation.contributions;
+      ) (elements.contributionsOf "trace" a.relation);
       checked =
-        if !(builtins.isAttrs a.relation) || (a.relation.__element or null) != "viewRelation" then
+        if !(builtins.isAttrs a.relation) then
           refuse "trace" "field 'relation' is ${renderValue a.relation}; it must be a materialized view relation"
+        # The tag test is `elementOf`'s, which re-checks what the tag claims.
+        else if !(builtins.isAttrs (elements.elementOf "trace" "relation" "viewRelation" a.relation)) then
+          false
         else if !(builtins.isAttrs a.placement) then
           refuse "trace" "field 'placement' is ${renderValue a.placement}; it must be a placement carrying `mode` and `path`"
         else

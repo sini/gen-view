@@ -438,17 +438,7 @@ let
   # `elementOf site field element value` — a carrier element is a CONSTRUCTED value, and a check
   # that it is the right one is what stops a plain attrset with the right attribute names being
   # accepted for it. Declared here rather than in refusal.nix because the tag is this file's.
-  elementOf =
-    site: field: element: value:
-    if builtins.isAttrs value && (value.__element or null) == element then
-      value
-    else
-      refuse site "field '${field}' is not a ${element} carrier element (found ${
-        if builtins.isAttrs value then
-          "an attrset tagged ${renderValue (value.__element or null)}"
-        else
-          "a ${builtins.typeOf value}"
-      }); build it with `${element}` so the element's own refusals have already run";
+  inherit (import ./elements.nix { inherit prelude; }) elementOf;
 
   # ── THE CARRIER — the five elements assembled, plus the third label population, and the
   # cross-checks no element can make alone ────────────────────────────────────────────────────

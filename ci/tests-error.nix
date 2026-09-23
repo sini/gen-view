@@ -921,7 +921,8 @@ in
         };
 
         # p79do C1: the same split-key refusal, its definition's constructor-made `name` forged to a
-        # lambda. The render goes through `renderSubject`, so the refusal stays named and catchable.
+        # lambda. uw098: the intake now re-checks `name` and refuses the forgery before the split-key
+        # render; the lambda still renders `<a lambda>` in a named, catchable refusal.
         test-a-forged-definition-name-renders-a-lambda-at-a-split-key = {
           expr =
             builtins.deepSeq
@@ -936,7 +937,7 @@ in
               true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.viewRelation: channel <a lambda> declares a competition key that SPLITS one element: the datum authored at scope 'top'.*$";
+            msg = "^gen-view\\.viewRelation: field 'definition\\.name' is <a lambda>; a viewDefinition element's 'name' is a non-empty string.*$";
           };
         };
 
@@ -1675,13 +1676,15 @@ in
             (vd {
               tieSet = forged "tieSet" fn;
             })
-            "^gen-view\\.viewDefinition: field 'tieSet' names <a lambda>, which is not one of the declared arms.*$";
+            "^gen-view\\.viewDefinition: field 'tieSet\\.arm' is <a lambda>, which is not one of the declared arms.*$";
         test-forged-combine-arm-renders-a-lambda =
           cell
             (vd {
-              combine = forged "combine" fn;
+              combine = f.definition.combine // {
+                arm = fn;
+              };
             })
-            "^gen-view\\.viewDefinition: field 'combine' names <a lambda>, which is not one of the whitelisted arms.*$";
+            "^gen-view\\.viewDefinition: field 'combine\\.arm' is <a lambda>, which is not one of the declared arms.*$";
         test-forged-combine-unit-renders-a-lambda =
           cell
             (vd {
@@ -1691,6 +1694,8 @@ in
                 setSemilattice = false;
                 unit = fn;
                 associative = true;
+                op = a: b: a ++ b;
+                acc = null;
               };
             })
             "^gen-view\\.viewDefinition: field 'empty' is \\[\\], which is not the unit of the declared combine arm 'listAppend' \\(<a lambda>\\).*$";
@@ -1699,7 +1704,7 @@ in
             (vd {
               dedup = forged "dedup" fn;
             })
-            "^gen-view\\.viewDefinition: field 'dedup' names <a lambda>, which is not one of the declared arms.*$";
+            "^gen-view\\.viewDefinition: field 'dedup\\.arm' is <a lambda>, which is not one of the declared arms.*$";
         test-datum-scope-renders-a-lambda =
           cell
             (v.scopeGraph {
@@ -1731,19 +1736,16 @@ in
           relation = fn;
           wellFormed = _: true;
         }) "^gen-view\\.relationEntries: <a lambda> is not a name in R.*$";
-        test-forged-target-channel-renders-a-lambda-at-writesOf =
-          cell
-            (v.writesOf {
-              inherit (f) relation;
-              target = {
-                __element = "target";
-                arm = "root";
-                scope = "leaf";
-                channel = fn;
-              };
-              mode = "merge";
-            })
-            "^gen-view\\.writesOf: the target names channel <a lambda> but the view relation is named 'settings'.*$";
+        test-forged-target-channel-renders-a-lambda-at-writesOf = cell (v.writesOf {
+          inherit (f) relation;
+          target = {
+            __element = "target";
+            arm = "root";
+            scope = "leaf";
+            channel = fn;
+          };
+          mode = "merge";
+        }) "^gen-view\\.writesOf: field 'channel' is <a lambda>; it must be a non-empty channel name.*$";
         test-forged-tieSet-order-renders-a-lambda-bearing-list =
           cell
             (f.mkRelation {
@@ -1760,11 +1762,14 @@ in
         # ── C1: A RENDER RESTING ON HOW AN ELEMENT WAS BUILT ──
         # Each string below is a string on every genuine path only because a constructor made it one.
         # The forged element keeps the genuine tag and replaces one constructor-made field.
+        # ★ uw098: the tag is a claim, so the intake (`elementOf`) now re-checks that field and
+        # refuses the forgery before it reaches the render these cells were written against. What
+        # each cell still pins is that the lambda renders `<a lambda>` in a named, catchable
+        # refusal; the downstream renders stay as defence for genuine inputs.
         test-forged-relation-name-renders-a-lambda-at-writesOf =
           cell
             (v.writesOf {
-              relation = {
-                __element = "viewRelation";
+              relation = f.relation // {
                 name = fn;
               };
               target = v.placement.targets.root {
@@ -1773,7 +1778,7 @@ in
               };
               mode = "merge";
             })
-            "^gen-view\\.writesOf: the target names channel 'settings' but the view relation is named <a lambda>;.*$";
+            "^gen-view\\.writesOf: field 'relation\\.name' is <a lambda>; a viewRelation element's 'name' is a non-empty string.*$";
         test-forged-definition-name-renders-a-lambda-at-a-refused-tie =
           cell
             (f.mkRelation {
@@ -1786,7 +1791,7 @@ in
                   name = fn;
                 };
             }).value
-            "^gen-view\\.viewRelation: channel <a lambda> declares tieSet 'refuse' and the competition key \"settings\" survives with 2 contributions, from scopes inc, mid.*$";
+            "^gen-view\\.viewRelation: field 'definition\\.name' is <a lambda>; a viewDefinition element's 'name' is a non-empty string.*$";
         test-forged-definition-name-renders-a-lambda-at-an-unranked-scope =
           cell
             (f.mkRelation {
@@ -1799,7 +1804,7 @@ in
                   name = fn;
                 };
             }).value
-            "^gen-view\\.viewRelation: channel <a lambda> declares tieSet 'orderedFold' whose declared order \\(mid\\) does not rank the contributing scope 'inc'.*$";
+            "^gen-view\\.viewRelation: field 'definition\\.name' is <a lambda>; a viewDefinition element's 'name' is a non-empty string.*$";
         test-forged-combine-arm-renders-a-lambda-at-the-fold =
           cell
             (f.mkRelation {
@@ -1810,7 +1815,7 @@ in
                 };
               };
             }).value
-            "^gen-view\\.foldCombine: the combine arm <a lambda> does not declare associative = true;.*$";
+            "^gen-view\\.viewRelation: field 'definition\\.combine\\.arm' is <a lambda>, which is not one of the declared arms.*$";
         test-forged-alphabet-letter-renders-a-lambda-at-labelOrder = cell (v.labelOrder {
           alphabet = f.labels // {
             letters = [

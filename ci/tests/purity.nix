@@ -151,11 +151,13 @@ let
   # for nixpkgs. `graph` is the second of the two substrates gen-view takes, and every gen-view
   # source but SIX carries it — the exclusions are `lib/enumerations.nix`, `lib/placement.nix`,
   # `lib/reference.nix`, `lib/refusal.nix`, `lib/trace.nix` and `lib/transform.nix`, the six modules
-  # whose formal is `{ prelude }` alone and which therefore never name the graph algebra. Those
+  # whose formal is `{ prelude }` alone and which therefore never name the graph algebra.
+  # (`lib/elements.nix` takes `{ prelude }` alone too, and carries the token all the same: it names
+  # the `scopeGraph` element kind, whose shape it holds.) Those
   # exclusions are what give the assertion its teeth: the expected list is a PROPER SUBSET of the
   # manifest, so a read returning one fixed text for every file lands outside it either way — without
   # the token the list collapses toward empty, with it the list swells to every source. (`prelude`,
-  # which the control below uses, is carried by ALL fourteen and so would name a list a constant read
+  # which the control below uses, is carried by ALL fifteen and so would name a list a constant read
   # satisfies; it is a detector control, not a subject pin.)
   liveToken = "graph";
   liveReads = map (src: src.name) (hitsIn sources liveToken);
@@ -211,6 +213,7 @@ in
       "lib/compositions.nix"
       "lib/default.nix"
       "lib/definition.nix"
+      "lib/elements.nix"
       "lib/enumerations.nix"
       "lib/ordering.nix"
       "lib/placement.nix"
@@ -237,6 +240,7 @@ in
       "lib/compositions.nix"
       "lib/default.nix"
       "lib/definition.nix"
+      "lib/elements.nix"
       "lib/ordering.nix"
       "lib/relation.nix"
       "flake.nix"

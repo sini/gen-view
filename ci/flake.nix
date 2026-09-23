@@ -58,6 +58,9 @@
         # field, exactly as a consumer hands it one; nothing in `../lib` reaches it.
         genScope = gen-scope.lib;
       };
-      extraModules = [ ./tests-error.nix ];
+      extraModules = [
+        ./tests-error.nix
+        ./forged-intake.nix
+      ];
     };
 }

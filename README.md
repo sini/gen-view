@@ -196,6 +196,14 @@ A root target's `scope` and `channel` are non-empty strings. `placement.targets.
 other value by name where the target is built, and `targetKey` and `writesOf` refuse a hand-built
 `target` record the same way, because an element tag is a claim rather than a proof.
 
+The same holds at **every** intake that admits an element by its tag. Each one re-checks the
+element's structural fields by type, all the way down its nested elements, and refuses a forged one
+by name (`elementOf`, `lib/elements.nix`). It never forces content: a view relation's `value`,
+`contributions`, `shadowed`, `withheld` and `dropped` are checked by the reader that reads them. A
+kind gen-view does not shape is tag-tested only, as before. `boundedWellDefinedSchedule` re-checks
+gen-graph's declared-edges marker the same way and derives its edges from the checked `index`.
+What this does not close is a forged field of the right type carrying the wrong value.
+
 `placement.setAttrByPath` **was** part of that family and is **no longer exported**: the owner
 ruled (2026-08-27) that the path writer/reader pair lands in **gen-prelude**, and every live
 hand-roll converges on it. Use `gen-prelude`'s `setAttrByPath`, which additionally **refuses by

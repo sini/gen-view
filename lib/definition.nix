@@ -39,7 +39,6 @@ let
     decided
     quote
     renderValue
-    renderSubject
     ;
   inherit (carrierLib) elementOf;
 
@@ -106,39 +105,43 @@ let
       refuse "viewDefinition" "field 'distance' must be a function `{ distance; from; label; to; } → int`; it is required because the projection folds over the distance it returns, and a defaulted rule is a semantics nobody wrote down"
     else if admission.alphabet.letters != order.alphabet.letters then
       refuse "viewDefinition" "'admission' and 'order' are built over different alphabets (${quote admission.alphabet.letters} vs ${quote order.alphabet.letters}); one definition has one L"
-    else if !(elem tieSet.arm enums.tieSetArms) then
-      refuse "viewDefinition" "field 'tieSet' names ${renderSubject tieSet.arm}, which is not one of the declared arms (${quote enums.tieSetArms})"
-    else if !(elem combine.arm enums.combineArms) then
-      refuse "viewDefinition" "field 'combine' names ${renderSubject combine.arm}, which is not one of the whitelisted arms (${quote enums.combineArms}); an arbitrary caller-supplied function is not admissible, because the ascending chain condition is undecidable from one"
+    # The three ARM checks are `elementOf`'s: its shape reads each arm through `choice` over the
+    # declared arms, so a forged arm is refused at intake and never reaches a check here. The ACC
+    # check below stays, because it is stricter than the shape (`acc` is a bool or null there).
     else if combine.setSemilattice && !(builtins.isBool combine.acc) then
       refuse "viewDefinition" "field 'combine' names the set-semilattice arm '${combine.arm}' with no declared ACC flag; write `combines.${combine.arm} { acc = <bool>; }`"
     else if a.empty != combine.unit then
       refuse "viewDefinition" "field 'empty' is ${renderValue a.empty}, which is not the unit of the declared combine arm '${combine.arm}' (${renderValue combine.unit}); a fold whose seed is not its operation's unit is not the fold it declares"
-    else if !(elem dedup.arm enums.dedupArms) then
-      refuse "viewDefinition" "field 'dedup' names ${renderSubject dedup.arm}, which is not one of the declared arms (${quote enums.dedupArms})"
     else
-      decided [ channel ] {
-        __element = "viewDefinition";
-        inherit
-          admission
-          order
+      decided
+        [
           channel
           tieSet
           combine
           dedup
-          ;
-        inherit (a)
-          relation
-          root
-          direction
-          wellFormed
-          distance
-          empty
-          ;
-        # The name of the result, lifted out of the key element so a reader of the definition does
-        # not have to know that the two are one field.
-        name = channel.channel;
-      };
+        ]
+        {
+          __element = "viewDefinition";
+          inherit
+            admission
+            order
+            channel
+            tieSet
+            combine
+            dedup
+            ;
+          inherit (a)
+            relation
+            root
+            direction
+            wellFormed
+            distance
+            empty
+            ;
+          # The name of the result, lifted out of the key element so a reader of the definition does
+          # not have to know that the two are one field.
+          name = channel.channel;
+        };
 in
 {
   inherit viewDefinition required;

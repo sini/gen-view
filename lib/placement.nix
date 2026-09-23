@@ -67,8 +67,8 @@ let
   # sites cannot drift apart.
   #
   # ★ THE CHECK IS THE WHNF OF THE RESULT, never a field of it. A per-field check inside the record
-  # would defer until the field is read, and `elementOf` forces only the tag, so a consumer would
-  # accept the element and meet the abort later.
+  # would defer until the field is read, and an intake testing only the tag would not force it, so
+  # a consumer would accept the element and meet the abort later.
   rootNames =
     site: target:
     if !(builtins.isString target.scope) || target.scope == "" then
