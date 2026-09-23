@@ -689,27 +689,24 @@ in
         ];
       };
 
-      # ★ STEP 9 READS THE ARM'S ASSOCIATIVITY DECLARATION. The fold is a balanced bracketing,
-      # which only associativity licenses, so an arm declaring `associative = false` is refused by
-      # name rather than re-bracketed into a different answer. The arm here is hand-built (no
-      # whitelisted arm is non-associative); the control above is the same fixture with the
-      # declaration intact.
-      test-a-non-associative-combine-is-refused-at-the-fold = {
+      # ★ STEP 9 READS THE ARM'S ASSOCIATIVITY, NEVER THE ELEMENT'S. The fold is a balanced
+      # bracketing, which only associativity licenses, and `foldCombine` reads it from the arm's own
+      # record (`combineOf`, den-hoag-6vsvx), so a hand-built `associative = false` on a
+      # whitelisted arm is inert: the fold is the arm's and answers as the control above does.
+      test-a-forged-non-associative-combine-is-inert-at-the-fold = {
         expr =
-          builtins.deepSeq
-            (f.mkRelation {
-              definition = f.mkDefinition {
-                order = f.flatOrder;
-                combine = v.combines.listAppend // {
-                  associative = false;
-                };
+          (f.mkRelation {
+            definition = f.mkDefinition {
+              order = f.flatOrder;
+              combine = v.combines.listAppend // {
+                associative = false;
               };
-            }).value
-            true;
-        expectedError = {
-          type = "ThrownError";
-          msg = "^gen-view\\.foldCombine: the combine arm 'listAppend' does not declare associative = true.*$";
-        };
+            };
+          }).value;
+        expected = [
+          "inc"
+          "mid"
+        ];
       };
 
       # The ordering door names the raw labelled-edge accessor specifically, so the reader meets
@@ -1685,8 +1682,10 @@ in
               };
             })
             "^gen-view\\.viewDefinition: field 'combine\\.arm' is <a lambda>, which is not one of the declared arms.*$";
-        test-forged-combine-unit-renders-a-lambda =
-          cell
+        # The unit is the arm's (`combineOf`, den-hoag-6vsvx), so a forged lambda unit is never
+        # rendered: the definition constructs, over the arm's `[ ]`.
+        test-a-forged-combine-unit-lambda-is-inert = {
+          expr =
             (vd {
               combine = {
                 __element = "combine";
@@ -1697,8 +1696,9 @@ in
                 op = a: b: a ++ b;
                 acc = null;
               };
-            })
-            "^gen-view\\.viewDefinition: field 'empty' is \\[\\], which is not the unit of the declared combine arm 'listAppend' \\(<a lambda>\\).*$";
+            }).empty;
+          expected = [ ];
+        };
         test-forged-dedup-arm-renders-a-lambda =
           cell
             (vd {
@@ -1963,12 +1963,15 @@ in
 
     # ── A VALUE-PATH COMPARATOR SEES ONLY ITS DOMAIN (ADR-0025 item 1) ──
     # Step 4's `<` over distances and `effectiveOrder`'s `lexLess` over ranks are `<` on ints, and a
-    # non-int operand aborts there PAST `tryEval`. Each operand is checked where it enters against a
-    # contract gen-view already states: the distance rule is `{ distance; from; label; to; } → int`
-    # (`viewDefinition`), and a label order ranks L̂ by ints (`labelOrder`). Before the checks, each
-    # refusal cell below read `EvalError`, and the string distance was a VALUE compared
-    # lexicographically. The rank cells hand in a genuine order with `rankOf` replaced: the tag
-    # survives `//`, so a tag is a claim and not proof.
+    # non-int operand aborts there PAST `tryEval`. A distance is checked where it enters against the
+    # contract `viewDefinition` states, `{ distance; from; label; to; } → int`; before that check its
+    # refusal cells read `EvalError`, and the string distance was a VALUE compared lexicographically.
+    # A rank is not checked but RESTATED: both orders' `rankOf` are re-derived from their checked
+    # `layers` and `endOfPath` (`orderLaw`), so every rank is an int by construction. That retires
+    # den-hoag-gen-view-value-comparator-abort-hvucx's refusal of a non-int rank (its M2); its
+    # property, that a forged rank never aborts past `tryEval`, is carried by the rank cells as
+    # inertness. They hand in a genuine order with `rankOf` replaced: the tag survives `//`, so a tag
+    # is a claim and not proof.
     flake.testsError.value-comparator-refusals =
       let
         fn = x: x;
@@ -2068,24 +2071,28 @@ in
         test-a-distance-rule-returning-a-string-is-refused-by-name =
           cell (diamondUnder (s: if builtins.isInt s.distance then "x" else 1)).value
             "^gen-view\\.viewRelation: channel 'd' declares a distance rule that returned \"x\" .*$";
-        test-a-forged-order-mark-rank-is-refused-by-name =
-          cell
+        # Both ranks are restated from the checked layers (`orderLaw`, den-hoag-6vsvx), so a
+        # non-int `rankOf` is never compared: the read equals the genuine one.
+        test-a-forged-order-mark-rank-is-inert = {
+          expr =
             (f.mkRelation {
               orderMark = f.identityMark // {
                 rankOf = l: if l == "$" then 0 else fn;
               };
-            }).value
-            "^gen-view\\.viewRelation: orderMark ranks '[a-z]+' at <a lambda>.*$";
-        test-a-forged-definition-order-rank-is-refused-by-name =
-          cell
+            }).value;
+          expected = f.relation.value;
+        };
+        test-a-forged-definition-order-rank-is-inert = {
+          expr =
             (f.mkRelation {
               definition = f.definition // {
                 order = f.order // {
                   rankOf = _: fn;
                 };
               };
-            }).value
-            "^gen-view\\.viewRelation: the definition's order ranks '[a-z]+' at <a lambda>.*$";
+            }).value;
+          expected = f.relation.value;
+        };
       };
 
     # A schedule node carrying string context is keyed by its text, so the admission check reads

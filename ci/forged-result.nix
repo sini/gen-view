@@ -114,7 +114,7 @@ let
     "relatumLabels.member" = "restated";
     "labelWellFormedness.step" = "restated";
     "labelWellFormedness.stateKey" = "restated";
-    "labelOrder.rankOf" = "checked";
+    "labelOrder.rankOf" = "restated";
     "dataOrder.keyOf" = "checked";
     "viewDefinition.wellFormed" = "checked";
     "viewDefinition.distance" = "checked";
@@ -123,7 +123,7 @@ let
     "labelOrder.rankWord" = "unapplied";
     "labelOrder.pathPrecedes" = "unapplied";
     "labelOrder.rankLess" = "unapplied";
-    "combine.op" = "content";
+    "combine.op" = "restated";
     "dedup.keyOf" = "content";
   };
 
@@ -191,19 +191,18 @@ let
   #   checked   read, and held to its constructor's law where it is read (at intake or the door)
   #   declared  the caller's own argument, stored as given; nothing derives it
   #   unread    derived, published, and read by nothing in the library
-  #   held      derived and read, disposition open (combine's arm-decided fields)
   valueDisposition = {
     "combine.acc" = "declared";
     "combine.arm" = "declared";
-    "combine.associative" = "held";
-    "combine.setSemilattice" = "held";
-    "combine.unit" = "held";
+    "combine.associative" = "restated";
+    "combine.setSemilattice" = "restated";
+    "combine.unit" = "restated";
     "dataOrder.channel" = "declared";
     "dedup.arm" = "declared";
     "edgeLabels.extended" = "restated";
     "edgeLabels.letters" = "checked";
-    "labelOrder.endOfPath" = "declared";
-    "labelOrder.layers" = "declared";
+    "labelOrder.endOfPath" = "checked";
+    "labelOrder.layers" = "checked";
     "labelWellFormedness.expr" = "restated";
     "labelWellFormedness.expression" = "checked";
     "labelWellFormedness.literals" = "unread";
@@ -608,6 +607,100 @@ in
           mode = "merge";
         })
         "^gen-view\\.writesOf: the target names channel 'other' but the view relation is named 'settings';.*$";
+
+    # restated — combine's arm-decided fields and labelOrder's rankOf (den-hoag-6vsvx)
+    test-a-forged-combine-op-is-inert = inert (viaDef {
+      combine = f.definition.combine // {
+        op = _: _: [ "forged" ];
+      };
+    });
+    # The lawful-looking forgery: an associative op of the arm's type with its operands swapped.
+    # One contribution cannot show it, so it folds `flatOrder`'s two ([ "inc" "mid" ]).
+    test-a-forged-operand-swap-is-inert =
+      let
+        flatUnder =
+          combine:
+          read (
+            f.mkRelation {
+              definition = f.mkDefinition {
+                order = f.flatOrder;
+                inherit combine;
+              };
+            }
+          );
+      in
+      {
+        expr = flatUnder (v.combines.listAppend // { op = a: b: b ++ a; });
+        expected = flatUnder v.combines.listAppend;
+      };
+    test-a-forged-combine-unit-is-inert = inert (viaDef {
+      combine = f.definition.combine // {
+        unit = [ "forged" ];
+      };
+    });
+    test-a-forged-combine-associative-is-inert = inert (viaDef {
+      combine = f.definition.combine // {
+        associative = false;
+      };
+    });
+    test-a-seed-matching-a-forged-unit-is-refused-by-name =
+      refused
+        (viaDef {
+          combine = f.definition.combine // {
+            unit = [ "forged" ];
+          };
+          empty = [ "forged" ];
+        })
+        "^gen-view\\.viewRelation: field 'definition\\.empty' is \\[\"forged\"\\], which is not the unit of the declared combine arm \"listAppend\";.*$";
+    test-a-forged-setSemilattice-cannot-drop-the-acc-flag =
+      refused
+        (f.mkDefinition {
+          combine = v.combines.setUnion { acc = true; } // {
+            setSemilattice = false;
+            acc = null;
+          };
+        })
+        "^gen-view\\.viewDefinition: field 'combine' names the set-semilattice arm 'setUnion' with no declared ACC flag;.*$";
+    test-a-forged-rankOf-is-inert = inert (viaDef {
+      order = f.order // {
+        rankOf =
+          l:
+          if l == "parent" then
+            0
+          else if l == "include" then
+            1
+          else
+            -1;
+      };
+    });
+    test-a-forged-order-mark-rankOf-is-inert = inert (
+      read (
+        f.mkRelation {
+          orderMark = f.identityMark // {
+            rankOf =
+              l:
+              if l == "parent" then
+                0
+              else if l == "include" then
+                1
+              else
+                -1;
+          };
+        }
+      )
+    );
+    test-forged-layers-are-refused-by-name-at-viewRelation =
+      refused
+        (viaDef {
+          order = f.order // {
+            layers = [
+              [ "include" ]
+              [ "parent" ]
+              [ "nope" ]
+            ];
+          };
+        })
+        "^gen-view\\.viewRelation: field 'definition\\.order\\.layers' rank 'nope', which is not a letter of the alphabet.*$";
 
     test-forged-unapplied-functions-are-inert = inert (viaDef {
       admission = f.admission // {

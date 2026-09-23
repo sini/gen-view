@@ -20,17 +20,15 @@
 # ★ WHAT THIS DOES NOT CLOSE, named so nobody reads it as closed: a forged CONTENT field of the
 # right type and the constructor's law (a `data` listing other datums) is the cooperative-caller
 # residue 8rkc names. An operation or value the library can restate from checked structure is
-# restated and never read, save the five named NOT YET RESTATED below — `member` from the lists above, the walk's `step` and `stateKey` from
+# restated and never read — `member` from the lists above, the walk's `step` and `stateKey` from
 # gen-graph's kernel (l83dk), `scopeGraph.labeled` from `carrier`, `scopes` and `edges` under the
 # constructor's own law (`labeledOf`, den-hoag-cer8j), and `datumsAt` from `data`, `expr` from
 # `expression`, L̂ from `letters` and a definition's or relation's `name` from its `channel`, each
-# under its constructor's law (`dataLaw`, `exprOf`, den-hoag-dcvpi) — so a forged one is a claim
-# nothing here reads; each stays published and is never read. ★ NOT YET RESTATED, and so still
-# read as the element carries them although they are derivable from checked structure, not
-# residue: `combine`'s `op`, `unit`, `associative` and `setSemilattice`, fixed by its checked
-# `arm` (and `acc`) through `enums.combines`, and `labelOrder`'s `rankOf`, fixed by `layers` and
-# `endOfPath` under `labelOrder`'s law (den-hoag-6vsvx). A forged one of these answers silently
-# wrong today. A caller-authored function's RESULT is checked where it is applied
+# under its constructor's law (`dataLaw`, `exprOf`, den-hoag-dcvpi), and `combine`'s `op`, `unit`,
+# `associative` and `setSemilattice` from its checked `arm` through the whitelist table
+# (`combineOf`) and `labelOrder`'s `rankOf` from `layers` and `endOfPath` under its constructor's
+# law (`orderLaw`, den-hoag-6vsvx) — so a forged one is a claim nothing here reads; each stays
+# published and is never read. A caller-authored function's RESULT is checked where it is applied
 # (den-hoag-0gpyq's class). Other lists' ELEMENTS are checked where they are read (`tupleKey`,
 # `attrKey`, `rankOf`).
 #
@@ -58,7 +56,11 @@
 # datums are indexed once per relation (`entriesOf`), O(|scopes| + |data|). The published
 # `relationEntries` re-indexes on EVERY call, O(|data|) per call, so a consumer calling it once per
 # scope is quadratic: one datum per scope, 1,000 scopes, 498,611 → 12,513,625 calls
-# (den-hoag-dcvpi); one call over a graph, or `viewRelation`, pays the index once. There is
+# (den-hoag-dcvpi); one call over a graph, or `viewRelation`, pays the index once. Restating
+# `rankOf` runs `orderLaw` twice per `viewRelation` (den-hoag-6vsvx): +4 calls per letter
+# (790,541 → 798,570 at |L| = 2000), but its `elem`/`filter` work is O(|L|²) inside primops,
+# which `nrFunctionCalls` does not see — in WALL TIME the alphabet fixture goes 0.17 → 0.23 s at
+# |L| = 2000 and 0.75 → 1.22 s (+62%) at |L| = 6000; constant in the data. There is
 # no memo: a verdict stored in the element is copied by `//` into a forged `genuine // { f = bad; }`,
 # so it would be a claim too.
 { prelude }:
@@ -305,7 +307,7 @@ let
     # The constructor's own check, over the element: a fold's seed is its operation's unit.
     viewDefinition =
       site: at: e:
-      e.empty == e.combine.unit
+      e.empty == (enums.combineOf e.combine).unit
       || refuse site "field '${at}.empty' is ${renderValue e.empty}, which is not the unit of the declared combine arm ${renderValue e.combine.arm}; build it with `viewDefinition`";
     unit =
       site: at: e:

@@ -369,10 +369,17 @@ let
       effectiveOrder =
         let
           q = def.order;
-          # `rankOf` answers for `$` as well as for every letter, so ONE function covers L̂.
+          # Both ranks are restated from the checked layers under `labelOrder`'s own law, never read
+          # off the element (den-hoag-6vsvx), so a forged `rankOf` is inert and every rank is an int
+          # by construction. `rankOf` answers for `$` as well as for every letter, so ONE function
+          # covers L̂.
+          markRank =
+            carrierLib.orderLaw "viewRelation" "orderMark." markOrder.alphabet markOrder.layers
+              markOrder.endOfPath;
+          qRank = carrierLib.orderLaw "viewRelation" "definition.order." q.alphabet q.layers q.endOfPath;
           keyOf = l: [
-            (markOrder.rankOf l)
-            (q.rankOf l)
+            (markRank l)
+            (qRank l)
           ];
           lexLess =
             x: y:
@@ -396,19 +403,6 @@ let
           # A forged alphabet carrying a non-string stays unsorted, and a lambda equals no letter,
           # so the seam refuses it by name rather than aborting in the sort.
           asSet = sortNames;
-          # `lexLess` is `<` on ints. `labelOrder` mints int ranks from layer indices, so a genuine
-          # element cannot fail this, but an element tag is a claim and not proof: a `//` on a
-          # genuine order keeps the tag and replaces `rankOf`. Every rank of L̂ is checked before
-          # the sort reads any, so a forged rank is refused by name rather than aborting in `<`.
-          ranksOf =
-            which: o:
-            map (l: {
-              inherit which l;
-              rank = o.rankOf l;
-            }) (q.alphabet.letters ++ [ "$" ]);
-          nonIntRanks = filter (x: !(builtins.isInt x.rank)) (
-            ranksOf "orderMark" markOrder ++ ranksOf "the definition's order" q
-          );
         in
         if asSet q.alphabet.letters != asSet g.carrier.labels.letters then
           # ★★★ THE OTHER HALF OF THE SAME SEAM — THE DECLARATION AGAINST THE GRAPH IT IS COMPOSED
@@ -442,8 +436,6 @@ let
           # component ranks letters the other has never heard of.
           refuse "viewRelation"
             "orderMark is built over a different alphabet than the definition's `order` (${quote markOrder.alphabet.letters} vs ${quote q.alphabet.letters}); one competition has one L"
-        else if nonIntRanks != [ ] then
-          refuse "viewRelation" "${(head nonIntRanks).which} ranks ${renderSubject (head nonIntRanks).l} at ${renderValue (head nonIntRanks).rank}; a label order ranks every symbol of L̂ by an int, and the competition compares the ranks"
         else
           carrierLib.labelOrder {
             inherit (q) alphabet;

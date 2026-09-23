@@ -293,10 +293,79 @@ let
         "endOfPath"
       ] args;
       alphabet = elementOf "labelOrder" "alphabet" "edgeLabels" a.alphabet;
-      layers = a.layers;
+      rankOf = orderLaw "labelOrder" "" alphabet a.layers a.endOfPath;
+    in
+    builtins.seq rankOf {
+      __element = "labelOrder";
+      inherit alphabet rankOf;
+      inherit (a) layers endOfPath;
+      # `<l` itself: the strict partial order over L̂ the figure defines. Two DISTINCT letters of
+      # one layer are incomparable — `precedes` is false in BOTH directions — and a letter is
+      # never `<l` itself. Same label ⇒ same rank, so the rank comparison already says this.
+      # A label outside L̂ is refused by name in `rankOf`.
+      precedes = x: y: rankOf x < rankOf y;
+
+      # ★ A PROJECTION FOR DIAGNOSTICS AND LAYERING, AND EXPLICITLY *NOT* THE BASIS OF THE
+      # COMPARISON. It is published because the ranks of a path's labels are worth reading; it is
+      # flagged because a reader who assumes `pathPrecedes` is `rankWord` compared
+      # lexicographically has the finer, wrong order in mind — which is exactly the defect this
+      # element was corrected for.
+      rankWord = path: map (step: rankOf step.label) path;
+
+      # Fig. 1's Visibility Order. Recursion is licensed by label EQUALITY; where the labels
+      # differ this is the last position read, and the two paths are ordered only if `<l` orders
+      # those two labels.
+      pathPrecedes =
+        pa: pb:
+        let
+          la = length pa;
+          lb = length pb;
+          labelAt = p: i: (builtins.elemAt p i).label;
+          go =
+            i:
+            if i >= la && i >= lb then
+              false # the same path: `<p` is strict
+            else if i >= la then
+              rankOf "$" < rankOf (labelAt pb i) # `$ <l l` ⇒ s <p s·l·p
+            else if i >= lb then
+              rankOf (labelAt pa i) < rankOf "$" # `l <l $` ⇒ s·l·p <p s
+            else if labelAt pa i == labelAt pb i then
+              go (i + 1) # the congruence, and the ONLY licence to recurse
+            else
+              # `l1 <l l2` ⇒ ordered; equal ranks on distinct labels ⇒ INCOMPARABLE, false both
+              # ways, and the walk stops here rather than reading a position the calculus never
+              # reaches.
+              rankOf (labelAt pa i) < rankOf (labelAt pb i);
+        in
+        go 0;
+
+      # ★★ A TOTAL ORDER ON RANK WORDS, PUBLISHED UNDER A NAME THAT SAYS WHAT IT IS: A SORT KEY.
+      # It is NOT the visibility order and must never be substituted for one — it is the finer
+      # order `pathPrecedes` was corrected away from. `<p` refines it — `a <p b` implies
+      # `rankLess a b`, because the first position where the rank words differ can only be a
+      # position where the LABELS differ (equal labels have equal ranks), and `<p` decides exactly
+      # there — so sorting by it puts every dominator ahead of everything it dominates. Step 6 no
+      # longer sorts: it decides minimality as a prefix minimum over LABEL words, and nothing in
+      # this library consumes this key; it stays published as the rank-word calculus's total order.
+      rankLess =
+        pa: pb:
+        let
+          w = p: map (step: rankOf step.label) p;
+        in
+        graph.wordLess a.endOfPath (w pa) (w pb);
+    };
+
+  # `orderLaw site at alphabet layers endOfPath` — `rankOf` under `labelOrder`'s own law, over a
+  # checked alphabet. The constructor and every reader run THIS, never a `rankOf` an element
+  # carries (den-hoag-6vsvx), so a forged `rankOf` is inert and a forged `layers`/`endOfPath` is
+  # refused by name where it is read. O(|L|²) in the alphabet, a constant in the data.
+  orderLaw =
+    site: at: alphabet: layers: endOfPath:
+    let
+      fld = n: if at == "" then n else "field '${at}${n}'";
       # `strings` runs HERE, on the flattened declaration, so a letter ranked twice is refused by
       # name rather than silently taking whichever layer the fold visited last.
-      flat = strings "labelOrder" "layers" (concatMap (l: l) layers);
+      flat = strings site "${at}layers" (concatMap (l: l) layers);
       missing = filter (l: !(elem l flat)) alphabet.letters;
       foreign = filter (l: !(elem l alphabet.letters)) flat;
       ranks = foldl' (
@@ -318,80 +387,24 @@ let
           k = attrKey l;
         in
         if l == "$" then
-          a.endOfPath
+          endOfPath
         else if builtins.isString l && ranks ? ${k} then
           ranks.${k}
         else
           refuse "labelOrder" "${renderSubject l} is not a label of L̂ (${quote alphabet.letters}, or `$`)";
     in
     if !(builtins.isList layers) || any (l: !(builtins.isList l)) layers then
-      refuse "labelOrder" "layers must be a list of lists — each inner list is one rank, and two letters sharing a rank are incomparable, which is how a strict PARTIAL order is declared"
-    else if !(builtins.isInt a.endOfPath) then
-      refuse "labelOrder" "endOfPath must be an int; it is the rank of the extended label `$` and decides whether stopping outranks continuing"
+      refuse site "${fld "layers"} must be a list of lists — each inner list is one rank, and two letters sharing a rank are incomparable, which is how a strict PARTIAL order is declared"
+    else if !(builtins.isInt endOfPath) then
+      refuse site "${fld "endOfPath"} must be an int; it is the rank of the extended label `$` and decides whether stopping outranks continuing"
     else if foreign != [ ] then
-      refuse "labelOrder" "layers rank '${head (sort builtins.lessThan foreign)}', which is not a letter of the alphabet (${quote alphabet.letters})"
+      refuse site "${fld "layers"} rank '${head (sort builtins.lessThan foreign)}', which is not a letter of the alphabet (${quote alphabet.letters})"
     else if missing != [ ] then
-      refuse "labelOrder" "letter ${renderSubject (head (sortNames missing))} is not ranked; the label order is total over the alphabet, and an unranked letter would otherwise take a default rank nobody declared"
+      refuse site "letter ${renderSubject (head (sortNames missing))} is not ranked${
+        if at == "" then "" else " in field '${at}layers'"
+      }; the label order is total over the alphabet, and an unranked letter would otherwise take a default rank nobody declared"
     else
-      {
-        __element = "labelOrder";
-        inherit alphabet layers rankOf;
-        inherit (a) endOfPath;
-        # `<l` itself: the strict partial order over L̂ the figure defines. Two DISTINCT letters of
-        # one layer are incomparable — `precedes` is false in BOTH directions — and a letter is
-        # never `<l` itself. Same label ⇒ same rank, so the rank comparison already says this.
-        # A label outside L̂ is refused by name in `rankOf`.
-        precedes = x: y: rankOf x < rankOf y;
-
-        # ★ A PROJECTION FOR DIAGNOSTICS AND LAYERING, AND EXPLICITLY *NOT* THE BASIS OF THE
-        # COMPARISON. It is published because the ranks of a path's labels are worth reading; it is
-        # flagged because a reader who assumes `pathPrecedes` is `rankWord` compared
-        # lexicographically has the finer, wrong order in mind — which is exactly the defect this
-        # element was corrected for.
-        rankWord = path: map (step: rankOf step.label) path;
-
-        # Fig. 1's Visibility Order. Recursion is licensed by label EQUALITY; where the labels
-        # differ this is the last position read, and the two paths are ordered only if `<l` orders
-        # those two labels.
-        pathPrecedes =
-          pa: pb:
-          let
-            la = length pa;
-            lb = length pb;
-            labelAt = p: i: (builtins.elemAt p i).label;
-            go =
-              i:
-              if i >= la && i >= lb then
-                false # the same path: `<p` is strict
-              else if i >= la then
-                rankOf "$" < rankOf (labelAt pb i) # `$ <l l` ⇒ s <p s·l·p
-              else if i >= lb then
-                rankOf (labelAt pa i) < rankOf "$" # `l <l $` ⇒ s·l·p <p s
-              else if labelAt pa i == labelAt pb i then
-                go (i + 1) # the congruence, and the ONLY licence to recurse
-              else
-                # `l1 <l l2` ⇒ ordered; equal ranks on distinct labels ⇒ INCOMPARABLE, false both
-                # ways, and the walk stops here rather than reading a position the calculus never
-                # reaches.
-                rankOf (labelAt pa i) < rankOf (labelAt pb i);
-          in
-          go 0;
-
-        # ★★ A TOTAL ORDER ON RANK WORDS, PUBLISHED UNDER A NAME THAT SAYS WHAT IT IS: A SORT KEY.
-        # It is NOT the visibility order and must never be substituted for one — it is the finer
-        # order `pathPrecedes` was corrected away from. `<p` refines it — `a <p b` implies
-        # `rankLess a b`, because the first position where the rank words differ can only be a
-        # position where the LABELS differ (equal labels have equal ranks), and `<p` decides exactly
-        # there — so sorting by it puts every dominator ahead of everything it dominates. Step 6 no
-        # longer sorts: it decides minimality as a prefix minimum over LABEL words, and nothing in
-        # this library consumes this key; it stays published as the rank-word calculus's total order.
-        rankLess =
-          pa: pb:
-          let
-            w = p: map (step: rankOf step.label) p;
-          in
-          graph.wordLess a.endOfPath (w pa) (w pb);
-      };
+      rankOf;
 
   # ── k — the competition key, an instance of the data order ──────────────────────────────────
   # Fig. 1: `data order ≤d ⊆ D × D`, a partial order. gen's instance is a GROUPING: contributions
@@ -782,6 +795,7 @@ in
     scopeGraph
     labeledOf
     exprOf
+    orderLaw
     entriesOf
     relationLookup
     relationEntries

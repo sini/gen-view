@@ -91,6 +91,8 @@ let
       # whitelist" all reduce to one question the tag answers, asked at construction.
       tieSet = elementOf "viewDefinition" "tieSet" "tieSet" a.tieSet;
       combine = elementOf "viewDefinition" "combine" "combine" a.combine;
+      # The arm's own record, restated from the checked arm (den-hoag-6vsvx).
+      arm = enums.combineOf combine;
       dedup = elementOf "viewDefinition" "dedup" "dedup" a.dedup;
     in
     if !(builtins.isString a.relation) || a.relation == "" then
@@ -108,10 +110,10 @@ let
     # The three ARM checks are `elementOf`'s: its shape reads each arm through `choice` over the
     # declared arms, so a forged arm is refused at intake and never reaches a check here. The ACC
     # check below stays, because it is stricter than the shape (`acc` is a bool or null there).
-    else if combine.setSemilattice && !(builtins.isBool combine.acc) then
+    else if arm.setSemilattice && !(builtins.isBool combine.acc) then
       refuse "viewDefinition" "field 'combine' names the set-semilattice arm '${combine.arm}' with no declared ACC flag; write `combines.${combine.arm} { acc = <bool>; }`"
-    else if a.empty != combine.unit then
-      refuse "viewDefinition" "field 'empty' is ${renderValue a.empty}, which is not the unit of the declared combine arm '${combine.arm}' (${renderValue combine.unit}); a fold whose seed is not its operation's unit is not the fold it declares"
+    else if a.empty != arm.unit then
+      refuse "viewDefinition" "field 'empty' is ${renderValue a.empty}, which is not the unit of the declared combine arm '${combine.arm}' (${renderValue arm.unit}); a fold whose seed is not its operation's unit is not the fold it declares"
     else
       decided
         [

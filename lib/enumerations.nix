@@ -125,15 +125,28 @@ let
       if !(builtins.isBool a.acc) then
         refuse "combines.setUnion" "acc must be a bool; it is the ascending-chain-condition flag for this fold's value domain, and it is declared because it cannot be inferred from the operation"
       else
-        mkCombine {
-          arm = "setUnion";
-          op = a': b': unique (a' ++ b');
-          unit = [ ];
-          associative = true;
-          setSemilattice = true;
-          inherit (a) acc;
-        };
+        setUnionOf a.acc;
   };
+
+  setUnionOf =
+    acc:
+    mkCombine {
+      arm = "setUnion";
+      op = a': b': unique (a' ++ b');
+      unit = [ ];
+      associative = true;
+      setSemilattice = true;
+      inherit acc;
+    };
+
+  # `combineOf combine` — the combine record its checked `arm` decides, read from the whitelist
+  # table. `op`, `unit`, `associative` and `setSemilattice` are the ARM's, so every reader runs
+  # THIS and never reads them off the element (den-hoag-6vsvx): a forged one is inert and the
+  # enforced whitelist cannot be bypassed by an `op` riding a whitelisted tag. `acc` is the
+  # caller's declaration about the value domain, which no arm decides, so it is carried as given.
+  # The arm is intake's to check (`elements.nix` shape `combine`). O(1).
+  combineOf =
+    combine: if combine.arm == "setUnion" then setUnionOf combine.acc else combines.${combine.arm};
 
   combineArms = [
     "listAppend"
@@ -156,12 +169,15 @@ let
   # accumulator on every step, Θ(N²) in the list's length. This is Θ(N log N), and its recursion
   # depth is ⌈log₂ N⌉ levels rather than a WHNF chain N deep.
   #
-  # ★ THE DECLARATION IS READ, NOT ASSUMED. An arm that does not declare `associative = true` is
-  # refused by name, because re-bracketing it would change its answer silently.
+  # ★ THE ARM'S DECLARATION IS READ, NOT ASSUMED. `op` and `associative` come from the arm's own
+  # entry in the whitelist table (`combineOf`), never from the element. A table arm that does not
+  # declare `associative = true` is refused by name, because re-bracketing it would change its
+  # answer silently.
   foldCombine =
     combine: empty: xs:
     let
-      op = combine.op;
+      c = combineOf combine;
+      op = c.op;
       pairUp =
         ys:
         let
@@ -176,8 +192,8 @@ let
         ) ((m + 1) / 2);
       go = ys: if builtins.length ys == 1 then builtins.head ys else go (pairUp ys);
     in
-    if combine.associative != true then
-      refuse "foldCombine" "the combine arm ${renderSubject combine.arm} does not declare associative = true; step 9 re-brackets its fold, which B5 (gen-pipe L1) licenses under an associative-only combine and no other"
+    if c.associative != true then
+      refuse "foldCombine" "the combine arm ${renderSubject c.arm} does not declare associative = true; step 9 re-brackets its fold, which B5 (gen-pipe L1) licenses under an associative-only combine and no other"
     else
       go ([ empty ] ++ xs);
 
@@ -308,6 +324,7 @@ in
 {
   inherit
     combines
+    combineOf
     combineArms
     foldCombine
     tieSets
