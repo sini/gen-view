@@ -52,6 +52,11 @@ let
   # A name renders quoted as a name, and anything else through `renderValue`.
   renderSubject = v: if builtins.isString v then "'${v}'" else renderValue v;
 
+  # A list of names in the order a refusal reports from. `lessThan` aborts past `tryEval` on two
+  # values it cannot compare (two lambdas, a lambda and a string), so a list that is not all
+  # strings keeps its position order: the same elements, and the one to report is still named.
+  sortNames = xs: if builtins.all builtins.isString xs then sort builtins.lessThan xs else xs;
+
   quote =
     names:
     if builtins.isList names && builtins.all builtins.isString names then
@@ -119,5 +124,6 @@ in
     quote
     renderValue
     renderSubject
+    sortNames
     ;
 }

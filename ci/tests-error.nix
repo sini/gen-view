@@ -1680,6 +1680,86 @@ in
           dataOrder = f.key;
         }) "^gen-view\\.carrier: <a lambda> is both a name in R and a relatum label in Λ;.*$";
 
+        # ── den-hoag-gen-view-refusal-sort-abort-tm84v: the name to report is chosen without a sort ──
+        # `lessThan` aborts past `tryEval` on two lambdas, so before `sortNames` each of these read
+        # `cannot compare a function with a function` where the refusal above belongs. Two forged
+        # names each, which is the least that reaches a comparison.
+        test-two-forged-alphabet-letters-reach-labelOrder = cell (v.labelOrder {
+          alphabet = f.labels // {
+            letters = [
+              "parent"
+              "include"
+              fn
+              fn
+            ];
+          };
+          layers = [
+            [ "include" ]
+            [ "parent" ]
+          ];
+          endOfPath = -1;
+        }) "^gen-view\\.labelOrder: letter <a lambda> is not ranked;.*$";
+        test-two-forged-relation-names-reach-the-carrier = cell (v.carrier {
+          labels = f.labels // {
+            member = _: true;
+          };
+          relations = f.relations // {
+            names = [
+              fn
+              fn
+            ];
+          };
+          relatumLabels = f.roles;
+          labelWellFormedness = f.admission;
+          labelOrder = f.order;
+          dataOrder = f.key;
+        }) "^gen-view\\.carrier: <a lambda> is both a letter of L and a name in R;.*$";
+        test-two-forged-role-labels-reach-the-letters = cell (v.carrier {
+          labels = f.labels // {
+            member = notString;
+          };
+          inherit (f) relations;
+          relatumLabels = f.roles // {
+            names = [
+              fn
+              fn
+            ];
+          };
+          labelWellFormedness = f.admission;
+          labelOrder = f.order;
+          dataOrder = f.key;
+        }) "^gen-view\\.carrier: <a lambda> is both a letter of L and a relatum label in Λ;.*$";
+        test-two-forged-role-labels-reach-the-relations = cell (v.carrier {
+          inherit (f) labels;
+          relations = f.relations // {
+            member = notString;
+          };
+          relatumLabels = f.roles // {
+            names = [
+              fn
+              fn
+            ];
+          };
+          labelWellFormedness = f.admission;
+          labelOrder = f.order;
+          dataOrder = f.key;
+        }) "^gen-view\\.carrier: <a lambda> is both a name in R and a relatum label in Λ;.*$";
+        test-two-forged-order-letters-reach-the-alphabet-seam =
+          cell
+            (f.mkRelation {
+              definition = f.definition // {
+                order = f.order // {
+                  alphabet = f.labels // {
+                    letters = [
+                      fn
+                      fn
+                    ];
+                  };
+                };
+              };
+            }).value
+            "^gen-view\\.viewRelation: the definition's alphabet is not the graph's \\(<a list> vs include, parent\\); one composition has one L$";
+
         # ── den-hoag-gen-view-fields-attrnames-abort-txc33: `fields` refuses a non-attrset by name ──
         # `attrNames` over a function aborts past `tryEval`, so before the `isAttrs` arm every
         # construct gated by `fields` did on a non-attrset argument.

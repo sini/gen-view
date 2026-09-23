@@ -73,6 +73,7 @@ let
     quote
     renderValue
     renderSubject
+    sortNames
     ;
 
   # A label is a word in gen-graph's parse alphabet. This is not decoration: `regex.stateKey`
@@ -312,7 +313,7 @@ let
     else if foreign != [ ] then
       refuse "labelOrder" "layers rank '${head (sort builtins.lessThan foreign)}', which is not a letter of the alphabet (${quote alphabet.letters})"
     else if missing != [ ] then
-      refuse "labelOrder" "letter ${renderSubject (head (sort builtins.lessThan missing))} is not ranked; the label order is total over the alphabet, and an unranked letter would otherwise take a default rank nobody declared"
+      refuse "labelOrder" "letter ${renderSubject (head (sortNames missing))} is not ranked; the label order is total over the alphabet, and an unranked letter would otherwise take a default rank nobody declared"
     else
       {
         __element = "labelOrder";
@@ -475,11 +476,11 @@ let
     else if ord.alphabet.letters != labels.letters then
       refuse "carrier" "labelOrder is built over a different alphabet than `labels` (${quote ord.alphabet.letters} vs ${quote labels.letters}); one carrier has one L"
     else if lr != [ ] then
-      refuse "carrier" "${renderSubject (head (sort builtins.lessThan lr))} is both a letter of L and a name in R; the sorts are disjoint, because the walk steps only on structural letters and a content name reached at the path's end can never enter the label word"
+      refuse "carrier" "${renderSubject (head (sortNames lr))} is both a letter of L and a name in R; the sorts are disjoint, because the walk steps only on structural letters and a content name reached at the path's end can never enter the label word"
     else if llam != [ ] then
-      refuse "carrier" "${renderSubject (head (sort builtins.lessThan llam))} is both a letter of L and a relatum label in Λ; the populations are disjoint, because a role label that is also a letter would make a binding's incident edge WALKABLE and the inertness that keeps a binding out of the traversal would be false"
+      refuse "carrier" "${renderSubject (head (sortNames llam))} is both a letter of L and a relatum label in Λ; the populations are disjoint, because a role label that is also a letter would make a binding's incident edge WALKABLE and the inertness that keeps a binding out of the traversal would be false"
     else if rlam != [ ] then
-      refuse "carrier" "${renderSubject (head (sort builtins.lessThan rlam))} is both a name in R and a relatum label in Λ; the populations are disjoint, because an edge carrying it could not be classified into one of them"
+      refuse "carrier" "${renderSubject (head (sortNames rlam))} is both a name in R and a relatum label in Λ; the populations are disjoint, because an edge carrying it could not be classified into one of them"
     else
       {
         __element = "carrier";

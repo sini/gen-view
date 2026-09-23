@@ -71,6 +71,7 @@ let
     fields
     quote
     renderSubject
+    sortNames
     ;
   inherit (carrierLib) elementOf;
 
@@ -326,7 +327,9 @@ let
           # the list an ordering meaning — so the seam below compares the alphabets SORTED. The
           # rendering already is: `quote` sorts, so a raw-order predicate could print two identical
           # lists and claim they differ, which is a diagnostic saying nothing in the shape of one.
-          asSet = xs: sort builtins.lessThan xs;
+          # A forged alphabet carrying a non-string stays unsorted, and a lambda equals no letter,
+          # so the seam refuses it by name rather than aborting in the sort.
+          asSet = sortNames;
         in
         if asSet q.alphabet.letters != asSet g.carrier.labels.letters then
           # ★★★ THE OTHER HALF OF THE SAME SEAM — THE DECLARATION AGAINST THE GRAPH IT IS COMPOSED
