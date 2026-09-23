@@ -137,7 +137,13 @@ Refusals **name what they refused** — the omitted field, the unranked letter, 
 relation, the mark that withheld an edge, the tied contributions. An empty answer is never a
 refusal. Every constructor field is checked where the element is **built**, not where a field is
 first read. Content stays lazy, but a throwing value in a checked field fails at construction even
-if nothing reads it (`decided`, `lib/refusal.nix`).
+if nothing reads it (`decided`, `lib/refusal.nix`). A caller-supplied function's **result** does not
+exist at construction, so it is checked where it is consumed instead (`returned`, beside
+`decided`): a competition key, an edge accessor's list and its L-edge targets, a marks list, each
+mark and its `admits` verdict, WFD's and σ's verdicts, and `over`'s elements are refused by name,
+naming the function's role, its input and what it returned. A function destructuring named
+formals where it is applied to a string or a list is refused at its door (`formalsOf`); `{ ... }:`
+and a destructuring functor stay the evaluator's own abort.
 
 The closed enumerations: `tieSets.{ union, refuse, orderedFold }` · `combines.{ listAppend, attrsShallow, setUnion }` (a set-semilattice combine declares its **ACC flag**, because that
 condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, byKey }` ·

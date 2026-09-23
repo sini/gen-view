@@ -1428,9 +1428,9 @@ in
       # The wrong-arity case is the same guard for UNDER-APPLICATION only: an under-applied
       # `id -> id -> bool` forces to a lambda, not a bool, at the same site and is refused the
       # same way a wrong return type is. This does NOT close arity generally: a PATTERN FORMAL
-      # (`{ x }: true`, `{ x, ... }: true`) still satisfies `isFunction` and aborts UNCATCHABLY
-      # computing `r`, before this check ever runs — pinned as a falsifier below rather than
-      # claimed closed.
+      # with named formals (`{ x }: true`) is refused at the door by `formalsOf`, and one that
+      # `functionArgs` cannot see (`{ ... }: true`) still satisfies `isFunction` and aborts
+      # UNCATCHABLY computing `r`, before this check ever runs — both pinned below.
       test-admitsCycle-wrong-arity-is-named = {
         expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
           wdsScheduleArgs
@@ -1444,17 +1444,26 @@ in
         };
       };
 
-      # ══ C-4 RESIDUE — A PATTERN FORMAL PASSES THE `isFunction` DOOR AND ABORTS UNCATCHABLY
-      # BUILDING `admissions`, ESCAPING `builtins.tryEval` (den-hoag-6poeg landing gate 3, C-4).
-      # This is NOT a `ThrownError`: Nix's own evaluator raises it computing `a.admitsCycle n`,
-      # before `illTypedAdmissions`' bool check runs, so no `refuse` call in this library names it.
-      # The
-      # message is unanchored on purpose — it is the evaluator's own rendering, not authored text
-      # this library controls, so pinning it end-to-end would freeze on an evaluator-version detail
-      # rather than on this construct's behaviour.
-      test-admitsCycle-pattern-formal-aborts = {
+      # ══ C-4 — A PATTERN FORMAL. A NON-EMPTY formal set is refused by name at the door
+      # (`formalsOf`, den-hoag-0gpyq): `admitsCycle` is applied to a string, so it can never apply.
+      # The RESIDUE is `{ ... }:`, which `functionArgs` reports as `{ }`: it passes the
+      # `isFunction` door and aborts UNCATCHABLY building `admissions`, escaping `builtins.tryEval`
+      # (den-hoag-6poeg landing gate 3, C-4). That is NOT a `ThrownError`: Nix's own evaluator
+      # raises it computing `a.admitsCycle n`, before `illTypedAdmissions`' bool check runs, so the
+      # falsifier's message is unanchored on purpose — it is the evaluator's own rendering, not
+      # authored text this library controls.
+      test-admitsCycle-pattern-formal-is-named = {
         expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
           wdsScheduleArgs // { admitsCycle = { x }: true; }
+        )) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' destructures an attrset \\(formals: x\\); .*$";
+        };
+      };
+      test-admitsCycle-ellipsis-formal-aborts = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
+          wdsScheduleArgs // { admitsCycle = { ... }: true; }
         )) true;
         expectedError = {
           type = "TypeError";
@@ -2429,6 +2438,425 @@ in
               }
             ))
             "^gen-view\\.writesOf: the target names channel 'elsewhere' but the view relation is named 'settings'; .*$";
+      };
+
+    # ── A CALLER-SUPPLIED FUNCTION'S RESULT IS REFUSED BY NAME WHERE IT IS CONSUMED (den-hoag-0gpyq) ──
+    # Each cell forces what a consumer reads, and no more. A function's result exists only at
+    # application, so its check lives at the application (`returned`, lib/refusal.nix); each message
+    # names the function's role, the input it was applied to and the value it returned. The
+    # `-aborts` cells are the RESIDUE no check on a result can see, because the application itself
+    # aborts before a result exists (den-hoag-g8lo): they pin the evaluator's own error, unanchored,
+    # and go red the day the behaviour changes.
+    flake.testsError.function-result-refusals =
+      let
+        cell = expr: msg: {
+          expr = builtins.deepSeq expr true;
+          expectedError = {
+            type = "ThrownError";
+            inherit msg;
+          };
+        };
+        residue = type: expr: msg: {
+          expr = builtins.deepSeq expr true;
+          expectedError = { inherit type msg; };
+        };
+        read = rel: {
+          inherit (rel) value contributions dropped;
+        };
+        withDef = defArgs: f.mkRelation { definition = v.viewDefinition (f.definitionArgs // defArgs); };
+        keyed =
+          keyOf:
+          withDef {
+            channel = v.dataOrder {
+              channel = "settings";
+              inherit keyOf;
+            };
+          };
+        edged =
+          edges:
+          f.mkRelation {
+            graph = v.scopeGraph {
+              inherit (f) carrier scopes;
+              edges = f.edges // edges;
+              data = f.authored f.datums;
+            };
+          };
+        marked = marks: f.mkRelation { inherit marks; };
+        fromLeaf = targets: id: if id == "leaf" then targets else [ ];
+        refRead =
+          args:
+          (r.mkSelf {
+            edges = [
+              {
+                from = "req";
+                to = "prov";
+              }
+            ];
+            decls = {
+              req.provided = [ ];
+              prov.provided = [ "read" ];
+            };
+            attributes.resolved = r.computeOf (r.referenceArgs // args);
+          }).get
+            "req"
+            "resolved";
+        revRead =
+          args:
+          (r.mkSelf {
+            edges = [
+              {
+                from = "web1";
+                to = "db1";
+              }
+            ];
+            decls = {
+              db1.role = "database";
+              web1.tag = "w1";
+            };
+            attributes.needed = r.reverseComputeOf (r.reverseArgs // args);
+          }).get
+            "db1"
+            "needed";
+        over =
+          fn:
+          v.transform.over {
+            relation = f.relation;
+            name = "o";
+            f = fn;
+          };
+        seeded =
+          datum:
+          f.mkRelation {
+            graph = v.scopeGraph {
+              inherit (f) carrier scopes edges;
+              data = f.authored (
+                f.datums
+                // {
+                  inc = [
+                    {
+                      relation = "import";
+                      inherit datum;
+                    }
+                  ];
+                }
+              );
+            };
+            definition = v.compositions.registry {
+              channel = "settings";
+              relation = "import";
+              root = "leaf";
+              direction = "outbound";
+              inherit (f) admission order;
+              wellFormed = f.admitAll;
+              tieSet = v.tieSets.union;
+              empty = [ ];
+              combine = v.combines.listAppend;
+              dedup = v.dedups.none;
+              entityOf = c: c.scope;
+            };
+          };
+      in
+      {
+        # S1 — the competition key (`dataOrder.keyOf`; `registry.entityOf`/`role.roleOf` reach it)
+        test-a-competition-key-that-is-not-a-string-is-named =
+          cell (read (keyed (_: 42)))
+            "^gen-view\\.viewRelation: channel 'settings''s competition key 'keyOf', for the contribution at scope 'inc', returned 42; a competition key is a string.*$";
+        test-an-under-applied-competition-key-is-named =
+          cell (read (keyed (_: _: "k")))
+            "^gen-view\\.viewRelation: channel 'settings''s competition key 'keyOf', for the contribution at scope 'inc', returned <a lambda>; .*$";
+        test-an-entityOf-returning-an-int-is-named =
+          cell
+            (read (
+              f.mkRelation {
+                definition = v.compositions.registry (
+                  removeAttrs f.definitionArgs [
+                    "channel"
+                    "distance"
+                  ]
+                  // {
+                    channel = "settings";
+                    entityOf = _: 42;
+                  }
+                );
+              }
+            ))
+            "^gen-view\\.viewRelation: channel 'settings''s competition key 'keyOf', for the contribution at scope 'inc', returned 42; .*$";
+        test-a-competition-key-pattern-formal-aborts = residue "TypeError" (read (
+          keyed ({ x }: "k")
+        )) "called without required argument 'x'";
+
+        # S2 — an edge accessor's result (scopeGraph)
+        test-an-edge-accessor-returning-a-non-list-is-named =
+          cell
+            (read (edged {
+              include = _: 42;
+            }))
+            "^gen-view\\.scopeGraph: the edge accessor 'include' at scope 'leaf' returned 42; each label's value is the accessor scope → \\[ scope \\]$";
+        test-an-edge-target-that-is-not-a-string-is-named =
+          cell
+            (read (edged {
+              include = fromLeaf [ 42 ];
+            }))
+            "^gen-view\\.scopeGraph: the edge accessor 'include' at scope 'leaf' returned the target 42, which is not a scope of this graph .*$";
+        test-an-edge-target-outside-the-scopes-is-named =
+          cell
+            (read (edged {
+              include = fromLeaf [ "nowhere" ];
+            }))
+            "^gen-view\\.scopeGraph: the edge accessor 'include' at scope 'leaf' returned the target \"nowhere\", which is not a scope of this graph \\(inc, leaf, mid, root\\); .*$";
+        test-an-edge-accessor-pattern-formal-is-named =
+          cell
+            (read (edged {
+              include = { x }: [ ];
+            }))
+            "^gen-view\\.scopeGraph: the edge accessor 'include' destructures an attrset \\(formals: x\\); .*$";
+        test-an-edge-accessor-ellipsis-formal-aborts = residue "TypeError" (read (edged {
+          include = { ... }: [ ];
+        })) "expected a set but found a string";
+        # CONTROL: the target check is L's only (`s —l→ s`). An R edge's target is a datum
+        # (`s —r→ d`) and a Λ edge's a binding node; both are admitted as inert, not narrowed.
+        test-control-an-R-or-Lambda-edge-target-outside-the-scopes-is-admitted = {
+          expr = map (e: { inherit (e) label target; }) (
+            builtins.filter (e: e.label != "parent") (
+              (v.scopeGraph {
+                inherit (f) carrier scopes;
+                edges = f.edges // {
+                  import = fromLeaf [ { x = 1; } ];
+                  relatum-target = fromLeaf [ "binding" ];
+                };
+                data = f.authored f.datums;
+              }).labeled.labeledEdges
+                "leaf"
+            )
+          );
+          expected = [
+            {
+              label = "import";
+              target = {
+                x = 1;
+              };
+            }
+            {
+              label = "include";
+              target = "inc";
+            }
+            {
+              label = "relatum-target";
+              target = "binding";
+            }
+          ];
+        };
+
+        # S3/S4 — the marks accessor's result, and each mark's `admits` verdict (viewRelation)
+        test-a-marks-result-that-is-not-a-list-is-named = cell (read (
+          marked (_: 42)
+        )) "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned 42; .*$";
+        test-a-mark-without-admits-is-named =
+          cell (read (marked (_: [ { name = "m"; } ])))
+            "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark that is <a set> \\(fields: name\\); .*$";
+        test-a-mark-without-a-name-is-named =
+          cell (read (marked (_: [ { admits = _: true; } ])))
+            "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark that is <a set> \\(fields: admits\\); .*$";
+        test-a-mark-whose-admits-is-not-callable-is-named =
+          cell
+            (read (
+              marked (_: [
+                {
+                  name = "m";
+                  admits = 42;
+                }
+              ])
+            ))
+            "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark whose 'admits' is 42; .*$";
+        test-an-admits-verdict-that-is-not-a-bool-is-named =
+          cell
+            (read (
+              marked (_: [
+                {
+                  name = "m";
+                  admits = _: 42;
+                }
+              ])
+            ))
+            "^gen-view\\.viewRelation: a mark's 'admits' at scope 'leaf' for the label 'include' returned 42; it is a predicate on labels and must return a bool$";
+        test-a-marks-pattern-formal-is-named = cell (read (
+          marked ({ x }: [ ])
+        )) "^gen-view\\.viewRelation: field 'marks' destructures an attrset \\(formals: x\\); .*$";
+        test-a-marks-ellipsis-formal-aborts = residue "TypeError" (read (
+          marked ({ ... }: [ ])
+        )) "expected a set but found a string";
+        test-an-admits-pattern-formal-is-named =
+          cell
+            (read (
+              marked (_: [
+                {
+                  name = "m";
+                  admits = { x }: true;
+                }
+              ])
+            ))
+            "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark whose 'admits' is <a lambda> destructuring an attrset \\(formals: x\\); .*$";
+        # RESIDUE: `formalsOf` is `[ ]` for every functor, so a callable `admits` whose `__functor`
+        # destructures passes the door and aborts on application to a label.
+        test-an-admits-functor-pattern-formal-aborts = residue "TypeError" (read (
+          marked (_: [
+            {
+              name = "m";
+              admits = {
+                __functor =
+                  _:
+                  {
+                    y ? 1,
+                  }:
+                  true;
+              };
+            }
+          ])
+        )) "expected a set but found a string";
+        # CONTROL: a callable `admits` that is not a lambda still applies (den-hoag-g8lo F-K).
+        test-control-a-functor-admits-applies = {
+          expr =
+            (read (
+              marked (_: [
+                {
+                  name = "m";
+                  admits = {
+                    __functor = _: _: true;
+                  };
+                }
+              ])
+            )).contributions != [ ];
+          expected = true;
+        };
+
+        # S5 — WFD's verdict (relationEntries, and viewRelation through it)
+        test-a-wellFormed-verdict-that-is-not-a-bool-is-named =
+          cell
+            (read (withDef {
+              wellFormed = _: 42;
+            }))
+            "^gen-view\\.relationEntries: wellFormed \\(WFD\\), for the datum at scope 'inc' under relation 'import', returned 42; .*$";
+        test-a-wellFormed-verdict-is-named-at-relationEntries =
+          cell
+            (v.relationEntries {
+              graph = f.graph;
+              scope = "root";
+              relation = "import";
+              wellFormed = _: 42;
+            })
+            "^gen-view\\.relationEntries: wellFormed \\(WFD\\), for the datum at scope 'root' under relation 'import', returned 42; .*$";
+        test-a-wellFormed-pattern-formal-aborts = residue "TypeError" (read (withDef {
+          wellFormed = { x }: true;
+        })) "expected a set but found a list";
+
+        # S9 — σ's verdict (referenceResolution, neededBy)
+        test-a-sigma-verdict-that-is-not-a-bool-is-named =
+          cell (refRead { wellFormed = _: 42; })
+            "^gen-view\\.referenceResolution: result 'resolvedProvides': 'wellFormed' \\(σ\\) at node 'req' returned 42; .*$";
+        test-a-reverse-sigma-verdict-that-is-not-a-bool-is-named = cell (revRead {
+          wellFormed = _: 42;
+        }) "^gen-view\\.neededBy: result 'consumers': 'wellFormed' \\(σ\\) at node 'web1' returned 42; .*$";
+
+        # S11 — the engine's operator is a function, decided at construction
+        test-a-non-function-query-operator-is-named =
+          cell (v.referenceResolution (r.referenceArgs // { engine.query = 42; }))
+            "^gen-view\\.referenceResolution: field 'engine' must be a query authority publishing a 'query'; .*$";
+        test-a-non-function-queryReverse-operator-is-named = cell (v.neededBy
+          (r.reverseArgs // { engine.queryReverse = 42; })
+        ) "^gen-view\\.neededBy: field 'engine' must be a query authority publishing a 'queryReverse'; .*$";
+
+        # S6 — the distance rule (its result is already refused by name: value-comparator-refusals)
+        test-a-distance-pattern-formal-aborts = residue "TypeError" (read (withDef {
+          distance = { x }: 1;
+        })) "called without required argument 'x'";
+        # S7 — the dedup key: any value is a key under `==`, so only the application's residue is pinned
+        test-a-dedup-key-pattern-formal-aborts = residue "TypeError" (read (withDef {
+          dedup = v.dedups.byKey { keyOf = { x }: 1; };
+        })) "called without required argument 'x'";
+        # S9/S10/S11 residue — σ, π and the engine operator all take attrsets, where a pattern formal can work
+        test-a-sigma-pattern-formal-aborts = residue "TypeError" (refRead {
+          wellFormed = { x }: true;
+        }) "called without required argument 'x'";
+        test-a-project-pattern-formal-aborts = residue "TypeError" (refRead {
+          project = { x }: 1;
+        }) "called without required argument 'x'";
+        test-an-engine-query-pattern-formal-aborts = residue "TypeError" (refRead {
+          engine.query = { x }: _: _: 1;
+        }) "called without required argument 'x'";
+        # S12/S13 residue — `map`'s and `scan`'s results are datums (content); only the application is pinned
+        test-a-map-pattern-formal-aborts =
+          residue "TypeError"
+            (v.transform.map {
+              relation = f.relation;
+              name = "m";
+              f = { x }: 1;
+            }).value
+            "called without required argument 'x'";
+        test-a-scan-pattern-formal-aborts =
+          residue "TypeError"
+            (v.transform.scan {
+              relation = f.relation;
+              name = "s";
+              empty = [ ];
+              f = { x }: _: [ ];
+            }).value
+            "expected a set but found a list";
+        test-an-admits-ellipsis-formal-aborts = residue "TypeError" (read (
+          marked (_: [
+            {
+              name = "m";
+              admits = { ... }: true;
+            }
+          ])
+        )) "expected a set but found a string";
+
+        # S14 — `over`'s elements, and its pattern formal (applied to a list)
+        test-an-over-pattern-formal-is-named =
+          cell (over ({ x }: [ ])).value
+            "^gen-view\\.over: field 'f' destructures an attrset \\(formals: x\\); .*$";
+        test-an-over-ellipsis-formal-aborts =
+          residue "TypeError" (over ({ ... }: [ ])).value
+            "expected a set but found a list";
+        test-an-over-element-that-is-not-a-contribution-is-named =
+          cell (over (_: [ 42 ])).value
+            "^gen-view\\.over: the rewrite returned a sequence carrying 42; .*$";
+
+        # LAZINESS — each check forces a result's SHAPE, never its CONTENT. A throw seeded in content
+        # stays unforced by what a consumer reads; the paired `-forced` cell shows the seed is live.
+        test-control-a-throwing-datum-is-not-forced-by-the-key-or-wellFormed-checks = {
+          expr = builtins.length (seeded (throw "0gpyq seed")).contributions;
+          expected = 3;
+        };
+        test-control-the-datum-seed-is-live = cell (seeded (throw "0gpyq seed: forced")).value "^0gpyq seed: forced$";
+        test-control-a-throwing-mark-name-is-not-forced-by-the-marks-check = {
+          expr =
+            builtins.length
+              (marked (_: [
+                {
+                  name = throw "0gpyq seed";
+                  admits = _: true;
+                }
+              ])).contributions;
+          expected = 1;
+        };
+        test-control-the-mark-name-seed-is-live =
+          cell
+            (marked (_: [
+              {
+                name = throw "0gpyq seed: forced";
+                admits = _: false;
+              }
+            ])).withheld
+            "^0gpyq seed: forced$";
+        test-control-a-throwing-over-datum-is-not-forced-by-the-element-check = {
+          expr =
+            builtins.length
+              (over (cs: cs ++ [ ((builtins.head cs) // { datum = throw "0gpyq seed"; }) ])).contributions;
+          expected = 2;
+        };
+        test-control-the-over-datum-seed-is-live =
+          cell (over (cs: cs ++ [ ((builtins.head cs) // { datum = throw "0gpyq seed: forced"; }) ])).value
+            "^0gpyq seed: forced$";
       };
   };
 }

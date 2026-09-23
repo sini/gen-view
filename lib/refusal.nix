@@ -80,6 +80,26 @@ let
   # only a `viewRelation`'s `name` now pays its graph's check, about ten calls per graph entry.
   decided = checks: value: builtins.seq (builtins.all (c: builtins.seq c true) checks) value;
 
+  # `returned site role contract ok v` — the RESULT of a caller-supplied function, checked where it
+  # is consumed, which is the only place it exists. `decided`'s rule one level down: the check's
+  # WHNF is its verdict and it hands back `v` itself, so the consumer reads the checked value and
+  # the check cannot be written and not called. It forces `v` to WHNF and runs `ok`, nothing more,
+  # so a result's CONTENT stays as lazy as the consumer leaves it. `role` names the function and
+  # the input it was applied to; `renderValue` names what it returned.
+  returned =
+    site: role: contract: ok: v:
+    if ok v then v else refuse site "${role} returned ${renderValue v}; ${contract}";
+
+  # `formalsOf v` — the formals a function destructures (`{ x }: …` has `[ "x" ]`), `[ ]` for a
+  # plain lambda or a non-function. Where a construct applies `v` to a STRING, a non-empty list
+  # means `v` can never be applied, and the site refuses that by name before the application
+  # aborts past `tryEval`. It refuses only a value that can satisfy NO APPLICATION of its contract;
+  # the door sits at construction, so such a value is refused even on a read that never applies it
+  # (as the `nonAccessor` door already refuses a non-function there). Sound, not complete:
+  # `{ ... }:` and `{ }:` report no formals and still abort, and `formalsOf` is `[ ]` for every
+  # functor, so a functor whose `__functor` destructures passes; those are pinned as falsifier cells.
+  formalsOf = v: if builtins.isFunction v then builtins.attrNames (builtins.functionArgs v) else [ ];
+
   # `fields site required args` — `required` present in `args`, and nothing else present at all.
   # Returns `args` on success so the check is a pass-through and cannot be written and not called.
   fields =
@@ -183,6 +203,8 @@ in
     refuse
     fields
     decided
+    returned
+    formalsOf
     choice
     strings
     attrKey

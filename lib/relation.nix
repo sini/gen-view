@@ -70,6 +70,8 @@ let
     refuse
     fields
     decided
+    returned
+    formalsOf
     quote
     renderSubject
     renderValue
@@ -167,7 +169,46 @@ let
       # 2 — effective E. `boundedBy` removes edges AT THE ACCESSOR and reports what it removed;
       # the companion diagnostic is never empty where it fires, so silence and a boundary are
       # never the same reading.
-      bounded = graph.boundedBy directed a.marks;
+      #
+      # The accessor's RESULT is checked where gen-graph consumes it: a list, of marks carrying a
+      # `name` and a callable `admits`, and each `admits` verdict a bool. Only that shape is forced;
+      # a mark's `name` is carried unforced into `withheld`.
+      bounded = graph.boundedBy directed marksAt;
+      marksAt =
+        s:
+        map (markAt s) (
+          returned "viewRelation" "field 'marks' at scope ${renderSubject s}"
+            "it must return the list of boundary marks `{ name; admits; }` at that scope"
+            builtins.isList
+            (a.marks s)
+        );
+      callable =
+        v:
+        builtins.isFunction v || (builtins.isAttrs v && v ? __functor && builtins.isFunction v.__functor);
+      markAt =
+        s: m:
+        if !(builtins.isAttrs m && m ? name && m ? admits) then
+          refuse "viewRelation" "field 'marks' at scope ${renderSubject s} returned a mark that is ${renderValue m}${
+            if builtins.isAttrs m then " (fields: ${quote (builtins.attrNames m)})" else ""
+          }; a mark is `{ name; admits; }`, and `withheld` reports it by its name"
+        else if !(callable m.admits) || formalsOf m.admits != [ ] then
+          refuse "viewRelation" "field 'marks' at scope ${renderSubject s} returned a mark whose 'admits' is ${renderValue m.admits}${
+            if formalsOf m.admits != [ ] then
+              " destructuring an attrset (formals: ${quote (formalsOf m.admits)})"
+            else
+              ""
+          }; it is applied to a label, a string, so it must be a predicate taking one"
+        else
+          m
+          // {
+            admits =
+              l:
+              returned "viewRelation"
+                "a mark's 'admits' at scope ${renderSubject s} for the label ${renderSubject l}"
+                "it is a predicate on labels and must return a bool"
+                builtins.isBool
+                (m.admits l);
+          };
 
       # 3 — the walk. WFD does NOT run here: under (NR-Rel) the path is constrained by WFL and the
       # DATUM by WFD, and collapsing the two would filter scopes by a predicate written for data
@@ -452,29 +493,40 @@ let
       # MEASURED by removing it: only the two empty-gather cells go radioactive. It stays, because
       # without it the order is forced at no reachable point of a query that gathers nothing.
       competed = builtins.seq effectiveOrder (
-        map (
-          grp:
-          let
-            branchesOf =
+        map
+          (
+            grp:
+            let
+              branchesOf =
+                c:
+                let
+                  s = map (step: step.label) c.path ++ [ "$" ];
+                in
+                builtins.genList (i: {
+                  node = builtins.toJSON (builtins.genList (j: builtins.elemAt s j) i);
+                  rank = effectiveOrder.rankOf (builtins.elemAt s i);
+                }) (length s);
+              minRank = builtins.mapAttrs (
+                _: bs: foldl' (m: b: if b.rank < m then b.rank else m) (head bs).rank bs
+              ) (builtins.groupBy (b: b.node) (concatMap branchesOf grp.members));
+              survives = c: builtins.all (b: b.rank == minRank.${b.node}) (branchesOf c);
+            in
+            {
+              inherit (grp) key;
+              visible = filter survives grp.members;
+              shadowed = filter (c: !(survives c)) grp.members;
+            }
+          )
+          (
+            groupsInWalkOrder (
               c:
-              let
-                s = map (step: step.label) c.path ++ [ "$" ];
-              in
-              builtins.genList (i: {
-                node = builtins.toJSON (builtins.genList (j: builtins.elemAt s j) i);
-                rank = effectiveOrder.rankOf (builtins.elemAt s i);
-              }) (length s);
-            minRank = builtins.mapAttrs (
-              _: bs: foldl' (m: b: if b.rank < m then b.rank else m) (head bs).rank bs
-            ) (builtins.groupBy (b: b.node) (concatMap branchesOf grp.members));
-            survives = c: builtins.all (b: b.rank == minRank.${b.node}) (branchesOf c);
-          in
-          {
-            inherit (grp) key;
-            visible = filter survives grp.members;
-            shadowed = filter (c: !(survives c)) grp.members;
-          }
-        ) (groupsInWalkOrder (c: def.channel.keyOf c) contributions)
+              returned "viewRelation"
+                "channel ${renderSubject def.name}'s competition key 'keyOf', for the contribution at scope ${renderSubject c.scope},"
+                "a competition key is a string, because contributions sharing a key compete"
+                builtins.isString
+                (def.channel.keyOf c)
+            ) contributions
+          )
       );
 
       # 6a — the SPANNING REFUSAL, and 6b — the PER-GROUP ELEMENT COLLAPSE. AUTHORSHIP-VISIBILITY:
@@ -703,6 +755,8 @@ let
     in
     if !(builtins.isFunction a.marks) then
       refuse "viewRelation" "field 'marks' is ${renderValue a.marks}; it must be a function from a scope id to the list of boundary marks at it"
+    else if formalsOf a.marks != [ ] then
+      refuse "viewRelation" "field 'marks' destructures an attrset (formals: ${quote (formalsOf a.marks)}); it is applied to a scope id, a string, so it can never be applied"
     else
       decided [ def g markOrder ] {
         __element = "viewRelation";

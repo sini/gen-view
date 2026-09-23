@@ -28,7 +28,14 @@ let
   inherit (prelude) map length;
   refusal = import ./refusal.nix { inherit prelude; };
   enums = import ./enumerations.nix { inherit prelude; };
-  inherit (refusal) refuse fields decided;
+  inherit (refusal)
+    refuse
+    fields
+    decided
+    renderValue
+    formalsOf
+    quote
+    ;
 
   refold =
     r: name: contributions:
@@ -115,10 +122,22 @@ let
     in
     if !(builtins.isFunction a.f) then
       refuse "over" "field 'f' must be a function from the contribution sequence to a new sequence"
+    else if formalsOf a.f != [ ] then
+      refuse "over" "field 'f' destructures an attrset (formals: ${quote (formalsOf a.f)}); it is applied to the contribution sequence, a list, so it can never be applied"
     else if !(builtins.isList out) then
       refuse "over" "the rewrite returned a ${builtins.typeOf out}; `over` produces a contribution SEQUENCE, and a result that is not one cannot be folded or traced"
     else
-      decided [ name ] ((refold r name out))
+      decided [ name ] (
+        refold r name (
+          map (
+            c:
+            if builtins.isAttrs c && c ? datum then
+              c
+            else
+              refuse "over" "the rewrite returned a sequence carrying ${renderValue c}; each element is a contribution, and a contribution carries its `datum`"
+          ) out
+        )
+      )
       // {
         # ★ MEASURED, NOT PROMISED. A rewrite that returns the sequence unchanged says so; one that
         # reorders or resizes says that instead, and a consumer whose ordering law cares can read

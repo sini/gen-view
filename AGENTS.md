@@ -130,7 +130,8 @@ file. Its input type is materialized at **construction**, not by a materialized-
 nothing else — except containment: `nodes` must name every endpoint of the declared relation it is
 handed, checked from the contracted value alone and refused BY NAME when it does not. A refusal
 here is `admitsCycle` (Sloane 2009 iterate-to-fixpoint) declining a declared cycle, or `nodes`
-missing an endpoint, or `admitsCycle` itself not being a function, or `admitsCycle` returning a
+missing an endpoint, or `admitsCycle` itself not being a function or destructuring named formals
+(`formalsOf`), or `admitsCycle` returning a
 non-bool for some node — ★ **and that list is NOT EXHAUSTIVE**: `declaredDependencies` is refused
 nominally, `fields` refuses a missing or unknown field, and `strings` refuses four further shapes
 of `nodes`. The enumeration that IS exhaustive is the library's own — the `refuse` calls in

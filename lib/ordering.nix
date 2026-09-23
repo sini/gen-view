@@ -72,6 +72,7 @@ let
     refuse
     fields
     decided
+    formalsOf
     choice
     strings
     attrKey
@@ -369,8 +370,11 @@ let
   # `mkNodeRef` itself TAKES AS A PARAMETER — a verdict about a registered substrate this library
   # does not hold and never constructs. A value that is not a function is
   # refused by name at the door. `builtins.isFunction` narrows the class but does not CLOSE it —
-  # Nix has no reliable arity predicate, so a wrong-arity or wrong-return-type `admitsCycle` still
-  # satisfies it and would otherwise reach `builtins.all` and abort uncatchably. `den-hoag-g8lo`'s
+  # a curried or wrong-return-type `admitsCycle` still satisfies it and would otherwise reach
+  # `builtins.all` and abort uncatchably; the applied-result check below closes those. A lambda
+  # destructuring NAMED formals is decidable at the door (`builtins.functionArgs ({ x }: 1)` is
+  # `{ x = false; }`), and since `admitsCycle` is applied to a string it is refused there by name
+  # (`formalsOf`, den-hoag-0gpyq). `den-hoag-g8lo`'s
   # SHIPPED predicate — its landed state, not the orchestrator's round-4 ruling this header used to
   # quote, which the bead's own record retires as wrong in its specifics — is
   # `isFunction v || (isAttrs v && v ? __functor)`. THIS DOOR IS DELIBERATELY NARROWER, lambda-only:
@@ -379,9 +383,9 @@ let
   # THE DIFFERENCE IS MEASURED: at gen-graph `896433b` — the rev both `flake.lock` and
   # `ci/flake.lock` pin — `builtins.functionArgs graph.mkNodeRef` is `{ isRegistered = false; }`.
   # `mkNodeRef` is ITSELF A PATTERN FORMAL, of shape `{ isRegistered } -> id -> <nodeRef>`, whose
-  # ultimate codomain is a SET and not a bool; it satisfies `isFunction`, passes this door, and
-  # then aborts on application exactly as any other pattern formal does. Naming it as the `id ->
-  # bool` exemplar named a value that lands in the residue this door cannot close.
+  # ultimate codomain is a SET and not a bool; it satisfies `isFunction`, and its named formal is
+  # what the `formalsOf` door refuses by name. Naming it as the `id -> bool` exemplar named a value
+  # this construct can never apply.
   #
   # ★★ THE APPLIED-RESULT CHECK IS TOTAL OVER `nodes`, BY CONSTRUCTION AND NOT BY THE CYCLE TEST'S
   # GOOD BEHAVIOUR. `illTypedAdmissions` below forces `a.admitsCycle n` for EVERY member of `nodes`
@@ -397,8 +401,10 @@ let
   # member of `nodes`, and `condensation` partitions `nodes` — no application site inside
   # `badSccs` is outside the checked set.
   #
-  # ★ IT DOES NOT CLOSE A PATTERN FORMAL (`{ x }: true`, `{ x, ... }: true`), NOR AN `admitsCycle`
-  # WHOSE BODY ABORTS. Such a value still satisfies `isFunction`, and applying it to a string node
+  # ★ IT DOES NOT CLOSE A PATTERN FORMAL THAT `functionArgs` CANNOT SEE (`{ ... }: true`,
+  # `{ }: true` report no formals; `{ x }:` and `{ x, ... }:` are refused by name at the door
+  # above), NOR AN `admitsCycle` WHOSE BODY ABORTS. Such a value still satisfies `isFunction`, and
+  # applying it to a string node
   # identifier aborts UNCATCHABLY while the result is computed, before any check ON that result can
   # run, escaping `builtins.tryEval`. No check on a value can see a failure that happens COMPUTING
   # the value; and a body that throws or aborts of its own accord raises the CALLER's error, which
@@ -464,8 +470,9 @@ let
       );
       # ★ THE APPLIED-RESULT CHECK, HOISTED OUT OF THE CYCLE TEST — see the header above. `filter`
       # forces its predicate over EVERY member of `nodes`, so every admission is typed here
-      # whatever shape the declared relation has, and a pattern formal aborts here rather than
-      # being short-circuited into silence on an acyclic relation.
+      # whatever shape the declared relation has, and a pattern formal the door cannot see
+      # (`{ ... }:`) aborts here rather than being short-circuited into silence on an acyclic
+      # relation.
       illTypedAdmissions = filter (n: !(builtins.isBool admissions.${attrKey n})) nodes;
       # `builtins.all` still SHORT-CIRCUITS at the first `false`, but it can no longer swallow a
       # type refusal: every member of `nodes` is typed above before this is forced, and every SCC
@@ -479,6 +486,8 @@ let
       refuse "boundedWellDefinedSchedule" "field 'nodes' does not contain the declared relation's endpoint(s) ${quote missingEndpoints}; ADR-0008 §3's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`"
     else if !(builtins.isFunction a.admitsCycle) then
       refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must be a function from a node identifier to a bool (`isRegistered`'s shape — the membership authority `mkNodeRef` itself takes); received a ${builtins.typeOf a.admitsCycle}"
+    else if formalsOf a.admitsCycle != [ ] then
+      refuse "boundedWellDefinedSchedule" "field 'admitsCycle' destructures an attrset (formals: ${quote (formalsOf a.admitsCycle)}); it is applied to a node identifier, a string, so it can never be applied"
     else if illTypedAdmissions != [ ] then
       refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must return a bool for every node identifier; for `${builtins.head illTypedAdmissions}` it returned a ${
         builtins.typeOf admissions.${attrKey (builtins.head illTypedAdmissions)}

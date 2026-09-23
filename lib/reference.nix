@@ -181,7 +181,20 @@
 let
   inherit (prelude) filter head;
   refusal = import ./refusal.nix { inherit prelude; };
-  inherit (refusal) refuse fields renderValue;
+  inherit (refusal)
+    refuse
+    fields
+    renderValue
+    returned
+    ;
+
+  # σ's verdict, checked where it is read: the delegate reads it as a branch.
+  admitted =
+    site: resultName: node: v:
+    returned site "result '${resultName}': 'wellFormed' (σ) at node ${nodeLabel node}"
+      "it is a predicate on the authority's node record and must return a bool"
+      builtins.isBool
+      v;
 
   # ── THE TWO HELPERS BOTH CONSTRUCTS SHARE, AT MODULE SCOPE ───────────────────────────────────
   # ★★ ONE GUARD FOR ONE DELEGATE CONVENTION, WHICH IS WHY IT IS LIFTED RATHER THAN COPIED. The
@@ -248,7 +261,7 @@ let
 
       badFlags = filter (f: !(builtins.isBool a.${f})) flagFields;
     in
-    if !(builtins.isAttrs a.engine) || !(a.engine ? query) then
+    if !(builtins.isAttrs a.engine) || !(a.engine ? query) || !(builtins.isFunction a.engine.query) then
       refuse "referenceResolution" "field 'engine' must be a query authority publishing a 'query'; it is the injected membership authority, and this construct performs no resolution of its own"
     else if !(builtins.isString a.name) || a.name == "" then
       refuse "referenceResolution" "field 'name' must be the non-empty name of the result, which is the attribute the evaluator binds it under"
@@ -275,7 +288,11 @@ let
         # defining query rather than inheriting a discipline nobody wrote down.
         compute = a.engine.query {
           dataFilter =
-            n: if a.wellFormed n then requireNonNull "referenceResolution" a.name n (a.project n) else null;
+            n:
+            if admitted "referenceResolution" a.name n (a.wellFormed n) then
+              requireNonNull "referenceResolution" a.name n (a.project n)
+            else
+              null;
           inherit (a) localShadowsImport importShadowsParent transitiveImports;
         };
       };
@@ -303,7 +320,11 @@ let
     let
       a = fields "neededBy" reverseRequired args;
     in
-    if !(builtins.isAttrs a.engine) || !(a.engine ? queryReverse) then
+    if
+      !(builtins.isAttrs a.engine)
+      || !(a.engine ? queryReverse)
+      || !(builtins.isFunction a.engine.queryReverse)
+    then
       refuse "neededBy" "field 'engine' must be a query authority publishing a 'queryReverse'; it is the injected membership authority, and this construct performs no traversal of its own — an authority publishing only the forward 'query' cannot answer the reverse direction"
     else if !(builtins.isString a.name) || a.name == "" then
       refuse "neededBy" "field 'name' must be the non-empty name of the result, which is the attribute the evaluator binds it under"
@@ -328,7 +349,12 @@ let
         # declaration, so the declaration determines its own defining query rather than inheriting
         # a closure discipline nobody wrote down.
         compute = a.engine.queryReverse {
-          dataFilter = n: if a.wellFormed n then requireNonNull "neededBy" a.name n (a.project n) else null;
+          dataFilter =
+            n:
+            if admitted "neededBy" a.name n (a.wellFormed n) then
+              requireNonNull "neededBy" a.name n (a.project n)
+            else
+              null;
           inherit (a) transitive;
         };
       };

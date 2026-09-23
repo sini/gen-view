@@ -71,6 +71,8 @@ let
     refuse
     fields
     decided
+    returned
+    formalsOf
     strings
     attrKey
     quote
@@ -580,8 +582,32 @@ let
       unclassified = filter (
         l: !(c.labels.member l || c.relations.member l || c.relatumLabels.member l)
       ) edgeLabelNames;
+      # Each accessor's RESULT is checked where the walk consumes it: a list, on every label. The
+      # TARGET is checked only on an L label, where `Edges ::= s —l→ s` makes it a scope of this
+      # graph; an R edge's target is a datum (`s —r→ d`) and a Λ edge's is a binding node, both
+      # admitted above as inert, so narrowing their targets would narrow a law this library does not
+      # own. A target is forced to WHNF only when the walk reads it, as it would be unchecked.
       labeled = graph.labeledFrom {
-        perLabel = a.edges;
+        perLabel = builtins.mapAttrs (
+          l: acc: s:
+          let
+            out =
+              returned "scopeGraph" "the edge accessor ${renderSubject l} at scope ${renderSubject s}"
+                "each label's value is the accessor scope → [ scope ]"
+                builtins.isList
+                (acc s);
+          in
+          if !(c.labels.member l) then
+            out
+          else
+            map (
+              t:
+              if builtins.isString t && scopeIndex ? ${builtins.unsafeDiscardStringContext t} then
+                t
+              else
+                refuse "scopeGraph" "the edge accessor ${renderSubject l} at scope ${renderSubject s} returned the target ${renderValue t}, which is not a scope of this graph (${quote scopes}); an L edge is `s —l→ s′` between scopes of the graph"
+            ) out
+        ) a.edges;
         nodes = scopes;
       };
       # `Data ::= s —r→ d` — THREE components and no more. The field set is CLOSED, and that is
@@ -615,6 +641,7 @@ let
       # before this index is ever built.
       indexed = imap0 (i: e: e // { ordinal = i; }) a.data;
       datumsAt = builtins.groupBy (e: attrKey e.scope) indexed;
+      patterned = sortNames (filter (l: formalsOf a.edges.${l} != [ ]) edgeLabelNames);
       nonAccessor = sort builtins.lessThan (
         filter (l: !(builtins.isFunction a.edges.${l})) edgeLabelNames
       );
@@ -633,6 +660,10 @@ let
       refuse "scopeGraph" "a datum is filed under relation ${renderSubject (head offRelation).relation}, which is not a name in R (${quote c.relations.names}); the sort a datum is reached by is declared, and an undeclared one is reachable by no query"
     else if unclassified != [ ] then
       refuse "scopeGraph" "edges carry the label '${head (sort builtins.lessThan unclassified)}', which is in none of the three populations — L (${quote c.labels.letters}), R (${quote c.relations.names}) or Λ (${quote c.relatumLabels.names}); the classification of an edge label is total, and a label outside all three would be walked by nothing and classified as nothing"
+    else if patterned != [ ] then
+      refuse "scopeGraph" "the edge accessor ${renderSubject (head patterned)} destructures an attrset (formals: ${
+        quote (formalsOf a.edges.${head patterned})
+      }); it is applied to a scope id, a string, so it can never be applied"
     else if nonAccessor != [ ] then
       refuse "scopeGraph" "edges carry the label '${head nonAccessor}' bound to ${
         renderValue a.edges.${head nonAccessor}
@@ -679,9 +710,16 @@ let
     else if !(builtins.isString a.scope) then
       refuse "relationEntries" "scope is ${renderValue a.scope}; a scope is named by a string"
     else
-      filter (entry: entry.relation == a.relation && a.wellFormed entry.datum) (
-        g.datumsAt.${attrKey a.scope} or [ ]
-      );
+      filter (
+        entry:
+        entry.relation == a.relation
+        &&
+          returned "relationEntries"
+            "wellFormed (WFD), for the datum at scope ${renderSubject a.scope} under relation ${renderSubject a.relation},"
+            "it is a predicate on data terms and must return a bool"
+            builtins.isBool
+            (a.wellFormed entry.datum)
+      ) (g.datumsAt.${attrKey a.scope} or [ ]);
 
   # `relationLookup` — the datum projection over `relationEntries`. It carries no refusal of its
   # own: every site above belongs to `relationEntries`, the component reading, and this is
