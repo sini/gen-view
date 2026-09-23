@@ -130,7 +130,9 @@ let
     let
       v = materialized "readsOf" "relation" r;
     in
-    unique (map (c: cell c.scope v.name "input") (elements.contributionsOf "readsOf" v));
+    unique (
+      map (c: cell c.scope v.definition.channel.channel "input") (elements.contributionsOf "readsOf" v)
+    );
 
   # `writesOf { relation; target; mode; }` — the cell a placed view relation PRODUCES.
   #
@@ -165,14 +167,14 @@ let
             "output"
           ])
         ]
-      else if target.channel != v.name then
+      else if target.channel != v.definition.channel.channel then
         # ★ THE CROSS-CHECK IS WHAT MAKES THE TYPE CHECK ABOVE LOAD-BEARING RATHER THAN DECORATIVE.
         # A root target carries its own channel, so a caller can name a cell this result does not
         # produce — and the schedule would then be built on an arc nobody has. Refusing the mismatch
         # also forces the materialized-result check, which a binding that were merely declared and
         # never read would leave unevaluated and therefore unrun.
         refuse "writesOf"
-          "the target names channel ${renderSubject target.channel} but the view relation is named ${renderSubject v.name}; a result lands in the cell it is named for, and a target naming another cell would put the schedule's arc where nothing writes"
+          "the target names channel ${renderSubject target.channel} but the view relation is named ${renderSubject v.definition.channel.channel}; a result lands in the cell it is named for, and a target naming another cell would put the schedule's arc where nothing writes"
       else
         let
           t = placement.rootNames "writesOf" target;

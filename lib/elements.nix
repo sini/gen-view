@@ -17,13 +17,20 @@
 # the element TREE plus, per label-population element in it, that list's law — O(|L|·w) for L,
 # w the longest letter, and O(|R|), O(|Λ|) — a constant in the data.
 #
-# ★ WHAT THIS DOES NOT CLOSE, named so nobody reads it as closed: a forged field of the right TYPE
-# carrying the wrong VALUE (a `datumsAt` indexing other data) is the cooperative-caller residue
-# 8rkc names. An operation the library can restate from checked structure is restated and never
-# applied — `member` from the lists above, the walk's `step` and `stateKey` from gen-graph's kernel
-# (l83dk), `scopeGraph.labeled` from `carrier`, `scopes` and `edges` under the constructor's own
-# law (`labeledOf`, den-hoag-cer8j) — so a forged one is a claim nothing here reads; each stays
-# published and is never read. A caller-authored function's RESULT is checked where it is applied
+# ★ WHAT THIS DOES NOT CLOSE, named so nobody reads it as closed: a forged CONTENT field of the
+# right type and the constructor's law (a `data` listing other datums) is the cooperative-caller
+# residue 8rkc names. An operation or value the library can restate from checked structure is
+# restated and never read, save the five named NOT YET RESTATED below — `member` from the lists above, the walk's `step` and `stateKey` from
+# gen-graph's kernel (l83dk), `scopeGraph.labeled` from `carrier`, `scopes` and `edges` under the
+# constructor's own law (`labeledOf`, den-hoag-cer8j), and `datumsAt` from `data`, `expr` from
+# `expression`, L̂ from `letters` and a definition's or relation's `name` from its `channel`, each
+# under its constructor's law (`dataLaw`, `exprOf`, den-hoag-dcvpi) — so a forged one is a claim
+# nothing here reads; each stays published and is never read. ★ NOT YET RESTATED, and so still
+# read as the element carries them although they are derivable from checked structure, not
+# residue: `combine`'s `op`, `unit`, `associative` and `setSemilattice`, fixed by its checked
+# `arm` (and `acc`) through `enums.combines`, and `labelOrder`'s `rankOf`, fixed by `layers` and
+# `endOfPath` under `labelOrder`'s law (den-hoag-6vsvx). A forged one of these answers silently
+# wrong today. A caller-authored function's RESULT is checked where it is applied
 # (den-hoag-0gpyq's class). Other lists' ELEMENTS are checked where they are read (`tupleKey`,
 # `attrKey`, `rankOf`).
 #
@@ -46,7 +53,12 @@
 # fixture's walk at 400 scopes moves by under 1%). On the scheduling path, which does not
 # materialize, `accumulatorOrder` over n units each over its OWN relation costs 1,290 → 5,846
 # calls per unit at n = 400 and 1,326 → 5,881 at n = 4000 (4.4×), linear in n. Reading only `.name`
-# of a relation pays `datumsAt`'s `groupBy` once per graph (4,570 → 7,855 at 400 scopes). There is
+# of a relation builds no data index: `name` is its definition's `channel`, and a relation over a
+# 400-scope graph read that way costs 18,717 calls (18,703 before den-hoag-dcvpi). A relation's
+# datums are indexed once per relation (`entriesOf`), O(|scopes| + |data|). The published
+# `relationEntries` re-indexes on EVERY call, O(|data|) per call, so a consumer calling it once per
+# scope is quadratic: one datum per scope, 1,000 scopes, 498,611 → 12,513,625 calls
+# (den-hoag-dcvpi); one call over a graph, or `viewRelation`, pays the index once. There is
 # no memo: a verdict stored in the element is copied by `//` into a forged `genuine // { f = bad; }`,
 # so it would be a claim too.
 { prelude }:
@@ -298,8 +310,8 @@ let
     unit =
       site: at: e:
       e.target.arm != "root"
-      || e.target.channel == e.relation.name
-      || refuse site "field '${at}' is a unit whose target names channel ${renderValue e.target.channel} but whose relation is named ${renderValue e.relation.name}; a result lands in the cell it is named for";
+      || e.target.channel == e.relation.definition.channel.channel
+      || refuse site "field '${at}' is a unit whose target names channel ${renderValue e.target.channel} but whose relation is named ${renderValue e.relation.definition.channel.channel}; a result lands in the cell it is named for";
   };
 
   check =

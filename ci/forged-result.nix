@@ -184,6 +184,75 @@ let
     )
   ) (builtins.attrNames shapes);
   forgedLabeled = over: f.graph // { labeled = f.graph.labeled // over; };
+  # A derived VALUE is a claim too (den-hoag-dcvpi): every non-function, non-element field of every
+  # shape is classified, and the census cell holds the classification equal to the register.
+  #
+  #   restated  the library derives the value from checked structure and never reads the field
+  #   checked   read, and held to its constructor's law where it is read (at intake or the door)
+  #   declared  the caller's own argument, stored as given; nothing derives it
+  #   unread    derived, published, and read by nothing in the library
+  #   held      derived and read, disposition open (combine's arm-decided fields)
+  valueDisposition = {
+    "combine.acc" = "declared";
+    "combine.arm" = "declared";
+    "combine.associative" = "held";
+    "combine.setSemilattice" = "held";
+    "combine.unit" = "held";
+    "dataOrder.channel" = "declared";
+    "dedup.arm" = "declared";
+    "edgeLabels.extended" = "restated";
+    "edgeLabels.letters" = "checked";
+    "labelOrder.endOfPath" = "declared";
+    "labelOrder.layers" = "declared";
+    "labelWellFormedness.expr" = "restated";
+    "labelWellFormedness.expression" = "checked";
+    "labelWellFormedness.literals" = "unread";
+    "relations.names" = "checked";
+    "relatumLabels.names" = "checked";
+    "scopeGraph.data" = "checked";
+    "scopeGraph.datumsAt" = "restated";
+    "scopeGraph.edges" = "checked";
+    "scopeGraph.labeled" = "restated";
+    "scopeGraph.scopes" = "checked";
+    "target.arm" = "declared";
+    "target.channel" = "declared";
+    "target.scope" = "declared";
+    "tieSet.arm" = "declared";
+    "tieSet.order" = "declared";
+    "unit.mode" = "declared";
+    "viewDefinition.direction" = "declared";
+    "viewDefinition.empty" = "declared";
+    "viewDefinition.name" = "restated";
+    "viewDefinition.relation" = "declared";
+    "viewDefinition.root" = "declared";
+    "viewRelation.name" = "restated";
+  };
+  valueFields = builtins.concatMap (
+    k:
+    let
+      s = shapes.${k} genuine.${k};
+    in
+    map (n: "${k}.${n}") (
+      builtins.filter (n: !(s.${n} ? element) && (s.${n}.what or null) != "a function") (
+        builtins.attrNames s
+      )
+    )
+  ) (builtins.attrNames shapes);
+  forgedDatumsAt = over: f.graph // { datumsAt = over; };
+  entriesAt =
+    g: scope:
+    v.relationEntries {
+      graph = g;
+      inherit scope;
+      relation = "import";
+      wellFormed = _: true;
+    };
+  rootTo =
+    channel:
+    v.placement.targets.root {
+      scope = "leaf";
+      inherit channel;
+    };
   inboundDef = f.mkDefinition {
     direction = "inbound";
     root = "root";
@@ -452,6 +521,94 @@ in
       )) "^gen-view\\.carrier: 'import' is both a letter of L and a name in R;.*$";
 
     # unapplied — a forged result changes nothing the library answers
+    # restated — derived VALUES, from checked structure (den-hoag-dcvpi)
+    test-every-value-field-of-every-shape-has-a-disposition = {
+      expr = builtins.sort builtins.lessThan valueFields;
+      expected = builtins.sort builtins.lessThan (builtins.attrNames valueDisposition);
+    };
+    test-a-forged-datumsAt-answering-nothing-is-inert = inert (viaGraph (forgedDatumsAt { }));
+    test-a-forged-datumsAt-replacing-a-datum-is-inert = inert (
+      viaGraph (
+        forgedDatumsAt (
+          f.graph.datumsAt
+          // {
+            root = [
+              {
+                scope = "root";
+                relation = "import";
+                datum = [ "forged" ];
+                ordinal = 0;
+              }
+            ];
+          }
+        )
+      )
+    );
+    test-a-forged-datumsAt-is-inert-at-relationEntries = {
+      expr = entriesAt (forgedDatumsAt { }) "inc";
+      expected = entriesAt f.graph "inc";
+    };
+    test-forged-data-off-scope-is-refused-at-relationEntries =
+      refused
+        (viaGraph (
+          f.graph
+          // {
+            data = f.graph.data ++ [
+              {
+                scope = "nowhere";
+                relation = "import";
+                datum = 1;
+              }
+            ];
+          }
+        ))
+        "^gen-view\\.relationEntries: a datum of field 'graph\\.data' is filed at scope 'nowhere', which is not a scope of this graph.*$";
+    test-forged-data-carrying-a-walk-field-is-refused-at-relationEntries =
+      refused
+        (viaGraph (
+          f.graph
+          // {
+            data = f.graph.data ++ [
+              {
+                scope = "root";
+                relation = "import";
+                datum = 1;
+                path = [ ];
+              }
+            ];
+          }
+        ))
+        "^gen-view\\.relationEntries: a datum of field 'graph\\.data' carries the fields \\(datum, path, relation, scope\\);.*$";
+    test-a-forged-expr-is-inert = inert (viaDef {
+      admission = f.admission // {
+        expr =
+          (v.labelWellFormedness {
+            alphabet = f.labels;
+            expression = "parent*";
+          }).expr;
+      };
+    });
+    test-a-forged-extended-is-inert = inert (viaDef {
+      order = f.order // {
+        alphabet = f.labels // {
+          extended = f.labels.letters;
+        };
+      };
+    });
+    test-a-forged-definition-name-is-inert = inert (viaDef {
+      name = "other";
+    });
+    test-a-forged-relation-name-is-refused-where-the-genuine-one-is =
+      refused
+        (v.writesOf {
+          relation = f.relation // {
+            name = "other";
+          };
+          target = rootTo "other";
+          mode = "merge";
+        })
+        "^gen-view\\.writesOf: the target names channel 'other' but the view relation is named 'settings';.*$";
+
     test-forged-unapplied-functions-are-inert = inert (viaDef {
       admission = f.admission // {
         accepts = forty2;

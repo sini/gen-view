@@ -162,6 +162,12 @@ let
       def = elementOf "viewRelation" "definition" "viewDefinition" a.definition;
       g = elementOf "viewRelation" "graph" "scopeGraph" a.graph;
       markOrder = elementOf "viewRelation" "orderMark" "labelOrder" a.orderMark;
+      # Restated from checked structure, never read off the element (den-hoag-dcvpi): the parsed
+      # admission, the channel's name, and L̂.
+      expr =
+        carrierLib.exprOf "viewRelation" "definition.admission." def.admission.alphabet
+          def.admission.expression;
+      name = def.channel.channel;
 
       # 1 — direction.
       labeled = labeledOf "viewRelation" "graph." g.carrier g.scopes g.edges;
@@ -218,7 +224,7 @@ let
         mode = "paths";
         graph = bounded;
         from = def.root;
-        follow = def.admission.expr;
+        follow = expr;
       };
 
       # The distance rule's declared contract is `{ distance; from; label; to; } → int`
@@ -231,7 +237,7 @@ let
         if builtins.isInt d then
           d
         else
-          refuse "viewRelation" "channel ${renderSubject def.name} declares a distance rule that returned ${renderValue d} for the step ${renderSubject step.label} from ${renderSubject step.from} to ${renderSubject step.to}; the rule is `{ distance; from; label; to; } → int`, and the projection compares the distances it returns";
+          refuse "viewRelation" "channel ${renderSubject name} declares a distance rule that returned ${renderValue d} for the step ${renderSubject step.label} from ${renderSubject step.from} to ${renderSubject step.to}; the rule is `{ distance; from; label; to; } → int`, and the projection compares the distances it returns";
 
       # Distance and residual derivative state, folded along each witness. The residual state is
       # the admission policy still in force at the arrival — the component the ⟨node,
@@ -253,7 +259,7 @@ let
               })
               {
                 distance = 0;
-                state = def.admission.expr;
+                state = expr;
               }
               ans.path;
         in
@@ -301,7 +307,7 @@ let
           inherit (m) distance path admission;
           inherit (def) relation;
           datum = entry.datum;
-          channel = def.name;
+          channel = name;
           element = {
             producer = m.node;
             inherit (entry) ordinal;
@@ -309,8 +315,9 @@ let
         }) (relationAt m.node)
       ) projected;
 
-      # ★★★ THE LOOKUP IS THE PUBLISHED `relationEntries`, NOT A PRIVATE TWIN OF IT — and that is
-      # the whole of the fix, because the twin was identical BUT FOR THE REFUSAL. Reaching the data
+      # ★★★ THE LOOKUP IS THE PUBLISHED `relationEntries`' OWN DEFINITION, `entriesOf`, NOT A PRIVATE
+      # TWIN OF IT — bound once per relation so the restated index is built once (den-hoag-dcvpi) —
+      # and that is the whole of the fix, because the twin was identical BUT FOR THE REFUSAL. Reaching the data
       # component inline dropped (NR-Rel)'s undeclared-relation check, so a misspelled relation and
       # a declared relation with no datums both answered `[ ]`, indistinguishable in the result.
       # That is the exact failure this library's refusal discipline exists to forbid, reproduced by
@@ -325,10 +332,10 @@ let
       # before this materialization begins and no step of it can add one. The discriminator that
       # used to sit at this line — severing the scope's out-edges to find the walk-independent
       # reading — is gone with the divergence that made two readings possible.
+      entriesAt = carrierLib.entriesOf g;
       relationAt =
         scope:
-        carrierLib.relationEntries {
-          graph = g;
+        entriesAt {
           inherit scope;
           inherit (def) relation wellFormed;
         };
@@ -375,7 +382,7 @@ let
             in
             x0 < y0 || (x0 == y0 && builtins.elemAt x 1 < builtins.elemAt y 1);
           distinct = foldl' (acc: k: if builtins.any (seen: seen == k) acc then acc else acc ++ [ k ]) [ ] (
-            map keyOf q.alphabet.extended
+            map keyOf (q.alphabet.letters ++ [ "$" ])
           );
           ranked = sort lexLess distinct;
           # A layer MAY BE EMPTY, and that is the representation doing its job rather than failing
@@ -398,7 +405,7 @@ let
             map (l: {
               inherit which l;
               rank = o.rankOf l;
-            }) q.alphabet.extended;
+            }) (q.alphabet.letters ++ [ "$" ]);
           nonIntRanks = filter (x: !(builtins.isInt x.rank)) (
             ranksOf "orderMark" markOrder ++ ranksOf "the definition's order" q
           );
@@ -523,7 +530,7 @@ let
             groupsInWalkOrder (
               c:
               returned "viewRelation"
-                "channel ${renderSubject def.name}'s competition key 'keyOf', for the contribution at scope ${renderSubject c.scope},"
+                "channel ${renderSubject name}'s competition key 'keyOf', for the contribution at scope ${renderSubject c.scope},"
                 "a competition key is a string, because contributions sharing a key compete"
                 builtins.isString
                 (def.channel.keyOf c)
@@ -577,7 +584,7 @@ let
             keys = map (g0: (head g0.members).groupKey) groups;
             c0 = (head eg.members).c;
           in
-          refuse "viewRelation" "channel ${renderSubject def.name} declares a competition key that SPLITS one element: the datum authored at scope '${c0.element.producer}' (data entry ${toString c0.element.ordinal}) survives under ${toString (length keys)} competition keys (${quote (map builtins.toJSON keys)}), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived"
+          refuse "viewRelation" "channel ${renderSubject name} declares a competition key that SPLITS one element: the datum authored at scope '${c0.element.producer}' (data entry ${toString c0.element.ordinal}) survives under ${toString (length keys)} competition keys (${quote (map builtins.toJSON keys)}), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived"
         else
           map (
             grp:
@@ -624,7 +631,7 @@ let
         else if def.tieSet.arm == "refuse" then
           (
             if length grp.visible > 1 then
-              refuse "viewRelation" "channel ${renderSubject def.name} declares tieSet 'refuse' and the competition key ${builtins.toJSON grp.key} survives with ${toString (length grp.visible)} contributions, from scopes ${
+              refuse "viewRelation" "channel ${renderSubject name} declares tieSet 'refuse' and the competition key ${builtins.toJSON grp.key} survives with ${toString (length grp.visible)} contributions, from scopes ${
                 quote (map (c: c.scope) grp.visible)
               }; the declaration asked for exactly one"
             else
@@ -640,7 +647,7 @@ let
             unranked = filter (c: rankOfScope c.scope == null) grp.visible;
           in
           if unranked != [ ] then
-            refuse "viewRelation" "channel ${renderSubject def.name} declares tieSet 'orderedFold' whose declared order (${quote def.tieSet.order}) does not rank the contributing scope '${(head unranked).scope}'; the order is total over the surviving set"
+            refuse "viewRelation" "channel ${renderSubject name} declares tieSet 'orderedFold' whose declared order (${quote def.tieSet.order}) does not rank the contributing scope '${(head unranked).scope}'; the order is total over the surviving set"
           else
             grp
             // {
@@ -762,7 +769,7 @@ let
     else
       decided [ def g markOrder ] {
         __element = "viewRelation";
-        name = def.name;
+        name = name;
         definition = def;
         graph = g;
         inherit value shadowed withheld;

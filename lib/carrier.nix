@@ -199,25 +199,10 @@ let
         "expression"
       ] args;
       alphabet = elementOf "labelWellFormedness" "alphabet" "edgeLabels" a.alphabet;
-      expr = graph.regex.parse a.expression;
-      literalsOf =
-        r:
-        if r.t == "lit" then
-          [ r.l ]
-        else if r.t == "star" then
-          literalsOf r.r
-        else if r.t == "seq" || r.t == "alt" then
-          concatMap literalsOf r.rs
-        else
-          [ ];
+      expr = exprOf "labelWellFormedness" "" alphabet a.expression;
       literals = literalsOf expr;
-      foreign = filter (l: !(elem l alphabet.letters)) literals;
     in
-    if !(builtins.isString a.expression) then
-      refuse "labelWellFormedness" "field 'expression' is ${renderValue a.expression}; it must be a path expression over the alphabet, written as a string"
-    else if foreign != [ ] then
-      refuse "labelWellFormedness" "the expression names '${head (sort builtins.lessThan foreign)}', which is not a letter of the alphabet (${quote alphabet.letters}); a path expression ranges over L and a name outside it would match nothing and say nothing"
-    else
+    builtins.seq expr (
       decided [ alphabet ] {
         __element = "labelWellFormedness";
         inherit alphabet literals expr;
@@ -227,7 +212,37 @@ let
         step = label: state: graph.regex.deriv label state;
         accepts = state: graph.regex.nullable state;
         stateKey = state: graph.regex.stateKey state;
-      };
+      }
+    );
+
+  literalsOf =
+    r:
+    if r.t == "lit" then
+      [ r.l ]
+    else if r.t == "star" then
+      literalsOf r.r
+    else if r.t == "seq" || r.t == "alt" then
+      concatMap literalsOf r.rs
+    else
+      [ ];
+
+  # `exprOf site at alphabet expression` — the parsed admission expression, under the
+  # constructor's own law. The constructor and every reader run THIS, never an `expr` an element
+  # carries (den-hoag-dcvpi), so a forged `expr` is inert. O(|expression|), a constant in the data.
+  exprOf =
+    site: at: alphabet: expression:
+    let
+      expr = graph.regex.parse expression;
+      foreign = filter (l: !(elem l alphabet.letters)) (literalsOf expr);
+    in
+    if !(builtins.isString expression) then
+      refuse site "field '${at}expression' is ${renderValue expression}; it must be a path expression over the alphabet, written as a string"
+    else if foreign != [ ] then
+      refuse site "${
+        if at == "" then "the expression" else "field '${at}expression'"
+      } names '${head (sort builtins.lessThan foreign)}', which is not a letter of the alphabet (${quote alphabet.letters}); a path expression ranges over L and a name outside it would match nothing and say nothing"
+    else
+      expr;
 
   # ── < — the label order ─────────────────────────────────────────────────────────────────────
   # Fig. 1: `<l ⊆ L̂ × L̂`, a STRICT PARTIAL ORDER over the EXTENDED alphabet. The declaration is a
@@ -598,6 +613,61 @@ let
     else
       builtins.seq (builtins.length scopes) labeled;
 
+  # `dataLaw site at c scopes data` — the data component under the constructor's own law, returned
+  # unchanged. The constructor and every reader run THIS and index what it returns (`indexData`),
+  # never a `datumsAt` an element carries (den-hoag-dcvpi), so a forged `datumsAt` is inert and a
+  # forged `data` meets the constructor's refusals at the reading door. `scopes` must already be
+  # checked (`strings`). O(|data|) plus O(|scopes|) for the scope index.
+  dataLaw =
+    site: at: c: scopes: data:
+    let
+      fieldName = n: if at == "" then n else "field '${at}${n}'";
+      aDatum = if at == "" then "a datum" else "a datum of field '${at}data'";
+      # `Data ::= s —r→ d` — THREE components and no more. The field set is CLOSED, and that is
+      # what makes a walk answer unsayable here: a contribution carries `path`, `admission`,
+      # `distance` and `channel` besides, so it is refused in a data position BY NAME rather than
+      # silently accepted and carried into competition.
+      datumFields = [
+        "scope"
+        "relation"
+        "datum"
+      ];
+      malformed = filter (
+        e:
+        !(builtins.isAttrs e)
+        || sort builtins.lessThan (builtins.attrNames e) != sort builtins.lessThan datumFields
+      ) (if builtins.isList data then data else [ ]);
+      scopeIndex = genAttrs (map builtins.unsafeDiscardStringContext scopes) (_: null);
+      offScope = filter (
+        e: !(builtins.isString e.scope && scopeIndex ? ${builtins.unsafeDiscardStringContext e.scope})
+      ) (if builtins.isList data then data else [ ]);
+      offRelation = filter (e: !(elem e.relation c.relations.names)) (
+        if builtins.isList data then data else [ ]
+      );
+    in
+    if builtins.isFunction data then
+      refuse site "${fieldName "data"} is a FUNCTION; it must be a plain list of datums `[ { scope; relation; datum; } ]`. In the calculus `data(G)` is a COMPONENT of the graph, so a datum is in it or it is not and no traversal can put one there — a function is what let the substrate's own accessor re-emit, which is the one shape the component form exists to remove"
+    else if !(builtins.isList data) then
+      refuse site "${fieldName "data"} must be a list of datums `[ { scope; relation; datum; } ]` — Fig. 1's `Data ::= s —r→ d`, the ⟨scopes, edges, data⟩ triple's third component"
+    else if malformed != [ ] then
+      refuse site "${aDatum} carries the fields (${quote (builtins.attrNames (head malformed))}); a datum is exactly `{ scope; relation; datum; }` and the field set is closed. A WALK ANSWER CANNOT BE A DATUM: a contribution carries its path, its residual admission state and its distance, none of which a component of the graph can hold — strip it to the three fields and you have authored one"
+    else if offScope != [ ] then
+      refuse site "${aDatum} is filed at scope ${renderSubject (head offScope).scope}, which is not a scope of this graph (${quote scopes})"
+    else if offRelation != [ ] then
+      refuse site "${aDatum} is filed under relation ${renderSubject (head offRelation).relation}, which is not a name in R (${quote c.relations.names}); the sort a datum is reached by is declared, and an undeclared one is reachable by no query"
+    else
+      data;
+
+  # `indexData data` — the per-scope index of a CHECKED data component (`dataLaw`'s result), DERIVED
+  # and never a second source: `data` remains the component the figure names, and this is how it is
+  # read.
+  #
+  # `ordinal` is the entry's position in `data` AS AUTHORED — indexed here, at the component, never
+  # in a materialization: an author's own declaration is one coordinate regardless of how many paths
+  # later reach it. It is stamped over data `dataLaw` has already checked, so an authored `ordinal`
+  # field is refused by name (the closed set is the three) before this index is ever built.
+  indexData = data: builtins.groupBy (e: attrKey e.scope) (imap0 (i: e: e // { ordinal = i; }) data);
+
   scopeGraph =
     args:
     let
@@ -616,82 +686,32 @@ let
       # admitted above as inert, so narrowing their targets would narrow a law this library does not
       # own. A target is forced to WHNF only when the walk reads it, as it would be unchecked.
       labeled = labeledOf "scopeGraph" "" c a.scopes a.edges;
-      # `Data ::= s —r→ d` — THREE components and no more. The field set is CLOSED, and that is
-      # what makes a walk answer unsayable here: a contribution carries `path`, `admission`,
-      # `distance` and `channel` besides, so it is refused in a data position BY NAME rather than
-      # silently accepted and carried into competition.
-      datumFields = [
-        "scope"
-        "relation"
-        "datum"
-      ];
-      malformed = filter (
-        e:
-        !(builtins.isAttrs e)
-        || sort builtins.lessThan (builtins.attrNames e) != sort builtins.lessThan datumFields
-      ) (if builtins.isList a.data then a.data else [ ]);
-      scopeIndex = genAttrs (map builtins.unsafeDiscardStringContext scopes) (_: null);
-      offScope = filter (
-        e: !(builtins.isString e.scope && scopeIndex ? ${builtins.unsafeDiscardStringContext e.scope})
-      ) (if builtins.isList a.data then a.data else [ ]);
-      offRelation = filter (e: !(elem e.relation c.relations.names)) (
-        if builtins.isList a.data then a.data else [ ]
-      );
-      # The per-scope index, DERIVED once and shared. It is a projection of the component, never a
-      # second source: `data` remains the component the figure names, and this is how it is read.
-      #
-      # `ordinal` is the entry's position in `data` AS AUTHORED — indexed here, at the component,
-      # never in a materialization: an author's own declaration is one coordinate regardless of
-      # how many paths later reach it. It is stamped AFTER the checks above run over the raw
-      # `a.data`, so an authored `ordinal` field is refused by name (the closed set is the three)
-      # before this index is ever built.
-      indexed = imap0 (i: e: e // { ordinal = i; }) a.data;
-      datumsAt = builtins.groupBy (e: attrKey e.scope) indexed;
+      data = dataLaw "scopeGraph" "" c scopes a.data;
+      datumsAt = indexData data;
     in
-    if builtins.isFunction a.data then
-      refuse "scopeGraph" "data is a FUNCTION; it must be a plain list of datums `[ { scope; relation; datum; } ]`. In the calculus `data(G)` is a COMPONENT of the graph, so a datum is in it or it is not and no traversal can put one there — a function is what let the substrate's own accessor re-emit, which is the one shape the component form exists to remove"
-    else if !(builtins.isList a.data) then
-      refuse "scopeGraph" "data must be a list of datums `[ { scope; relation; datum; } ]` — Fig. 1's `Data ::= s —r→ d`, the ⟨scopes, edges, data⟩ triple's third component"
-    else if malformed != [ ] then
-      refuse "scopeGraph" "a datum carries the fields (${quote (builtins.attrNames (head malformed))}); a datum is exactly `{ scope; relation; datum; }` and the field set is closed. A WALK ANSWER CANNOT BE A DATUM: a contribution carries its path, its residual admission state and its distance, none of which a component of the graph can hold — strip it to the three fields and you have authored one"
-    else if offScope != [ ] then
-      refuse "scopeGraph" "a datum is filed at scope ${renderSubject (head offScope).scope}, which is not a scope of this graph (${quote scopes})"
-    else if offRelation != [ ] then
-      refuse "scopeGraph" "a datum is filed under relation ${renderSubject (head offRelation).relation}, which is not a name in R (${quote c.relations.names}); the sort a datum is reached by is declared, and an undeclared one is reachable by no query"
-    else
+    builtins.seq data (
       builtins.seq labeled decided [ c scopes ] {
         __element = "scopeGraph";
         carrier = c;
         inherit scopes labeled datumsAt;
         inherit (a) edges data;
-      };
+      }
+    );
 
-  # ── (NR-Rel) — the relation is reached ONCE, AT THE END of the path ─────────────────────────
-  # From `G ⊢ p : s ↠ s′` and `s′ —r→ d ∈ data(G)` with `WFL ⊢ p ok` and `d ∈ WFD`, conclude
-  # `WFD, WFL, G ⊢ p : s —r→ d`. This binding is the second premise and the conclusion's datum
-  # component: given a reached scope, the relation and the data-term well-formedness predicate, it
-  # yields the datums. The path premise belongs to the walk and is discharged there.
-  #
-  # ★ AN UNKNOWN RELATION IS REFUSED BY NAME rather than yielding the empty list, because the two
-  # are indistinguishable in an answer and must not be indistinguishable in a diagnostic: a
-  # misspelled relation that gathered nothing looks exactly like a relation with no datums.
-  #
-  # ★★ IT READS THE COMPONENT AND TAKES NO GRAPH-TO-READ-IT-AGAINST, because there is only one
-  # reading. The earlier signature carried a `labeled` argument so a caller could pass a modified
-  # graph and get a different answer at the same scope — which is the walk-dependence the component
-  # shape removes. A membership test against a value has no such parameter, and its absence is what
-  # makes the rule total.
-  relationEntries =
-    args:
+  # `entriesOf g` — (NR-Rel) over ONE graph, restated from its checked structure: the index is built
+  # once per `entriesOf g` and every scope reads it. `relationEntries` is this at one scope, and
+  # `viewRelation` binds it once per relation, so both run the one definition and its refusals and
+  # a materialization pays the data law once, not once per reached scope.
+  entriesOf =
+    g:
     let
-      a = fields "relationEntries" [
-        "graph"
-        "scope"
-        "relation"
-        "wellFormed"
-      ] args;
-      g = elementOf "relationEntries" "graph" "scopeGraph" a.graph;
+      datumsAt = indexData (
+        dataLaw "relationEntries" "graph." g.carrier (strings "relationEntries" "field 'graph.scopes'"
+          g.scopes
+        ) g.data
+      );
     in
+    a:
     if !(elem a.relation g.carrier.relations.names) then
       refuse "relationEntries" "${renderSubject a.relation} is not a name in R (${quote g.carrier.relations.names}); an undeclared relation is refused rather than answered empty, because an empty answer cannot be told from a relation with no datums"
     else if !(builtins.isFunction a.wellFormed) then
@@ -709,7 +729,40 @@ let
             "it is a predicate on data terms and must return a bool"
             builtins.isBool
             (a.wellFormed entry.datum)
-      ) (g.datumsAt.${attrKey a.scope} or [ ]);
+      ) (datumsAt.${attrKey a.scope} or [ ]);
+
+  # ── (NR-Rel) — the relation is reached ONCE, AT THE END of the path ─────────────────────────
+  # From `G ⊢ p : s ↠ s′` and `s′ —r→ d ∈ data(G)` with `WFL ⊢ p ok` and `d ∈ WFD`, conclude
+  # `WFD, WFL, G ⊢ p : s —r→ d`. This binding is the second premise and the conclusion's datum
+  # component: given a reached scope, the relation and the data-term well-formedness predicate, it
+  # yields the datums. The path premise belongs to the walk and is discharged there.
+  #
+  # ★ AN UNKNOWN RELATION IS REFUSED BY NAME rather than yielding the empty list, because the two
+  # are indistinguishable in an answer and must not be indistinguishable in a diagnostic: a
+  # misspelled relation that gathered nothing looks exactly like a relation with no datums.
+  #
+  # ★★ IT READS THE COMPONENT AND TAKES NO GRAPH-TO-READ-IT-AGAINST, because there is only one
+  # reading. The earlier signature carried a `labeled` argument so a caller could pass a modified
+  # graph and get a different answer at the same scope — which is the walk-dependence the component
+  # shape removes. A membership test against a value has no such parameter, and its absence is what
+  # makes the rule total.
+  #
+  # ★ COST: each call restates the graph's index from `data` (`entriesOf g`), O(|scopes| + |data|)
+  # PER CALL, because a forged `datumsAt` is a claim and a memo stored in the element would be one
+  # too. One call per scope over one graph is therefore quadratic — one datum per scope at 1,000
+  # scopes, 498,611 → 12,513,625 calls (den-hoag-dcvpi). `viewRelation` binds `entriesOf g` once
+  # per relation and does not pay this.
+  relationEntries =
+    args:
+    let
+      a = fields "relationEntries" [
+        "graph"
+        "scope"
+        "relation"
+        "wellFormed"
+      ] args;
+    in
+    entriesOf (elementOf "relationEntries" "graph" "scopeGraph" a.graph) a;
 
   # `relationLookup` — the datum projection over `relationEntries`. It carries no refusal of its
   # own: every site above belongs to `relationEntries`, the component reading, and this is
@@ -728,6 +781,8 @@ in
     carrier
     scopeGraph
     labeledOf
+    exprOf
+    entriesOf
     relationLookup
     relationEntries
     elementOf
