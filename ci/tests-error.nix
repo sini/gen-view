@@ -486,6 +486,46 @@ in
 
     # ── THE MATERIALIZATION'S REFUSALS NAME THE CHANNEL AND THE CAUSE ──
     flake.testsError.materialization-refusals = {
+      # ★ NOT A REFUSAL THIS LIBRARY CHOSE — den-hoag-kunjm's held abort, pinned so that
+      # den-hoag-eunp3's address change is seen NOT to remove it: a function-bearing datum that
+      # also carries string context now reaches the context abort instead of the lambda abort.
+      # kunjm's landing flips this cell.
+      test-a-function-bearing-datum-with-string-context-still-reaches-the-context-abort = {
+        expr =
+          let
+            m = { config, ... }: { };
+            p = builtins.toFile "eunp3-ctx" "x";
+            datum = scope: {
+              inherit scope;
+              relation = "import";
+              datum = [
+                m
+                p
+              ];
+            };
+            r = v.viewRelation {
+              definition = f.mkDefinition {
+                order = f.flatOrder;
+                dedup = v.dedups.byDatum;
+              };
+              graph = v.scopeGraph {
+                inherit (f) carrier scopes edges;
+                data = [
+                  (datum "inc")
+                  (datum "mid")
+                ];
+              };
+              marks = f.noMarks;
+              orderMark = f.identityMark;
+            };
+          in
+          builtins.length r.contributions;
+        expectedError = {
+          type = "EvalError";
+          msg = "is not allowed to refer to a store path";
+        };
+      };
+
       # `refuse` names the channel, the count and the contributing scopes — the material a caller
       # needs to resolve the tie, not the verdict that one exists.
       test-a-refused-tie-names-the-channel-and-the-tied-scopes = {

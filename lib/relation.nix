@@ -107,6 +107,33 @@ let
       members = grouped.${k};
     }) (unique (map keyOf xs));
 
+  # `bucketAddress x` — step 8's bucket address: `toJSON` over `x` with every LAMBDA replaced by
+  # one constant tag. The tag is an ADDRESS, not ADR-0034's type-tagged encoding and not a mint:
+  # it selects a bucket and never decides; `same`, Nix `==`, decides. All it owes is to coarsen
+  # `==` (`a == b` implies equal addresses), which one tag for every lambda does. ADR-0034's
+  # "until it does, that component's collapse is replaced by a refusal rather than by a
+  # structural identity" does not reach here: what it refuses is an IDENTITY, and this address
+  # mints none (it is also why nothing here is refused: nothing demands an identity).
+  # A function-free value addresses byte-identically to `toJSON`. `__toString` is left whole
+  # because `toJSON` CALLS it; `outPath` needs no case, because `mapAttrs` is lazy and `toJSON`
+  # reads only `outPath` from the tagged set — so a derivation, which refers to itself, is never
+  # walked.
+  bucketAddress =
+    x:
+    let
+      tag =
+        v:
+        if builtins.isFunction v then
+          { __lambda = null; }
+        else if builtins.isList v then
+          map tag v
+        else if builtins.isAttrs v then
+          if v ? __toString then v else builtins.mapAttrs (_: tag) v
+        else
+          v;
+    in
+    builtins.toJSON (tag x);
+
   viewRelation =
     args:
     let
@@ -490,7 +517,7 @@ let
       dedupKey =
         c:
         if def.dedup.arm == "byDatum" then
-          builtins.toJSON c.datum
+          bucketAddress c.datum
         else if def.dedup.arm == "byKey" then
           def.dedup.keyOf c
         else
@@ -518,8 +545,26 @@ let
           # means Nix `==`. Deciding on `builtins.toJSON` instead would record a drop asserting a
           # duplicate that does not exist: `toJSON` serialises an `outPath`/`__toString` attrset as
           # its string coercion, so `{ outPath = "X"; }` and `"X"` — Nix-distinct — encode alike.
-          # The bucket scan is not the rescan rejected above: bucket size is 1 for every input that
-          # does not collide in the encoding, so the asymptotics are unchanged.
+          # The bucket scan is not the rescan rejected above for function-free data: bucket size is 1
+          # for every such input that does not collide in the encoding, and those pay nothing extra.
+          #
+          # ★ FUNCTION-BEARING DATA COST Θ(b²), AND THAT IS A FLOOR. `bucketAddress` gives every
+          # lambda one tag, so function-bearing survivors of one function-free skeleton share an
+          # address and `same` is scanned pairwise within it: Θ(b²) comparisons for b such
+          # survivors. No construction does better: the substrate has no function identity to
+          # address by (`toJSON`, `toString` and `hashString` all reject a lambda), and deciding
+          # duplicates with an equality test alone needs pairwise comparisons in the worst case
+          # (element distinctness under an equality-only oracle). Measured step-8 increment over
+          # `dedups.none` at 2000 / 4000 / 8000 such data: 0.61 s / 2.46 s / 11.1 s.
+          #
+          # ★ `==` OVER A LAMBDA IS CONSERVATIVE EQUALITY (Palmer 2024 §2.3): true only where the
+          # lambdas are one binding (Nix compares by pointer first), false otherwise. A false only
+          # keeps both, so every recorded drop stays licensed. A shared binding INSIDE a list or an
+          # attrset collapses; a BARE lambda datum never does (`f == f` is false).
+          #
+          # ★ UNDER `byDatum`, `dropped.key` IS A BUCKET ADDRESS, NOT AN IDENTITY: two distinct
+          # closures both read `[{"__lambda":null}]`. Do not key drops by it — ADR-0034 gives sealed
+          # content no identity.
           #
           # ★ THE BOUND, stated where the construction is: `toJSON` is not a congruence for Nix
           # `==` (`1 == 1.0` is true while the encodings differ), so two data the declaration calls
@@ -536,7 +581,7 @@ let
               in
               {
                 inherit i c k;
-                idx = builtins.toJSON k;
+                idx = bucketAddress k;
               }
             ) (length surviving);
             same = t: s: if def.dedup.arm == "byDatum" then t.c.datum == s.c.datum else t.k == s.k;

@@ -259,6 +259,60 @@ let
     (coercionDatum "mid" [ "b" ])
   ];
 
+  # ── FUNCTION-BEARING DATA (den-hoag-eunp3) — a NixOS module is a function ──
+  # `sharedModule` is ONE binding, so `[ sharedModule ] == [ sharedModule ]` is TRUE (Nix compares
+  # list elements by pointer first); two literals of the same text are two closures and Nix `==`
+  # calls them unequal. Both are Nix's `==`, which is the relation `dedups.byDatum` declares.
+  sharedModule = { config, ... }: { };
+  fnSharedData = [
+    (coercionDatum "inc" [ sharedModule ])
+    (coercionDatum "mid" [ sharedModule ])
+  ];
+  fnFreshData = [
+    (coercionDatum "inc" [ ({ config, ... }: { }) ])
+    (coercionDatum "mid" [ ({ config, ... }: { }) ])
+  ];
+  # den's aspect shape: a module under a class key. The address must reach a lambda through an
+  # attrset as well as through a list.
+  fnAttrData = [
+    (coercionDatum "inc" [ { nixos = sharedModule; } ])
+    (coercionDatum "mid" [ { nixos = sharedModule; } ])
+  ];
+  fnMixedData = [
+    (coercionDatum "inc" [ sharedModule ])
+    (coercionDatum "mid" [ "X" ])
+  ];
+  # A derivation-shaped datum that refers to ITSELF, as every real derivation does (`out`). The
+  # address must stop at `outPath` where `toJSON` stops, or it walks this forever.
+  selfDrv =
+    let
+      d = {
+        type = "derivation";
+        outPath = "/nix/store/eunp3-self";
+        out = d;
+      };
+    in
+    d;
+  drvData = [
+    (coercionDatum "inc" [ selfDrv ])
+    (coercionDatum "mid" [ selfDrv ])
+  ];
+  # `toJSON` CALLS `__toString`, so the address must leave that function in place.
+  toStringData = [
+    (coercionDatum "inc" [ { __toString = _: "X"; } ])
+    (coercionDatum "mid" [ "X" ])
+  ];
+  # `dropped.key` under `byDatum` is the datum's bucket address — read raw, not through the oracle.
+  byDatumKeys =
+    data:
+    map (d: d.key)
+      (v.viewRelation {
+        definition = coercionDef { dedup = v.dedups.byDatum; };
+        graph = coercionGraph data;
+        marks = f.noMarks;
+        orderMark = f.identityMark;
+      }).dropped;
+
   # THE PREDICATE, read off the RESULT alone: `definition` is carried inside `viewRelation`'s
   # return, so the cell needs nothing the caller did not already hand it.
   noFalseDedup =
@@ -1148,6 +1202,105 @@ in
         holds = true;
         refused = false;
       };
+    };
+
+    # ══════════════════════════════════════════════════════════════════════════════════════
+    # ── A FUNCTION-BEARING DATUM IS DEDUPED BY `==`, NEVER ABORTED ON (den-hoag-eunp3) ──
+    #
+    # The bucket address was `toJSON`, which aborts on a lambda where `tryEval` cannot hold it. A
+    # lambda gets no identity in the address — one constant tag — and `==` still decides.
+    #
+    # ★ `refused = false` is pinned at `byDatum`, as for the coercion cells above: refusing a
+    # function-bearing datum narrows what the view can carry. ★ The shared cell is what separates
+    # this construction from one that never collapses a function-bearing datum: under `==` the
+    # shared pair IS a duplicate.
+    test-the-function-bearing-fixture-puts-two-survivors-into-the-dedup-step = {
+      expr = dedupNoneOn fnSharedData;
+      expected = {
+        kept = 2;
+        dropped = 0;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    test-a-shared-function-bearing-datum-collapses-under-nix-equality = {
+      expr = byDatumOn fnSharedData;
+      expected = {
+        kept = 1;
+        dropped = 1;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    test-a-shared-module-under-a-class-key-collapses-under-nix-equality = {
+      expr = byDatumOn fnAttrData;
+      expected = {
+        kept = 1;
+        dropped = 1;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    test-function-bearing-datums-nix-equality-separates-are-both-kept = {
+      expr = byDatumOn fnFreshData;
+      expected = {
+        kept = 2;
+        dropped = 0;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    test-a-function-bearing-datum-is-not-deduped-into-a-plain-one = {
+      expr = byDatumOn fnMixedData;
+      expected = {
+        kept = 2;
+        dropped = 0;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    test-a-self-referential-derivation-datum-is-addressed-at-its-outpath = {
+      expr = byDatumOn drvData;
+      expected = {
+        kept = 1;
+        dropped = 1;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    test-a-tostring-datum-is-addressed-through-its-coercion-and-kept-apart = {
+      expr = byDatumOn toStringData;
+      expected = {
+        kept = 2;
+        dropped = 0;
+        holds = true;
+        refused = false;
+      };
+    };
+
+    # ★ THE ADDRESS IS `toJSON` BYTE-FOR-BYTE ON FUNCTION-FREE DATA, and a lambda reads as one tag.
+    test-a-bydatum-drop-records-the-datum-address-as-its-key = {
+      expr = {
+        plain = byDatumKeys identicalData;
+        function = byDatumKeys fnSharedData;
+      };
+      expected = {
+        plain = [ (builtins.toJSON [ "X" ]) ];
+        function = [ ''[{"__lambda":null}]'' ];
+      };
+    };
+
+    # The same address serves `byKey`. `refused` is NOT pinned here, for the reason the coercible
+    # caller-key cell gives: whether a deciding key must be a String is open above this arm.
+    test-a-function-bearing-caller-key-dedups-without-aborting = {
+      expr = (byKeyWith (_: [ sharedModule ])).holds;
+      expected = true;
     };
 
     # ── THE GROUPS EMIT IN WALK-FIRST KEY ORDER ──
