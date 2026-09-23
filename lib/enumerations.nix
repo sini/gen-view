@@ -16,7 +16,12 @@
 let
   inherit (prelude) unique;
   refusal = import ./refusal.nix { inherit prelude; };
-  inherit (refusal) refuse fields strings;
+  inherit (refusal)
+    refuse
+    fields
+    strings
+    renderSubject
+    ;
 
   # ── COMBINES ────────────────────────────────────────────────────────────────────────────────
   # Each arm declares: its binary operation, its UNIT, whether it is ASSOCIATIVE, and whether it
@@ -171,7 +176,7 @@ let
       go = ys: if builtins.length ys == 1 then builtins.head ys else go (pairUp ys);
     in
     if combine.associative != true then
-      refuse "foldCombine" "the combine arm '${combine.arm}' does not declare associative = true; step 9 re-brackets its fold, which B5 (gen-pipe L1) licenses under an associative-only combine and no other"
+      refuse "foldCombine" "the combine arm ${renderSubject combine.arm} does not declare associative = true; step 9 re-brackets its fold, which B5 (gen-pipe L1) licenses under an associative-only combine and no other"
     else
       go ([ empty ] ++ xs);
 

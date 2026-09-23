@@ -33,7 +33,13 @@ let
   refusal = import ./refusal.nix { inherit prelude; };
   carrierLib = import ./carrier.nix { inherit prelude graph; };
   enums = import ./enumerations.nix { inherit prelude; };
-  inherit (refusal) refuse fields quote;
+  inherit (refusal)
+    refuse
+    fields
+    quote
+    renderValue
+    renderSubject
+    ;
   inherit (carrierLib) elementOf;
 
   required = [
@@ -92,7 +98,7 @@ let
     else if !(builtins.isString a.root) || a.root == "" then
       refuse "viewDefinition" "field 'root' must be a non-empty scope id"
     else if !(elem a.direction enums.directions) then
-      refuse "viewDefinition" "field 'direction' is ${builtins.toJSON a.direction}, which is not one of the declared arms (${quote enums.directions})"
+      refuse "viewDefinition" "field 'direction' is ${renderValue a.direction}, which is not one of the declared arms (${quote enums.directions})"
     else if !(builtins.isFunction a.wellFormed) then
       refuse "viewDefinition" "field 'wellFormed' must be a predicate on data terms; it is WFD, the parameter that decides whether the datum at the path's end is the one being looked for"
     else if !(builtins.isFunction a.distance) then
@@ -100,15 +106,15 @@ let
     else if admission.alphabet.letters != order.alphabet.letters then
       refuse "viewDefinition" "'admission' and 'order' are built over different alphabets (${quote admission.alphabet.letters} vs ${quote order.alphabet.letters}); one definition has one L"
     else if !(elem tieSet.arm enums.tieSetArms) then
-      refuse "viewDefinition" "field 'tieSet' names '${tieSet.arm}', which is not one of the declared arms (${quote enums.tieSetArms})"
+      refuse "viewDefinition" "field 'tieSet' names ${renderSubject tieSet.arm}, which is not one of the declared arms (${quote enums.tieSetArms})"
     else if !(elem combine.arm enums.combineArms) then
-      refuse "viewDefinition" "field 'combine' names '${combine.arm}', which is not one of the whitelisted arms (${quote enums.combineArms}); an arbitrary caller-supplied function is not admissible, because the ascending chain condition is undecidable from one"
+      refuse "viewDefinition" "field 'combine' names ${renderSubject combine.arm}, which is not one of the whitelisted arms (${quote enums.combineArms}); an arbitrary caller-supplied function is not admissible, because the ascending chain condition is undecidable from one"
     else if combine.setSemilattice && !(builtins.isBool combine.acc) then
       refuse "viewDefinition" "field 'combine' names the set-semilattice arm '${combine.arm}' with no declared ACC flag; write `combines.${combine.arm} { acc = <bool>; }`"
     else if a.empty != combine.unit then
-      refuse "viewDefinition" "field 'empty' is ${builtins.toJSON a.empty}, which is not the unit of the declared combine arm '${combine.arm}' (${builtins.toJSON combine.unit}); a fold whose seed is not its operation's unit is not the fold it declares"
+      refuse "viewDefinition" "field 'empty' is ${renderValue a.empty}, which is not the unit of the declared combine arm '${combine.arm}' (${renderValue combine.unit}); a fold whose seed is not its operation's unit is not the fold it declares"
     else if !(elem dedup.arm enums.dedupArms) then
-      refuse "viewDefinition" "field 'dedup' names '${dedup.arm}', which is not one of the declared arms (${quote enums.dedupArms})"
+      refuse "viewDefinition" "field 'dedup' names ${renderSubject dedup.arm}, which is not one of the declared arms (${quote enums.dedupArms})"
     else
       {
         __element = "viewDefinition";

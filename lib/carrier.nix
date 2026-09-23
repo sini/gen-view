@@ -71,6 +71,8 @@ let
     fields
     strings
     quote
+    renderValue
+    renderSubject
     ;
 
   # A label is a word in gen-graph's parse alphabet. This is not decoration: `regex.stateKey`
@@ -310,7 +312,7 @@ let
     else if foreign != [ ] then
       refuse "labelOrder" "layers rank '${head (sort builtins.lessThan foreign)}', which is not a letter of the alphabet (${quote alphabet.letters})"
     else if missing != [ ] then
-      refuse "labelOrder" "letter '${head (sort builtins.lessThan missing)}' is not ranked; the label order is total over the alphabet, and an unranked letter would otherwise take a default rank nobody declared"
+      refuse "labelOrder" "letter ${renderSubject (head (sort builtins.lessThan missing))} is not ranked; the label order is total over the alphabet, and an unranked letter would otherwise take a default rank nobody declared"
     else
       {
         __element = "labelOrder";
@@ -422,7 +424,7 @@ let
     else
       refuse site "field '${field}' is not a ${element} carrier element (found ${
         if builtins.isAttrs value then
-          "an attrset tagged ${builtins.toJSON (value.__element or null)}"
+          "an attrset tagged ${renderValue (value.__element or null)}"
         else
           "a ${builtins.typeOf value}"
       }); build it with `${element}` so the element's own refusals have already run";
@@ -474,11 +476,11 @@ let
     else if ord.alphabet.letters != labels.letters then
       refuse "carrier" "labelOrder is built over a different alphabet than `labels` (${quote ord.alphabet.letters} vs ${quote labels.letters}); one carrier has one L"
     else if lr != [ ] then
-      refuse "carrier" "'${head (sort builtins.lessThan lr)}' is both a letter of L and a name in R; the sorts are disjoint, because the walk steps only on structural letters and a content name reached at the path's end can never enter the label word"
+      refuse "carrier" "${renderSubject (head (sort builtins.lessThan lr))} is both a letter of L and a name in R; the sorts are disjoint, because the walk steps only on structural letters and a content name reached at the path's end can never enter the label word"
     else if llam != [ ] then
-      refuse "carrier" "'${head (sort builtins.lessThan llam)}' is both a letter of L and a relatum label in Λ; the populations are disjoint, because a role label that is also a letter would make a binding's incident edge WALKABLE and the inertness that keeps a binding out of the traversal would be false"
+      refuse "carrier" "${renderSubject (head (sort builtins.lessThan llam))} is both a letter of L and a relatum label in Λ; the populations are disjoint, because a role label that is also a letter would make a binding's incident edge WALKABLE and the inertness that keeps a binding out of the traversal would be false"
     else if rlam != [ ] then
-      refuse "carrier" "'${head (sort builtins.lessThan rlam)}' is both a name in R and a relatum label in Λ; the populations are disjoint, because an edge carrying it could not be classified into one of them"
+      refuse "carrier" "${renderSubject (head (sort builtins.lessThan rlam))} is both a name in R and a relatum label in Λ; the populations are disjoint, because an edge carrying it could not be classified into one of them"
     else
       {
         __element = "carrier";
@@ -601,9 +603,9 @@ let
     else if malformed != [ ] then
       refuse "scopeGraph" "a datum carries the fields (${quote (builtins.attrNames (head malformed))}); a datum is exactly `{ scope; relation; datum; }` and the field set is closed. A WALK ANSWER CANNOT BE A DATUM: a contribution carries its path, its residual admission state and its distance, none of which a component of the graph can hold — strip it to the three fields and you have authored one"
     else if offScope != [ ] then
-      refuse "scopeGraph" "a datum is filed at scope '${(head offScope).scope}', which is not a scope of this graph (${quote scopes})"
+      refuse "scopeGraph" "a datum is filed at scope ${renderSubject (head offScope).scope}, which is not a scope of this graph (${quote scopes})"
     else if offRelation != [ ] then
-      refuse "scopeGraph" "a datum is filed under relation '${(head offRelation).relation}', which is not a name in R (${quote c.relations.names}); the sort a datum is reached by is declared, and an undeclared one is reachable by no query"
+      refuse "scopeGraph" "a datum is filed under relation ${renderSubject (head offRelation).relation}, which is not a name in R (${quote c.relations.names}); the sort a datum is reached by is declared, and an undeclared one is reachable by no query"
     else if unclassified != [ ] then
       refuse "scopeGraph" "edges carry the label '${head (sort builtins.lessThan unclassified)}', which is in none of the three populations — L (${quote c.labels.letters}), R (${quote c.relations.names}) or Λ (${quote c.relatumLabels.names}); the classification of an edge label is total, and a label outside all three would be walked by nothing and classified as nothing"
     else
@@ -641,7 +643,7 @@ let
       g = elementOf "relationEntries" "graph" "scopeGraph" a.graph;
     in
     if !(g.carrier.relations.member a.relation) then
-      refuse "relationEntries" "'${a.relation}' is not a name in R (${quote g.carrier.relations.names}); an undeclared relation is refused rather than answered empty, because an empty answer cannot be told from a relation with no datums"
+      refuse "relationEntries" "${renderSubject a.relation} is not a name in R (${quote g.carrier.relations.names}); an undeclared relation is refused rather than answered empty, because an empty answer cannot be told from a relation with no datums"
     else if !(builtins.isFunction a.wellFormed) then
       refuse "relationEntries" "wellFormed must be a predicate on data terms; it is WFD, the visibility parameter that decides whether the datum found at the path's end is the one being looked for"
     else

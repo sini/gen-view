@@ -72,6 +72,7 @@ let
     choice
     strings
     quote
+    renderSubject
     ;
   inherit (carrierLib) elementOf;
 
@@ -152,7 +153,7 @@ let
       # also forces the materialized-result check, which a binding that were merely declared and
       # never read would leave unevaluated and therefore unrun.
       refuse "writesOf"
-        "the target names channel '${target.channel}' but the view relation is named '${v.name}'; a result lands in the cell it is named for, and a target naming another cell would put the schedule's arc where nothing writes"
+        "the target names channel ${renderSubject target.channel} but the view relation is named ${renderSubject v.name}; a result lands in the cell it is named for, and a target naming another cell would put the schedule's arc where nothing writes"
     else
       [ (cell target.scope target.channel (if mode == "merge" then "output" else "input")) ];
 

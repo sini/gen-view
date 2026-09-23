@@ -67,7 +67,12 @@ let
   enums = import ./enumerations.nix { inherit prelude; };
   refusal = import ./refusal.nix { inherit prelude; };
   carrierLib = import ./carrier.nix { inherit prelude graph; };
-  inherit (refusal) refuse fields quote;
+  inherit (refusal)
+    refuse
+    fields
+    quote
+    renderSubject
+    ;
   inherit (carrierLib) elementOf;
 
   indexOf =
@@ -463,7 +468,7 @@ let
             keys = map (g0: (head g0.members).groupKey) groups;
             c0 = (head eg.members).c;
           in
-          refuse "viewRelation" "channel '${def.name}' declares a competition key that SPLITS one element: the datum authored at scope '${c0.element.producer}' (data entry ${toString c0.element.ordinal}) survives under ${toString (length keys)} competition keys (${quote (map builtins.toJSON keys)}), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived"
+          refuse "viewRelation" "channel ${renderSubject def.name} declares a competition key that SPLITS one element: the datum authored at scope '${c0.element.producer}' (data entry ${toString c0.element.ordinal}) survives under ${toString (length keys)} competition keys (${quote (map builtins.toJSON keys)}), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived"
         else
           map (
             grp:
@@ -482,7 +487,7 @@ let
         else if def.tieSet.arm == "refuse" then
           (
             if length grp.visible > 1 then
-              refuse "viewRelation" "channel '${def.name}' declares tieSet 'refuse' and the competition key ${builtins.toJSON grp.key} survives with ${toString (length grp.visible)} contributions, from scopes ${
+              refuse "viewRelation" "channel ${renderSubject def.name} declares tieSet 'refuse' and the competition key ${builtins.toJSON grp.key} survives with ${toString (length grp.visible)} contributions, from scopes ${
                 quote (map (c: c.scope) grp.visible)
               }; the declaration asked for exactly one"
             else
@@ -498,7 +503,7 @@ let
             unranked = filter (c: indexOf def.tieSet.order c.scope == null) grp.visible;
           in
           if unranked != [ ] then
-            refuse "viewRelation" "channel '${def.name}' declares tieSet 'orderedFold' whose declared order (${quote def.tieSet.order}) does not rank the contributing scope '${(head unranked).scope}'; the order is total over the surviving set"
+            refuse "viewRelation" "channel ${renderSubject def.name} declares tieSet 'orderedFold' whose declared order (${quote def.tieSet.order}) does not rank the contributing scope '${(head unranked).scope}'; the order is total over the surviving set"
           else
             grp
             // {

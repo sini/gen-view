@@ -181,7 +181,7 @@
 let
   inherit (prelude) filter head;
   refusal = import ./refusal.nix { inherit prelude; };
-  inherit (refusal) refuse fields;
+  inherit (refusal) refuse fields renderValue;
 
   # ── THE TWO HELPERS BOTH CONSTRUCTS SHARE, AT MODULE SCOPE ───────────────────────────────────
   # ★★ ONE GUARD FOR ONE DELEGATE CONVENTION, WHICH IS WHY IT IS LIFTED RATHER THAN COPIED. The
@@ -257,9 +257,7 @@ let
     else if !(builtins.isFunction a.project) then
       refuse "referenceResolution" "field 'project' must be a function from the authority's node record to the datum this view carries; it is π, and it is a field of its own because a predicate that also projects cannot be split into the two operators"
     else if badFlags != [ ] then
-      refuse "referenceResolution" "field '${head badFlags}' is ${
-        builtins.toJSON a.${head badFlags}
-      }, which is not a boolean; the shadowing discipline and the import closure are DECLARED here rather than left to the authority's defaults"
+      refuse "referenceResolution" "field '${head badFlags}' is ${renderValue a.${head badFlags}}, which is not a boolean; the shadowing discipline and the import closure are DECLARED here rather than left to the authority's defaults"
     else
       {
         __element = "referenceResolution";
@@ -314,7 +312,7 @@ let
     else if !(builtins.isFunction a.project) then
       refuse "neededBy" "field 'project' must be a function from the authority's node record to the datum this view carries; it is π, and it is a field of its own because a predicate that also projects cannot be split into the two operators"
     else if !(builtins.isBool a.transitive) then
-      refuse "neededBy" "field 'transitive' is ${builtins.toJSON a.transitive}, which is not a boolean; the reverse-import closure is DECLARED here rather than left to the authority's default"
+      refuse "neededBy" "field 'transitive' is ${renderValue a.transitive}, which is not a boolean; the reverse-import closure is DECLARED here rather than left to the authority's default"
     else
       {
         __element = "neededBy";

@@ -31,7 +31,33 @@ let
   # a consumer's error names the construct that refused rather than the file it lives in.
   refuse = site: message: throw "gen-view.${site}: ${message}";
 
-  quote = names: concatStringsSep ", " (sort builtins.lessThan names);
+  # TOTAL RENDERING OF A CALLER VALUE INSIDE A REFUSAL — the shape of gen-scope's `renderValue`
+  # (`lib/cascade.nix`). A refusal is built at the moment something has already gone wrong, and it
+  # renders exactly the value that was wrong: `toJSON` aborts on a function at any depth and
+  # overflows on a cyclic value, and string interpolation aborts on anything that is not a string,
+  # all three past `tryEval`. Scalars and name lists render in full, because those are the shapes a
+  # caller acts on; anything else is named by its type. It forces the value, and a list's elements,
+  # to WHNF and no further, so a cyclic value renders; an element whose own evaluation diverges or
+  # throws still does so here, as it would under any render. It RENDERS and never ADDRESSES: two
+  # different lambdas render alike, which a message may do and a key may not.
+  renderValue =
+    v:
+    if builtins.isString v || builtins.isInt v || builtins.isBool v || v == null then
+      builtins.toJSON v
+    else if builtins.isList v && builtins.all builtins.isString v then
+      builtins.toJSON v
+    else
+      "<a ${builtins.typeOf v}>";
+
+  # A name renders quoted as a name, and anything else through `renderValue`.
+  renderSubject = v: if builtins.isString v then "'${v}'" else renderValue v;
+
+  quote =
+    names:
+    if builtins.isList names && builtins.all builtins.isString names then
+      concatStringsSep ", " (sort builtins.lessThan names)
+    else
+      renderValue names;
 
   # `fields site required args` — `required` present in `args`, and nothing else present at all.
   # Returns `args` on success so the check is a pass-through and cannot be written and not called.
@@ -42,7 +68,11 @@ let
       missing = filter (f: !(builtins.hasAttr f args)) required;
       unknown = filter (f: !(elem f required)) given;
     in
-    if missing != [ ] then
+    # `attrNames` and `hasAttr` abort past `tryEval` on anything that is not an attrset, so the
+    # argument's own type is refused by name before either is forced.
+    if !(builtins.isAttrs args) then
+      refuse site "the argument must be an attrset of this construct's fields, not a ${builtins.typeOf args} (required: ${quote required})"
+    else if missing != [ ] then
       refuse site "required field '${head (sort builtins.lessThan missing)}' is not declared; every field of this construct is required and total (declared: ${quote given}; required: ${quote required})"
     else if unknown != [ ] then
       refuse site "field '${head (sort builtins.lessThan unknown)}' is not a field of this construct; the field set is closed (required: ${quote required})"
@@ -57,7 +87,7 @@ let
     if elem value allowed then
       value
     else
-      refuse site "field '${field}' is ${builtins.toJSON value}, which is not one of the declared arms (${quote allowed})";
+      refuse site "field '${field}' is ${renderValue value}, which is not one of the declared arms (${quote allowed})";
 
   # `strings site what xs` — a list of distinct non-empty strings, the shape every alphabet and
   # name set in the carrier takes. Duplicates are refused rather than collapsed: a set written
@@ -87,5 +117,7 @@ in
     choice
     strings
     quote
+    renderValue
+    renderSubject
     ;
 }

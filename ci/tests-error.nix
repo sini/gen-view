@@ -805,6 +805,26 @@ in
           };
         };
 
+        # p79do C1: the same split-key refusal, its definition's constructor-made `name` forged to a
+        # lambda. The render goes through `renderSubject`, so the refusal stays named and catchable.
+        test-a-forged-definition-name-renders-a-lambda-at-a-split-key = {
+          expr =
+            builtins.deepSeq
+              (v.viewRelation {
+                definition = mkSplitKeyDef { } // {
+                  name = x: x;
+                };
+                graph = diamondGraph;
+                marks = f.noMarks;
+                orderMark = f.identityMark;
+              }).value
+              true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.viewRelation: channel <a lambda> declares a competition key that SPLITS one element: the datum authored at scope 'top'.*$";
+          };
+        };
+
         # ★★★ O2c, fixture Z — NO DIAMOND: `top` and `rival` are genuinely distinct producers, and
         # this refusal is the ORDINARY `tieSets.refuse` — the cross-group defect never reaches it,
         # so this message must NEVER become the spanning message (that would be C1 reintroduced).
@@ -1376,5 +1396,295 @@ in
         };
       };
     };
+
+    # ── A REFUSAL RENDERS ITS SUBJECT TOTALLY (ADR-0025 item 1) ──
+    # One cell per refusal site whose message renders a caller value. Each subject carries a lambda
+    # (or a cyclic value), which `toJSON` and string interpolation both abort on PAST `tryEval`: before
+    # `renderValue`/`renderSubject`, every cell here read `TypeError` (the cyclic one `Error`) where a
+    # named `ThrownError` belongs. Each pins the refusal's site prefix, its wording and the rendered
+    # type, anchored. The `forged-*` cells hand in an attrset carrying a genuine tag and a field no
+    # constructor would produce: a tag is a claim about how an element was built, not a proof of it,
+    # so a render resting on the constructor goes through the renderer like any other caller value.
+    flake.testsError.render-totality =
+      let
+        fn = x: x;
+        cyc =
+          let
+            c = {
+              self = c;
+            };
+          in
+          c;
+        vd = over: v.viewDefinition (f.definitionArgs // over);
+        engine = {
+          query = _: [ ];
+          queryReverse = _: [ ];
+        };
+        forged = el: arm: {
+          __element = el;
+          inherit arm;
+        };
+        notString = l: !(builtins.isString l);
+        cell = expr: msg: {
+          expr = builtins.deepSeq expr true;
+          expectedError = {
+            type = "ThrownError";
+            inherit msg;
+          };
+        };
+      in
+      {
+        test-choice-renders-a-lambda =
+          cell
+            (v.placement.place {
+              mode = fn;
+              path = [ ];
+              name = "x";
+              value = 1;
+            })
+            "^gen-view\\.place: field 'mode' is <a lambda>, which is not one of the declared arms \\(merge, nest, nest-verbatim\\)$";
+        test-direction-renders-a-lambda =
+          cell
+            (vd {
+              direction = fn;
+            })
+            "^gen-view\\.viewDefinition: field 'direction' is <a lambda>, which is not one of the declared arms \\(inbound, outbound\\)$";
+        test-empty-renders-a-lambda-bearing-list =
+          cell
+            (vd {
+              empty = [ fn ];
+            })
+            "^gen-view\\.viewDefinition: field 'empty' is <a list>, which is not the unit of the declared combine arm 'listAppend' \\(\\[\\]\\).*$";
+        test-element-tag-renders-a-lambda =
+          cell
+            (vd {
+              tieSet = {
+                __element = fn;
+              };
+            })
+            "^gen-view\\.viewDefinition: field 'tieSet' is not a tieSet carrier element \\(found an attrset tagged <a lambda>\\).*$";
+        test-element-tag-renders-a-cyclic-value =
+          cell
+            (vd {
+              tieSet = {
+                __element = cyc;
+              };
+            })
+            "^gen-view\\.viewDefinition: field 'tieSet' is not a tieSet carrier element \\(found an attrset tagged <a set>\\).*$";
+        test-discipline-flag-renders-a-lambda =
+          cell
+            (v.referenceResolution {
+              inherit engine;
+              name = "r";
+              wellFormed = _: true;
+              project = n: n;
+              localShadowsImport = true;
+              importShadowsParent = fn;
+              transitiveImports = true;
+            })
+            "^gen-view\\.referenceResolution: field 'importShadowsParent' is <a lambda>, which is not a boolean.*$";
+        test-transitive-renders-a-lambda = cell (v.neededBy {
+          inherit engine;
+          name = "r";
+          wellFormed = _: true;
+          project = n: n;
+          transitive = fn;
+        }) "^gen-view\\.neededBy: field 'transitive' is <a lambda>, which is not a boolean.*$";
+        test-forged-tieSet-arm-renders-a-lambda =
+          cell
+            (vd {
+              tieSet = forged "tieSet" fn;
+            })
+            "^gen-view\\.viewDefinition: field 'tieSet' names <a lambda>, which is not one of the declared arms.*$";
+        test-forged-combine-arm-renders-a-lambda =
+          cell
+            (vd {
+              combine = forged "combine" fn;
+            })
+            "^gen-view\\.viewDefinition: field 'combine' names <a lambda>, which is not one of the whitelisted arms.*$";
+        test-forged-combine-unit-renders-a-lambda =
+          cell
+            (vd {
+              combine = {
+                __element = "combine";
+                arm = "listAppend";
+                setSemilattice = false;
+                unit = fn;
+                associative = true;
+              };
+            })
+            "^gen-view\\.viewDefinition: field 'empty' is \\[\\], which is not the unit of the declared combine arm 'listAppend' \\(<a lambda>\\).*$";
+        test-forged-dedup-arm-renders-a-lambda =
+          cell
+            (vd {
+              dedup = forged "dedup" fn;
+            })
+            "^gen-view\\.viewDefinition: field 'dedup' names <a lambda>, which is not one of the declared arms.*$";
+        test-datum-scope-renders-a-lambda =
+          cell
+            (v.scopeGraph {
+              inherit (f) carrier scopes edges;
+              data = [
+                {
+                  scope = fn;
+                  relation = "import";
+                  datum = [ "x" ];
+                }
+              ];
+            })
+            "^gen-view\\.scopeGraph: a datum is filed at scope <a lambda>, which is not a scope of this graph.*$";
+        test-datum-relation-renders-a-lambda = cell (v.scopeGraph
+          {
+            inherit (f) carrier scopes edges;
+            data = [
+              {
+                scope = "root";
+                relation = fn;
+                datum = [ "x" ];
+              }
+            ];
+          }
+        ) "^gen-view\\.scopeGraph: a datum is filed under relation <a lambda>, which is not a name in R.*$";
+        test-relationEntries-renders-a-lambda = cell (v.relationEntries {
+          graph = f.graph;
+          scope = "leaf";
+          relation = fn;
+          wellFormed = _: true;
+        }) "^gen-view\\.relationEntries: <a lambda> is not a name in R.*$";
+        test-target-channel-renders-a-lambda =
+          cell
+            (v.writesOf {
+              inherit (f) relation;
+              target = v.placement.targets.root {
+                scope = "leaf";
+                channel = fn;
+              };
+              mode = "merge";
+            })
+            "^gen-view\\.writesOf: the target names channel <a lambda> but the view relation is named 'settings'.*$";
+        test-forged-tieSet-order-renders-a-lambda-bearing-list =
+          cell
+            (f.mkRelation {
+              definition = f.mkDefinition {
+                tieSet = {
+                  __element = "tieSet";
+                  arm = "orderedFold";
+                  order = [ fn ];
+                };
+              };
+            }).value
+            "^gen-view\\.viewRelation: channel 'settings' declares tieSet 'orderedFold' whose declared order \\(<a list>\\) does not rank the contributing scope 'inc'.*$";
+
+        # ── C1: A RENDER RESTING ON HOW AN ELEMENT WAS BUILT ──
+        # Each string below is a string on every genuine path only because a constructor made it one.
+        # The forged element keeps the genuine tag and replaces one constructor-made field.
+        test-forged-relation-name-renders-a-lambda-at-writesOf =
+          cell
+            (v.writesOf {
+              relation = {
+                __element = "viewRelation";
+                name = fn;
+              };
+              target = v.placement.targets.root {
+                scope = "leaf";
+                channel = "settings";
+              };
+              mode = "merge";
+            })
+            "^gen-view\\.writesOf: the target names channel 'settings' but the view relation is named <a lambda>;.*$";
+        test-forged-definition-name-renders-a-lambda-at-a-refused-tie =
+          cell
+            (f.mkRelation {
+              definition =
+                f.mkDefinition {
+                  order = f.flatOrder;
+                  tieSet = v.tieSets.refuse;
+                }
+                // {
+                  name = fn;
+                };
+            }).value
+            "^gen-view\\.viewRelation: channel <a lambda> declares tieSet 'refuse' and the competition key \"settings\" survives with 2 contributions, from scopes inc, mid.*$";
+        test-forged-definition-name-renders-a-lambda-at-an-unranked-scope =
+          cell
+            (f.mkRelation {
+              definition =
+                f.mkDefinition {
+                  order = f.flatOrder;
+                  tieSet = v.tieSets.orderedFold { order = [ "mid" ]; };
+                }
+                // {
+                  name = fn;
+                };
+            }).value
+            "^gen-view\\.viewRelation: channel <a lambda> declares tieSet 'orderedFold' whose declared order \\(mid\\) does not rank the contributing scope 'inc'.*$";
+        test-forged-combine-arm-renders-a-lambda-at-the-fold =
+          cell
+            (f.mkRelation {
+              definition = f.definition // {
+                combine = f.definition.combine // {
+                  arm = fn;
+                  associative = false;
+                };
+              };
+            }).value
+            "^gen-view\\.foldCombine: the combine arm <a lambda> does not declare associative = true;.*$";
+        test-forged-alphabet-letter-renders-a-lambda-at-labelOrder = cell (v.labelOrder {
+          alphabet = f.labels // {
+            letters = [
+              "parent"
+              "include"
+              fn
+            ];
+          };
+          layers = [
+            [ "include" ]
+            [ "parent" ]
+          ];
+          endOfPath = -1;
+        }) "^gen-view\\.labelOrder: letter <a lambda> is not ranked;.*$";
+        test-forged-relation-name-renders-a-lambda-at-the-carrier = cell (v.carrier {
+          labels = f.labels // {
+            member = _: true;
+          };
+          relations = f.relations // {
+            names = [ fn ];
+          };
+          relatumLabels = f.roles;
+          labelWellFormedness = f.admission;
+          labelOrder = f.order;
+          dataOrder = f.key;
+        }) "^gen-view\\.carrier: <a lambda> is both a letter of L and a name in R;.*$";
+        test-forged-role-label-renders-a-lambda-against-the-letters = cell (v.carrier {
+          labels = f.labels // {
+            member = notString;
+          };
+          inherit (f) relations;
+          relatumLabels = f.roles // {
+            names = [ fn ];
+          };
+          labelWellFormedness = f.admission;
+          labelOrder = f.order;
+          dataOrder = f.key;
+        }) "^gen-view\\.carrier: <a lambda> is both a letter of L and a relatum label in Λ;.*$";
+        test-forged-role-label-renders-a-lambda-against-the-relations = cell (v.carrier {
+          inherit (f) labels;
+          relations = f.relations // {
+            member = notString;
+          };
+          relatumLabels = f.roles // {
+            names = [ fn ];
+          };
+          labelWellFormedness = f.admission;
+          labelOrder = f.order;
+          dataOrder = f.key;
+        }) "^gen-view\\.carrier: <a lambda> is both a name in R and a relatum label in Λ;.*$";
+
+        # ── den-hoag-gen-view-fields-attrnames-abort-txc33: `fields` refuses a non-attrset by name ──
+        # `attrNames` over a function aborts past `tryEval`, so before the `isAttrs` arm every
+        # construct gated by `fields` did on a non-attrset argument.
+        test-a-non-attrset-argument-is-refused-at-writesOf = cell (v.writesOf fn) "^gen-view\\.writesOf: the argument must be an attrset of this construct's fields, not a lambda \\(required: mode, relation, target\\)$";
+        test-a-non-attrset-argument-is-refused-at-viewDefinition = cell (v.viewDefinition fn) "^gen-view\\.viewDefinition: the argument must be an attrset of this construct's fields, not a lambda.*$";
+      };
   };
 }
