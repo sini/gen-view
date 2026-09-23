@@ -32,23 +32,11 @@ let
   # a consumer's error names the construct that refused rather than the file it lives in.
   refuse = site: message: throw "gen-view.${site}: ${message}";
 
-  # TOTAL RENDERING OF A CALLER VALUE INSIDE A REFUSAL — the shape of gen-scope's `renderValue`
-  # (`lib/cascade.nix`). A refusal is built at the moment something has already gone wrong, and it
-  # renders exactly the value that was wrong: `toJSON` aborts on a function at any depth and
-  # overflows on a cyclic value, and string interpolation aborts on anything that is not a string,
-  # all three past `tryEval`. Scalars and name lists render in full, because those are the shapes a
-  # caller acts on; anything else is named by its type. It forces the value, and a list's elements,
-  # to WHNF and no further, so a cyclic value renders; an element whose own evaluation diverges or
-  # throws still does so here, as it would under any render. It RENDERS and never ADDRESSES: two
-  # different lambdas render alike, which a message may do and a key may not.
-  renderValue =
-    v:
-    if builtins.isString v || builtins.isInt v || builtins.isBool v || v == null then
-      builtins.toJSON v
-    else if builtins.isList v && builtins.all builtins.isString v then
-      builtins.toJSON v
-    else
-      "<a ${builtins.typeOf v}>";
+  # TOTAL RENDERING OF A CALLER VALUE INSIDE A REFUSAL — the one shared renderer, owned by
+  # gen-prelude, where its contract lives (what it forces, what still aborts, why `toJSON` alone
+  # cannot do this). Kept in this module's result so every `inherit (refusal) renderValue` site
+  # reaches it unchanged.
+  inherit (prelude) renderValue;
 
   # A name renders quoted as a name, and anything else through `renderValue`.
   renderSubject = v: if builtins.isString v then "'${v}'" else renderValue v;
