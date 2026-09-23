@@ -28,7 +28,7 @@ let
   inherit (prelude) map length;
   refusal = import ./refusal.nix { inherit prelude; };
   enums = import ./enumerations.nix { inherit prelude; };
-  inherit (refusal) refuse fields;
+  inherit (refusal) refuse fields decided;
 
   refold =
     r: name: contributions:
@@ -69,7 +69,7 @@ let
     if !(builtins.isFunction a.f) then
       refuse "map" "field 'f' must be a function from a contribution to its new datum"
     else
-      refold r name (map (c: c // { datum = a.f c; }) r.contributions);
+      decided [ name ] (refold r name (map (c: c // { datum = a.f c; }) r.contributions));
 
   # `scan { relation; name; f; empty; }` — the PREFIX SCAN. Measured absent from every candidate
   # successor library and from the utility base, which is why it is built rather than pointed at.
@@ -97,7 +97,7 @@ let
     if !(builtins.isFunction a.f) then
       refuse "scan" "field 'f' must be a binary step `accumulator → contribution → accumulator`"
     else
-      refold r name stepped;
+      decided [ name ] (refold r name stepped);
 
   # `over { relation; name; f; }` — the unstructured whole-sequence rewrite: sort, take, reverse,
   # cross-element. `f : [ contribution ] → [ contribution ]`.
@@ -118,7 +118,7 @@ let
     else if !(builtins.isList out) then
       refuse "over" "the rewrite returned a ${builtins.typeOf out}; `over` produces a contribution SEQUENCE, and a result that is not one cannot be folded or traced"
     else
-      (refold r name out)
+      decided [ name ] ((refold r name out))
       // {
         # ★ MEASURED, NOT PROMISED. A rewrite that returns the sequence unchanged says so; one that
         # reorders or resizes says that instead, and a consumer whose ordering law cares can read

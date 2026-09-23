@@ -36,6 +36,7 @@ let
   inherit (refusal)
     refuse
     fields
+    decided
     quote
     renderValue
     renderSubject
@@ -116,7 +117,7 @@ let
     else if !(elem dedup.arm enums.dedupArms) then
       refuse "viewDefinition" "field 'dedup' names ${renderSubject dedup.arm}, which is not one of the declared arms (${quote enums.dedupArms})"
     else
-      {
+      decided [ channel ] {
         __element = "viewDefinition";
         inherit
           admission

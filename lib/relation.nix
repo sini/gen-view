@@ -69,6 +69,7 @@ let
   inherit (refusal)
     refuse
     fields
+    decided
     quote
     renderSubject
     renderValue
@@ -700,15 +701,18 @@ let
         }) (bounded.withheld scope)
       ) g.scopes;
     in
-    {
-      __element = "viewRelation";
-      name = def.name;
-      definition = def;
-      graph = g;
-      inherit value shadowed withheld;
-      contributions = deduped.kept;
-      inherit (deduped) dropped;
-    };
+    if !(builtins.isFunction a.marks) then
+      refuse "viewRelation" "field 'marks' is ${renderValue a.marks}; it must be a function from a scope id to the list of boundary marks at it"
+    else
+      decided [ def g markOrder ] {
+        __element = "viewRelation";
+        name = def.name;
+        definition = def;
+        graph = g;
+        inherit value shadowed withheld;
+        contributions = deduped.kept;
+        inherit (deduped) dropped;
+      };
 in
 {
   inherit viewRelation groupsInWalkOrder indexOf;

@@ -65,6 +65,21 @@ let
     else
       renderValue names;
 
+  # `decided checks value` — every check in `checks` forced to WHNF before `value` is returned, so a
+  # constructor's field checks are decided where the element is BUILT, never where a field is first
+  # READ. Each check is a pass-through (`strings`, `choice`, `elementOf`, `materialized`, `named`)
+  # whose WHNF is its verdict. A check bound in a `let` and only inherited into the record would run
+  # when the field is read, and `elementOf` forces only the tag, so a consumer would accept the
+  # element and meet the refusal, or an abort, later. The same rule as `rootNames` in placement.nix.
+  #
+  # ★ THE TRADE-OFF. Checks are forced; content is not: a datum, `place.value`, `scan.empty`, an
+  # edge accessor's or `wellFormed`'s result stay lazy. But a decided FIELD is no longer lazy: a
+  # throwing or diverging value there fails at construction even when no consumer ever reads that
+  # field. The cost is the forced check's own work, once per element: O(1) for `choice`, O(n) for a
+  # `strings` list, and for `elementOf` whatever the forced element's own chain costs — so reading
+  # only a `viewRelation`'s `name` now pays its graph's check, about ten calls per graph entry.
+  decided = checks: value: builtins.seq (builtins.all (c: builtins.seq c true) checks) value;
+
   # `fields site required args` — `required` present in `args`, and nothing else present at all.
   # Returns `args` on success so the check is a pass-through and cannot be written and not called.
   fields =
@@ -132,6 +147,7 @@ in
   inherit
     refuse
     fields
+    decided
     choice
     strings
     attrKey

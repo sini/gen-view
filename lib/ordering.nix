@@ -71,6 +71,7 @@ let
   inherit (refusal)
     refuse
     fields
+    decided
     choice
     strings
     attrKey
@@ -147,21 +148,23 @@ let
       target = elementOf "writesOf" "target" "target" a.target;
       mode = choice "writesOf" "mode" placement.modes a.mode;
     in
-    if target.arm == "output" then
-      [ ("out:" + builtins.concatStringsSep "." target.path + "@output") ]
-    else if target.channel != v.name then
-      # ★ THE CROSS-CHECK IS WHAT MAKES THE TYPE CHECK ABOVE LOAD-BEARING RATHER THAN DECORATIVE.
-      # A root target carries its own channel, so a caller can name a cell this result does not
-      # produce — and the schedule would then be built on an arc nobody has. Refusing the mismatch
-      # also forces the materialized-result check, which a binding that were merely declared and
-      # never read would leave unevaluated and therefore unrun.
-      refuse "writesOf"
-        "the target names channel ${renderSubject target.channel} but the view relation is named ${renderSubject v.name}; a result lands in the cell it is named for, and a target naming another cell would put the schedule's arc where nothing writes"
-    else
-      let
-        t = placement.rootNames "writesOf" target;
-      in
-      [ (cell t.scope t.channel (if mode == "merge" then "output" else "input")) ];
+    decided [ v mode ] (
+      if target.arm == "output" then
+        [ ("out:" + builtins.concatStringsSep "." target.path + "@output") ]
+      else if target.channel != v.name then
+        # ★ THE CROSS-CHECK IS WHAT MAKES THE TYPE CHECK ABOVE LOAD-BEARING RATHER THAN DECORATIVE.
+        # A root target carries its own channel, so a caller can name a cell this result does not
+        # produce — and the schedule would then be built on an arc nobody has. Refusing the mismatch
+        # also forces the materialized-result check, which a binding that were merely declared and
+        # never read would leave unevaluated and therefore unrun.
+        refuse "writesOf"
+          "the target names channel ${renderSubject target.channel} but the view relation is named ${renderSubject v.name}; a result lands in the cell it is named for, and a target naming another cell would put the schedule's arc where nothing writes"
+      else
+        let
+          t = placement.rootNames "writesOf" target;
+        in
+        [ (cell t.scope t.channel (if mode == "merge" then "output" else "input")) ]
+    );
 
   # `unit { relation; target; mode; }` — a materialized view relation together with the placement
   # that decides which cell it produces. It is what the schedule's nodes are, because neither half
@@ -174,13 +177,24 @@ let
         "target"
         "mode"
       ] args;
-    in
-    {
-      __element = "unit";
       relation = materialized "unit" "relation" a.relation;
       target = elementOf "unit" "target" "target" a.target;
       mode = choice "unit" "mode" placement.modes a.mode;
-    };
+    in
+    # `writesOf` carries the target/relation channel cross-check, and a ONE-unit schedule never
+    # reads it, so the unit decides it too. It is handed the checked bindings, so a malformed field
+    # is still refused by `unit`'s own message.
+    decided
+      [
+        relation
+        target
+        mode
+        (writesOf { inherit relation target mode; })
+      ]
+      {
+        __element = "unit";
+        inherit relation target mode;
+      };
 
   # `accumulatorRelation { relations }` — the dependency relation, as the node set plus the
   # accessor gen-graph's ordering surfaces read. `relations` is an ATTRSET of named view relations.
@@ -227,7 +241,7 @@ let
     if !(builtins.isAttrs a.units) then
       refuse "accumulatorRelation" "field 'units' must be an attrset of named units; the attribute name is the schedule's node key, and it is the caller's because two units may lawfully write one cell"
     else
-      {
+      decided (map (n: n.unit) nodes) {
         __element = "accumulatorRelation";
         inherit nodes;
         keyOf = n: n.name;
@@ -292,16 +306,19 @@ let
         "path"
       ] args;
       order = accumulatorOrder { inherit (a) units; };
+      path = strings "orderedFoldOf" "path" a.path;
     in
-    map (
-      n:
-      placement.place {
-        inherit (a) path;
-        inherit (a.units.${n}) mode;
-        name = n;
-        value = a.units.${n}.relation.value;
-      }
-    ) order;
+    decided [ path ] (
+      map (
+        n:
+        placement.place {
+          inherit path;
+          inherit (a.units.${n}) mode;
+          name = n;
+          value = a.units.${n}.relation.value;
+        }
+      ) order
+    );
 
   # `boundedWellDefinedSchedule { nodes; declaredDependencies; equations; admitsCycle; }` — ADR-0008
   # §3's static well-definedness gate, re-homed as a query over gen-graph's CONTRACTED declared

@@ -79,6 +79,10 @@ let
     in
     if !(builtins.isString a.channel) || a.channel == "" then
       refuse site "field 'channel' must be a non-empty name; a projection has a NAME and a defining query, or it is not a view"
+    else if builtins.any (f: !(builtins.isFunction a.${f})) extra then
+      refuse site "field '${
+        builtins.head (builtins.filter (f: !(builtins.isFunction a.${f})) extra)
+      }' must be a function from a contribution to its competition key"
     else
       viewDefinition (
         (builtins.removeAttrs a extra)

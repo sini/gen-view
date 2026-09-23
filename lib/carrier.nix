@@ -70,6 +70,7 @@ let
   inherit (refusal)
     refuse
     fields
+    decided
     strings
     attrKey
     quote
@@ -186,7 +187,7 @@ let
       a = fields "relatumLabels" [ "names" ] args;
       names = strings "relatumLabels" "names" a.names;
     in
-    {
+    decided [ names ] {
       __element = "relatumLabels";
       inherit names;
       member = l: elem l names;
@@ -227,10 +228,12 @@ let
       literals = literalsOf expr;
       foreign = filter (l: !(alphabet.member l)) literals;
     in
-    if foreign != [ ] then
+    if !(builtins.isString a.expression) then
+      refuse "labelWellFormedness" "field 'expression' is ${renderValue a.expression}; it must be a path expression over the alphabet, written as a string"
+    else if foreign != [ ] then
       refuse "labelWellFormedness" "the expression names '${head (sort builtins.lessThan foreign)}', which is not a letter of the alphabet (${quote alphabet.letters}); a path expression ranges over L and a name outside it would match nothing and say nothing"
     else
-      {
+      decided [ alphabet ] {
         __element = "labelWellFormedness";
         inherit alphabet literals expr;
         inherit (a) expression;
@@ -498,7 +501,7 @@ let
     else if rlam != [ ] then
       refuse "carrier" "${renderSubject (head (sortNames rlam))} is both a name in R and a relatum label in Λ; the populations are disjoint, because an edge carrying it could not be classified into one of them"
     else
-      {
+      decided [ key ] {
         __element = "carrier";
         inherit labels;
         relations = rels;
@@ -612,6 +615,9 @@ let
       # before this index is ever built.
       indexed = imap0 (i: e: e // { ordinal = i; }) a.data;
       datumsAt = builtins.groupBy (e: attrKey e.scope) indexed;
+      nonAccessor = sort builtins.lessThan (
+        filter (l: !(builtins.isFunction a.edges.${l})) edgeLabelNames
+      );
     in
     if !(builtins.isAttrs a.edges) then
       refuse "scopeGraph" "edges must be an attrset of label → (scope → [ scope ]); it is the per-label accessor the walk steps"
@@ -627,8 +633,12 @@ let
       refuse "scopeGraph" "a datum is filed under relation ${renderSubject (head offRelation).relation}, which is not a name in R (${quote c.relations.names}); the sort a datum is reached by is declared, and an undeclared one is reachable by no query"
     else if unclassified != [ ] then
       refuse "scopeGraph" "edges carry the label '${head (sort builtins.lessThan unclassified)}', which is in none of the three populations — L (${quote c.labels.letters}), R (${quote c.relations.names}) or Λ (${quote c.relatumLabels.names}); the classification of an edge label is total, and a label outside all three would be walked by nothing and classified as nothing"
+    else if nonAccessor != [ ] then
+      refuse "scopeGraph" "edges carry the label '${head nonAccessor}' bound to ${
+        renderValue a.edges.${head nonAccessor}
+      }; each label's value must be the accessor scope → [ scope ] the walk steps"
     else
-      {
+      decided [ c scopes ] {
         __element = "scopeGraph";
         carrier = c;
         inherit scopes labeled datumsAt;

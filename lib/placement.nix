@@ -40,6 +40,7 @@ let
   inherit (refusal)
     refuse
     fields
+    decided
     choice
     strings
     attrKey
@@ -96,11 +97,12 @@ let
       args:
       let
         a = fields "targets.output" [ "path" ] args;
+        path = strings "targets.output" "path" a.path;
       in
-      {
+      decided [ path ] {
         __element = "target";
         arm = "output";
-        path = strings "targets.output" "path" a.path;
+        inherit path;
       };
   };
 
@@ -125,7 +127,7 @@ let
     if !(builtins.isString a.name) || a.name == "" then
       refuse "place" "field 'name' must be the non-empty name of the result being placed"
     else
-      {
+      decided [ mode path ] {
         __element = "placement";
         inherit mode path;
         inherit (a) name value;

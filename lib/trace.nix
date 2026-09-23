@@ -27,7 +27,14 @@ let
     ;
   refusal = import ./refusal.nix { inherit prelude; };
   placement = import ./placement.nix { inherit prelude; };
-  inherit (refusal) fields;
+  inherit (refusal)
+    fields
+    refuse
+    renderValue
+    decided
+    choice
+    strings
+    ;
   inherit (placement) pathKey targetKey sourceKey;
 
   # `edgeSortKey` — the frozen `T | P | S | M [| K]` key. The kind component is APPENDED only when
@@ -54,24 +61,48 @@ let
       ] args;
       c = a.contribution;
       p = a.placement;
-    in
-    {
       target = placement.targets.root {
         scope = c.scope;
         channel = c.channel;
       };
-      source = {
-        inherit (c) scope relation;
+      mode = choice "traceEntryOf" "placement.mode" placement.modes (p.mode or null);
+      path = strings "traceEntryOf" "placement.path" (p.path or null);
+      contributionFields = [
+        "scope"
+        "channel"
+        "relation"
+        "distance"
+        "path"
+      ];
+    in
+    if !(builtins.isAttrs c) || !(builtins.all (f: builtins.hasAttr f c) contributionFields) then
+      refuse "traceEntryOf" "field 'contribution' is ${renderValue c}; it must be a view relation's contribution, carrying ${builtins.concatStringsSep ", " contributionFields}"
+    else if !(builtins.isString c.relation) || c.relation == "" then
+      refuse "traceEntryOf" "the contribution's relation is ${renderValue c.relation}; it must be a non-empty relation name"
+    else if !(builtins.isInt c.distance) then
+      refuse "traceEntryOf" "the contribution's distance is ${renderValue c.distance}; it must be an int"
+    else if
+      !(builtins.isList c.path)
+      || !(builtins.all (s: builtins.isAttrs s && builtins.isString (s.label or null)) c.path)
+    then
+      refuse "traceEntryOf" "the contribution's path must be a list of steps, each carrying a string label"
+    else if !(builtins.isAttrs p) then
+      refuse "traceEntryOf" "field 'placement' is ${renderValue p}; it must be a placement carrying `mode` and `path`"
+    else
+      decided [ target mode path ] {
+        inherit target;
+        source = {
+          inherit (c) scope relation;
+        };
+        inherit mode path;
+        # The KIND component: the relation the datum was reached under. Under the scoped-relations
+        # arrangement this is exactly what a typed edge's label used to carry, moved to the sort it
+        # belongs in.
+        kind = c.relation;
+        inherit (c) distance;
+        # The path's LABEL WORD — the witness, reduced to its structural content. Never the datum.
+        word = map (step: step.label) c.path;
       };
-      inherit (p) mode path;
-      # The KIND component: the relation the datum was reached under. Under the scoped-relations
-      # arrangement this is exactly what a typed edge's label used to carry, moved to the sort it
-      # belongs in.
-      kind = c.relation;
-      inherit (c) distance;
-      # The path's LABEL WORD — the witness, reduced to its structural content. Never the datum.
-      word = map (step: step.label) c.path;
-    };
 
   # `trace { relation; placement; }` — a TOTAL order over the entries.
   #
@@ -92,6 +123,15 @@ let
           inherit (a) placement;
         }
       ) a.relation.contributions;
+      checked =
+        if !(builtins.isAttrs a.relation) || (a.relation.__element or null) != "viewRelation" then
+          refuse "trace" "field 'relation' is ${renderValue a.relation}; it must be a materialized view relation"
+        else if !(builtins.isAttrs a.placement) then
+          refuse "trace" "field 'placement' is ${renderValue a.placement}; it must be a placement carrying `mode` and `path`"
+        else
+          builtins.seq (choice "trace" "placement.mode" placement.modes (a.placement.mode or null)) (
+            builtins.isList (strings "trace" "placement.path" (a.placement.path or null))
+          );
       ord =
         x: y:
         let
@@ -100,7 +140,7 @@ let
         in
         if kx != ky then kx < ky else builtins.toJSON x < builtins.toJSON y;
     in
-    sort ord entries;
+    decided [ checked ] (sort ord entries);
 
   # DISPLAY RENDERING — strings are derived HERE and nothing consumes them programmatically.
   renderEntry =

@@ -19,6 +19,7 @@ let
   inherit (refusal)
     refuse
     fields
+    decided
     strings
     renderSubject
     ;
@@ -233,10 +234,13 @@ let
       else if a.order == [ ] then
         refuse "tieSets.orderedFold" "order is empty; an ordered fold with no declared order disposes its surviving set by nothing"
       else
-        {
+        let
+          order = strings "tieSets.orderedFold" "order" a.order;
+        in
+        decided [ order ] {
           __element = "tieSet";
           arm = "orderedFold";
-          order = strings "tieSets.orderedFold" "order" a.order;
+          inherit order;
         };
   };
 

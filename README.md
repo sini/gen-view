@@ -135,7 +135,9 @@ silently:
 
 Refusals **name what they refused** — the omitted field, the unranked letter, the undeclared
 relation, the mark that withheld an edge, the tied contributions. An empty answer is never a
-refusal.
+refusal. Every constructor field is checked where the element is **built**, not where a field is
+first read. Content stays lazy, but a throwing value in a checked field fails at construction even
+if nothing reads it (`decided`, `lib/refusal.nix`).
 
 The closed enumerations: `tieSets.{ union, refuse, orderedFold }` · `combines.{ listAppend, attrsShallow, setUnion }` (a set-semilattice combine declares its **ACC flag**, because that
 condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, byKey }` ·

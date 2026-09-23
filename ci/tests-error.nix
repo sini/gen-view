@@ -2141,5 +2141,244 @@ in
         test-forged-empty-scope-is-refused-at-writesOf = cell (writes (forged "" "settings")) "^gen-view\\.writesOf: field 'scope' is \"\"; .*$";
         test-forged-int-channel-is-refused-at-edgeSortKey = cell (v.edgeSortKey (entryAt (forged "leaf" 42))) "^gen-view\\.targetKey: field 'channel' is 42; .*$";
       };
+
+    # ── FIELD REFUSALS: every constructor field is decided where the element is BUILT ──────────
+    # Each cell forces its subject to WHNF and no further (`builtins.seq`), because that is what a
+    # consumer holding the element does: `elementOf` reads the tag. A check that ran only when the
+    # field is read passes a deep-forcing cell and fails this one, so each cell here discriminates
+    # its own site: removing that site's check from `decided`, or its arm from the chain, reds it.
+    flake.testsError.field-refusals =
+      let
+        fn = x: x;
+        target = v.placement.targets.root {
+          scope = "leaf";
+          channel = "settings";
+        };
+        output = v.placement.targets.output { path = [ "p" ]; };
+        sg = {
+          inherit (f) carrier scopes edges;
+          data = f.authored f.datums;
+        };
+        car = {
+          inherit (f) labels relations;
+          relatumLabels = f.roles;
+          labelWellFormedness = f.admission;
+          labelOrder = f.order;
+          dataOrder = f.key;
+        };
+        un = {
+          inherit (f) relation;
+          inherit target;
+          mode = "merge";
+        };
+        compArgs = {
+          channel = "settings";
+          relation = "import";
+          root = "leaf";
+          direction = "outbound";
+          inherit (f) admission order;
+          wellFormed = f.admitAll;
+          tieSet = v.tieSets.union;
+          empty = [ ];
+          combine = v.combines.listAppend;
+          dedup = v.dedups.none;
+        };
+        c0 = builtins.head f.relation.contributions;
+        entry = contribution: placement: v.traceEntryOf { inherit contribution placement; };
+        cell = expr: msg: {
+          expr = builtins.seq expr true;
+          expectedError = {
+            type = "ThrownError";
+            inherit msg;
+          };
+        };
+      in
+      {
+        test-a-relatum-label-name-list-is-decided-at-relatumLabels = cell (v.relatumLabels {
+          names = [ 42 ];
+        }) "^gen-view\\.relatumLabels: names carries a int where a string is required$";
+        test-a-non-string-expression-is-refused-at-labelWellFormedness = cell (v.labelWellFormedness {
+          alphabet = f.labels;
+          expression = 42;
+        }) "^gen-view\\.labelWellFormedness: field 'expression' is 42; .*$";
+        test-the-alphabet-is-decided-at-labelWellFormedness-with-no-literals = cell (v.labelWellFormedness {
+          alphabet = 42;
+          expression = "_*";
+        }) "^gen-view\\.labelWellFormedness: field 'alphabet' is not a edgeLabels carrier element .*$";
+        test-the-data-order-is-decided-at-carrier = cell (v.carrier (
+          car // { dataOrder = 42; }
+        )) "^gen-view\\.carrier: field 'dataOrder' is not a dataOrder carrier element .*$";
+        test-a-non-accessor-edge-is-refused-at-scopeGraph = cell (v.scopeGraph (
+          sg
+          // {
+            edges = f.edges // {
+              parent = 42;
+            };
+          }
+        )) "^gen-view\\.scopeGraph: edges carry the label 'parent' bound to 42; .*$";
+        test-the-carrier-is-decided-at-scopeGraph-with-no-data = cell (v.scopeGraph (
+          sg
+          // {
+            carrier = 42;
+            edges = { };
+            data = [ ];
+          }
+        )) "^gen-view\\.scopeGraph: field 'carrier' is not a carrier carrier element .*$";
+        test-the-scopes-are-decided-at-scopeGraph-with-no-data = cell (v.scopeGraph (
+          sg
+          // {
+            scopes = 42;
+            data = [ ];
+          }
+        )) "^gen-view\\.scopeGraph: scopes must be a list, not a int$";
+        test-the-channel-is-decided-at-viewDefinition = cell (v.viewDefinition (
+          f.definitionArgs // { channel = 42; }
+        )) "^gen-view\\.viewDefinition: field 'channel' is not a dataOrder carrier element .*$";
+        test-an-ordered-fold-order-element-is-decided-at-orderedFold = cell (v.tieSets.orderedFold {
+          order = [ fn ];
+        }) "^gen-view\\.tieSets\\.orderedFold: order carries a lambda where a string is required$";
+        test-a-non-function-competition-key-is-refused-at-registry = cell (v.compositions.registry (
+          compArgs // { entityOf = 42; }
+        )) "^gen-view\\.compositions\\.registry: field 'entityOf' must be a function .*$";
+        test-non-function-marks-are-refused-at-viewRelation = cell (f.mkRelation {
+          marks = 42;
+        }) "^gen-view\\.viewRelation: field 'marks' is 42; .*$";
+        test-the-definition-is-decided-at-viewRelation = cell (f.mkRelation {
+          definition = 42;
+        }) "^gen-view\\.viewRelation: field 'definition' is not a viewDefinition carrier element .*$";
+        test-the-graph-is-decided-at-viewRelation = cell (f.mkRelation {
+          graph = 42;
+        }) "^gen-view\\.viewRelation: field 'graph' is not a scopeGraph carrier element .*$";
+        test-the-order-mark-is-decided-at-viewRelation = cell (f.mkRelation {
+          orderMark = 42;
+        }) "^gen-view\\.viewRelation: field 'orderMark' is not a labelOrder carrier element .*$";
+        test-the-relation-is-decided-at-writesOf-on-the-output-arm = cell (v.writesOf (
+          un
+          // {
+            relation = 42;
+            target = output;
+          }
+        )) "^gen-view\\.writesOf: field 'relation' is not a viewRelation carrier element .*$";
+        test-the-mode-is-decided-at-writesOf-on-the-output-arm = cell (v.writesOf (
+          un
+          // {
+            mode = "sideways";
+            target = output;
+          }
+        )) "^gen-view\\.writesOf: field 'mode' is \"sideways\", .*$";
+        test-the-relation-is-decided-at-unit = cell (v.unit (
+          un // { relation = 42; }
+        )) "^gen-view\\.unit: field 'relation' is not a viewRelation carrier element .*$";
+        test-the-target-is-decided-at-unit = cell (v.unit (
+          un // { target = 42; }
+        )) "^gen-view\\.unit: field 'target' is not a target carrier element .*$";
+        test-the-mode-is-decided-at-unit = cell (v.unit (
+          un // { mode = "sideways"; }
+        )) "^gen-view\\.unit: field 'mode' is \"sideways\", .*$";
+        test-a-member-is-decided-at-accumulatorRelation = cell (v.accumulatorRelation {
+          units = {
+            a = 42;
+          };
+        }) "^gen-view\\.accumulatorRelation: field 'units' is not a unit carrier element .*$";
+        test-the-path-is-decided-at-orderedFoldOf-with-no-units = cell (v.orderedFoldOf {
+          units = { };
+          path = 42;
+        }) "^gen-view\\.orderedFoldOf: path must be a list, not a int$";
+        test-the-path-is-decided-at-targets-output = cell (v.placement.targets.output {
+          path = 42;
+        }) "^gen-view\\.targets\\.output: path must be a list, not a int$";
+        test-the-mode-is-decided-at-place = cell (v.placement.place {
+          mode = "sideways";
+          path = [ ];
+          name = "n";
+          value = 1;
+        }) "^gen-view\\.place: field 'mode' is \"sideways\", .*$";
+        test-the-path-is-decided-at-place = cell (v.placement.place {
+          mode = "merge";
+          path = 42;
+          name = "n";
+          value = 1;
+        }) "^gen-view\\.place: path must be a list, not a int$";
+        test-the-name-is-decided-at-map = cell (v.transform.map {
+          relation = f.relation;
+          name = 42;
+          f = c: c.datum;
+        }) "^gen-view\\.map: field 'name' must be .*$";
+        test-the-name-is-decided-at-scan = cell (v.transform.scan {
+          relation = f.relation;
+          name = 42;
+          f = acc: _: acc;
+          empty = [ ];
+        }) "^gen-view\\.scan: field 'name' must be .*$";
+        test-the-name-is-decided-at-over = cell (v.transform.over {
+          relation = f.relation;
+          name = 42;
+          f = cs: cs;
+        }) "^gen-view\\.over: field 'name' must be .*$";
+        test-a-non-contribution-is-refused-at-traceEntryOf = cell (entry 42 f.placement) "^gen-view\\.traceEntryOf: field 'contribution' is 42; .*$";
+        test-a-contribution-relation-is-decided-at-traceEntryOf = cell (entry (
+          c0 // { relation = 42; }
+        ) f.placement) "^gen-view\\.traceEntryOf: the contribution's relation is 42; .*$";
+        test-a-contribution-distance-is-decided-at-traceEntryOf = cell (entry (
+          c0 // { distance = { }; }
+        ) f.placement) "^gen-view\\.traceEntryOf: the contribution's distance is <a set>; .*$";
+        test-a-contribution-path-is-decided-at-traceEntryOf = cell (entry (
+          c0 // { path = [ 42 ]; }
+        ) f.placement) "^gen-view\\.traceEntryOf: the contribution's path must be .*$";
+        test-the-target-is-decided-at-traceEntryOf = cell (entry (
+          c0 // { channel = fn; }
+        ) f.placement) "^gen-view\\.targets\\.root: field 'channel' is <a lambda>; .*$";
+        test-a-non-placement-is-refused-at-traceEntryOf = cell (entry c0 42) "^gen-view\\.traceEntryOf: field 'placement' is 42; .*$";
+        test-a-placement-mode-is-decided-at-traceEntryOf = cell (entry c0 {
+          mode = "sideways";
+          path = [ ];
+        }) "^gen-view\\.traceEntryOf: field 'placement\\.mode' is \"sideways\", .*$";
+        test-a-placement-path-is-decided-at-traceEntryOf = cell (entry c0 {
+          mode = "merge";
+          path = 42;
+        }) "^gen-view\\.traceEntryOf: placement\\.path must be a list, not a int$";
+        test-a-non-relation-is-refused-at-trace = cell (v.trace {
+          relation = 42;
+          placement = f.placement;
+        }) "^gen-view\\.trace: field 'relation' is 42; .*$";
+        test-a-non-placement-is-refused-at-trace = cell (v.trace {
+          relation = f.relation;
+          placement = 42;
+        }) "^gen-view\\.trace: field 'placement' is 42; .*$";
+        test-a-placement-mode-is-decided-at-trace = cell (v.trace {
+          relation = f.relation;
+          placement = {
+            mode = "sideways";
+            path = [ ];
+          };
+        }) "^gen-view\\.trace: field 'placement\\.mode' is \"sideways\", .*$";
+        test-a-placement-path-is-decided-at-trace = cell (v.trace {
+          relation = f.relation;
+          placement = {
+            mode = "merge";
+            path = 42;
+          };
+        }) "^gen-view\\.trace: placement\\.path must be a list, not a int$";
+        # The target/relation cross-check lives in `writesOf`, which a ONE-unit schedule never
+        # forces, so `unit` decides it too. The control is `tryEval`-wrapped: bare, a
+        # refuse-everything `unit` would throw the pinned message and pass the cell.
+        test-a-target-naming-another-channel-is-decided-at-unit-in-a-one-unit-schedule =
+          let
+            order = u: v.accumulatorOrder { units.a = v.unit u; };
+            ok = builtins.tryEval (builtins.deepSeq (order un) (order un));
+          in
+          assert ok.success && ok.value == [ "a" ];
+          cell
+            (order (
+              un
+              // {
+                target = v.placement.targets.root {
+                  scope = "leaf";
+                  channel = "elsewhere";
+                };
+              }
+            ))
+            "^gen-view\\.writesOf: the target names channel 'elsewhere' but the view relation is named 'settings'; .*$";
+      };
   };
 }
