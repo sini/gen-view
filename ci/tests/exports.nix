@@ -775,6 +775,48 @@ in
         expected = false;
       };
 
+      # ★★ TRACE'S SECONDARY ORDER, PINNED BY ITS PROPERTY AND NOT BY ITS OUTPUT. Two entries that
+      # tie on `edgeSortKey` and differ only in distance are ordered by the canonical-JSON secondary
+      # alone, and ADR-0029 asks for a total order invariant under presentation order. The cell does
+      # not say WHICH tied entry comes first: a reverse-canonical tie-break is admissible too. It
+      # reds on a position-order tie-break, which is what a fallback for incomparable operands would
+      # put here.
+      test-trace-orders-a-sort-key-tie-by-its-secondary-under-either-presentation =
+        let
+          c = builtins.head f.relation.contributions;
+          tie = [
+            (c // { distance = 3; })
+            c
+          ];
+          traceOf =
+            cs:
+            v.trace {
+              relation = f.relation // {
+                contributions = cs;
+              };
+              placement = f.placement;
+            };
+          distancesUnder = cs: map (e: e.distance) (traceOf cs);
+          keys = map v.edgeSortKey (traceOf tie);
+        in
+        {
+          expr = {
+            # The pair really does tie on the key, so only the secondary can order it.
+            keysTie = builtins.elemAt keys 0 == builtins.elemAt keys 1;
+            invariantUnderPresentation = distancesUnder tie == distancesUnder (reverseList tie);
+            bothEntriesKept =
+              builtins.sort builtins.lessThan (distancesUnder tie) == [
+                1
+                3
+              ];
+          };
+          expected = {
+            keysTie = true;
+            invariantUnderPresentation = true;
+            bothEntriesKept = true;
+          };
+        };
+
       # ★★★ THE PREIMAGE ARGUMENT, ASSERTED RATHER THAN ONLY ARGUED. `lib/trace.nix` takes the
       # fingerprint over the TRACE and never over the sort key, because the key is a `" | "`-join
       # over free strings and two structurally distinct entries can render one key. Today that holds

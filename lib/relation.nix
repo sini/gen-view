@@ -71,6 +71,7 @@ let
     fields
     quote
     renderSubject
+    renderValue
     sortNames
     ;
   inherit (carrierLib) elementOf;
@@ -177,6 +178,18 @@ let
         follow = def.admission.expr;
       };
 
+      # The distance rule's declared contract is `{ distance; from; label; to; } → int`
+      # (`viewDefinition`), and step 4's `<`, `trace`'s order and `hashTrace` all read what it
+      # returns. A non-int is refused by name where it enters, so those comparators never see an
+      # operand outside their domain; the check is a thunk in the fold and fires only where the
+      # distance is read. A string used to be accepted and compared lexicographically ("10" < "9").
+      distanceOf =
+        step: d:
+        if builtins.isInt d then
+          d
+        else
+          refuse "viewRelation" "channel ${renderSubject def.name} declares a distance rule that returned ${renderValue d} for the step ${renderSubject step.label} from ${renderSubject step.from} to ${renderSubject step.to}; the rule is `{ distance; from; label; to; } → int`, and the projection compares the distances it returns";
+
       # Distance and residual derivative state, folded along each witness. The residual state is
       # the admission policy still in force at the arrival — the component the ⟨node,
       # derivative-state⟩ collapse is keyed on.
@@ -186,10 +199,12 @@ let
           walked =
             foldl'
               (acc: step: {
-                distance = def.distance {
-                  inherit (acc) distance;
-                  inherit (step) label from to;
-                };
+                distance = distanceOf step (
+                  def.distance {
+                    inherit (acc) distance;
+                    inherit (step) label from to;
+                  }
+                );
                 state = def.admission.step step.label acc.state;
               })
               {
@@ -330,6 +345,19 @@ let
           # A forged alphabet carrying a non-string stays unsorted, and a lambda equals no letter,
           # so the seam refuses it by name rather than aborting in the sort.
           asSet = sortNames;
+          # `lexLess` is `<` on ints. `labelOrder` mints int ranks from layer indices, so a genuine
+          # element cannot fail this, but an element tag is a claim and not proof: a `//` on a
+          # genuine order keeps the tag and replaces `rankOf`. Every rank of L̂ is checked before
+          # the sort reads any, so a forged rank is refused by name rather than aborting in `<`.
+          ranksOf =
+            which: o:
+            map (l: {
+              inherit which l;
+              rank = o.rankOf l;
+            }) q.alphabet.extended;
+          nonIntRanks = filter (x: !(builtins.isInt x.rank)) (
+            ranksOf "orderMark" markOrder ++ ranksOf "the definition's order" q
+          );
         in
         if asSet q.alphabet.letters != asSet g.carrier.labels.letters then
           # ★★★ THE OTHER HALF OF THE SAME SEAM — THE DECLARATION AGAINST THE GRAPH IT IS COMPOSED
@@ -363,6 +391,8 @@ let
           # component ranks letters the other has never heard of.
           refuse "viewRelation"
             "orderMark is built over a different alphabet than the definition's `order` (${quote markOrder.alphabet.letters} vs ${quote q.alphabet.letters}); one competition has one L"
+        else if nonIntRanks != [ ] then
+          refuse "viewRelation" "${(head nonIntRanks).which} ranks ${renderSubject (head nonIntRanks).l} at ${renderValue (head nonIntRanks).rank}; a label order ranks every symbol of L̂ by an int, and the competition compares the ranks"
         else
           carrierLib.labelOrder {
             inherit (q) alphabet;

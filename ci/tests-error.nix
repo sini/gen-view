@@ -1766,5 +1766,132 @@ in
         test-a-non-attrset-argument-is-refused-at-writesOf = cell (v.writesOf fn) "^gen-view\\.writesOf: the argument must be an attrset of this construct's fields, not a lambda \\(required: mode, relation, target\\)$";
         test-a-non-attrset-argument-is-refused-at-viewDefinition = cell (v.viewDefinition fn) "^gen-view\\.viewDefinition: the argument must be an attrset of this construct's fields, not a lambda.*$";
       };
+
+    # ── A VALUE-PATH COMPARATOR SEES ONLY ITS DOMAIN (ADR-0025 item 1) ──
+    # Step 4's `<` over distances and `effectiveOrder`'s `lexLess` over ranks are `<` on ints, and a
+    # non-int operand aborts there PAST `tryEval`. Each operand is checked where it enters against a
+    # contract gen-view already states: the distance rule is `{ distance; from; label; to; } → int`
+    # (`viewDefinition`), and a label order ranks L̂ by ints (`labelOrder`). Before the checks, each
+    # refusal cell below read `EvalError`, and the string distance was a VALUE compared
+    # lexicographically. The rank cells hand in a genuine order with `rankOf` replaced: the tag
+    # survives `//`, so a tag is a claim and not proof.
+    flake.testsError.value-comparator-refusals =
+      let
+        fn = x: x;
+        cell = expr: msg: {
+          expr = builtins.deepSeq expr true;
+          expectedError = {
+            type = "ThrownError";
+            inherit msg;
+          };
+        };
+        # ci/tests/relation.nix's diamond: `a` is reached from `d` in one hop and in two, in one
+        # derivative state, so step 4's projection compares the two arrivals' distances.
+        dLabels = v.edgeLabels { letters = [ "parent" ]; };
+        dAdmission = v.labelWellFormedness {
+          alphabet = dLabels;
+          expression = "parent*";
+        };
+        dOrder = v.labelOrder {
+          alphabet = dLabels;
+          layers = [ [ "parent" ] ];
+          endOfPath = -1;
+        };
+        dKey = v.dataOrder {
+          channel = "d";
+          keyOf = c: c.scope;
+        };
+        diamondUnder =
+          distance:
+          v.viewRelation {
+            definition = v.viewDefinition {
+              channel = dKey;
+              relation = "import";
+              root = "d";
+              direction = "outbound";
+              admission = dAdmission;
+              order = dOrder;
+              wellFormed = f.admitAll;
+              inherit distance;
+              tieSet = v.tieSets.union;
+              empty = [ ];
+              combine = v.combines.listAppend;
+              dedup = v.dedups.none;
+            };
+            graph = v.scopeGraph {
+              carrier = v.carrier {
+                relatumLabels = f.roles;
+                labels = dLabels;
+                labelWellFormedness = dAdmission;
+                labelOrder = dOrder;
+                dataOrder = dKey;
+                relations = v.relations { names = [ "import" ]; };
+              };
+              scopes = [
+                "a"
+                "b"
+                "d"
+              ];
+              edges.parent =
+                id:
+                {
+                  d = [
+                    "b"
+                    "a"
+                  ];
+                  b = [ "a" ];
+                }
+                .${id} or [ ];
+              data = f.authored {
+                a = [
+                  {
+                    relation = "import";
+                    datum = [ "a" ];
+                  }
+                ];
+              };
+            };
+            marks = f.noMarks;
+            orderMark = v.labelOrder {
+              alphabet = dLabels;
+              layers = [ [ "parent" ] ];
+              endOfPath = 0;
+            };
+          };
+      in
+      {
+        # LIVE CONTROL: under an int rule the diamond materializes, and the projection keeps the
+        # one-hop arrival.
+        test-control-the-diamond-materializes-under-hop-count = {
+          expr = map (c: c.distance) (diamondUnder (s: s.distance + 1)).contributions;
+          expected = [ 1 ];
+        };
+        test-a-distance-rule-returning-a-lambda-is-refused-by-name =
+          cell (diamondUnder (_: fn)).value
+            "^gen-view\\.viewRelation: channel 'd' declares a distance rule that returned <a lambda> .*$";
+        # A string is the case that used to answer: `"x"` against `1` aborted, but two strings
+        # compared lexicographically, so "10" ranked before "9".
+        test-a-distance-rule-returning-a-string-is-refused-by-name =
+          cell (diamondUnder (s: if builtins.isInt s.distance then "x" else 1)).value
+            "^gen-view\\.viewRelation: channel 'd' declares a distance rule that returned \"x\" .*$";
+        test-a-forged-order-mark-rank-is-refused-by-name =
+          cell
+            (f.mkRelation {
+              orderMark = f.identityMark // {
+                rankOf = l: if l == "$" then 0 else fn;
+              };
+            }).value
+            "^gen-view\\.viewRelation: orderMark ranks '[a-z]+' at <a lambda>.*$";
+        test-a-forged-definition-order-rank-is-refused-by-name =
+          cell
+            (f.mkRelation {
+              definition = f.definition // {
+                order = f.order // {
+                  rankOf = _: fn;
+                };
+              };
+            }).value
+            "^gen-view\\.viewRelation: the definition's order ranks '[a-z]+' at <a lambda>.*$";
+      };
   };
 }
