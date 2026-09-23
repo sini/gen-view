@@ -477,6 +477,48 @@ in
         };
       };
 
+      # The LEAST duplicate is named, and it is not the first one met: `c` repeats before `b`
+      # does. `strings` counts by an attrset keyed once, and `attrNames` is already sorted.
+      test-a-duplicate-scope-names-the-least-duplicate = {
+        expr = builtins.deepSeq (v.scopeGraph {
+          carrier = f.carrier;
+          scopes = [
+            "r"
+            "c"
+            "b"
+            "c"
+            "a"
+            "b"
+          ];
+          edges = { };
+          data = [ ];
+        }) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.scopeGraph: scopes names 'b' more than once$";
+        };
+      };
+
+      # Two copies of one name differing only in string context are one name twice: `==` ignores
+      # context, so the count's key is the context-discarded text, and a keyed count that kept the
+      # context would abort uncatchably on the store path instead of naming the duplicate.
+      test-a-duplicate-scope-differing-only-in-context-is-named = {
+        expr = builtins.deepSeq (v.scopeGraph {
+          carrier = f.carrier;
+          scopes = [
+            "r"
+            "${builtins.substring 0 0 (toString (builtins.toFile "ar4kb-ctx" "x"))}zz"
+            "zz"
+          ];
+          edges = { };
+          data = [ ];
+        }) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.scopeGraph: scopes names 'zz' more than once$";
+        };
+      };
+
       # LIVE CONTROL: the carrier that meets all three conditions constructs and carries its five.
       test-control-a-well-formed-carrier-constructs = {
         expr = f.carrier.__element;
@@ -1393,6 +1435,62 @@ in
         expectedError = {
           type = "ThrownError";
           msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' must return a bool for every node identifier; for `parent` it returned a string$";
+        };
+      };
+
+      # A FORGED relation carrying a non-string endpoint is still refused by the containment
+      # message. `mkNodeRef` refuses a non-string, so only a value wearing gen-graph's tag reaches
+      # this: `nodeIndex ? ${…}` on an int would abort on the coercion, and the `isString` guard in
+      # `missingEndpoints` answers "not a member" as `elem` did.
+      test-a-forged-non-string-endpoint-is-refused-by-the-containment-message = {
+        expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
+          wdsScheduleArgs
+          // {
+            declaredDependencies = {
+              _type = "gen-graph/declared-edges";
+              index = {
+                child = [ 7 ];
+              };
+              dependencies = _: [ ];
+            };
+          }
+        )) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'nodes' does not contain the declared relation's endpoint\\(s\\) <a list>; .*$";
+        };
+      };
+
+      # ★ `edges n` forces n's OWN write cell. `writersOf` indexes every writer once, n included,
+      # so a direct `edges` call on a unit whose own target is ill-formed meets that unit's
+      # `writesOf` refusal; the per-node scan it replaced skipped n by name and answered a value.
+      # `accumulatorOrder` forces every unit's cell either way, so only this direct call moved.
+      test-edges-on-a-unit-whose-own-write-cell-refuses-names-the-refusal = {
+        expr =
+          let
+            unitAt =
+              channel:
+              v.unit {
+                inherit (f) relation;
+                target = v.placement.targets.root {
+                  scope = "leaf";
+                  inherit channel;
+                };
+                mode = "merge";
+              };
+            rel = v.accumulatorRelation {
+              units = {
+                good = unitAt "settings";
+                bad = unitAt "other";
+              };
+            };
+          in
+          builtins.deepSeq (map (m: m.name) (
+            rel.edges (builtins.head (builtins.filter (n: n.name == "bad") rel.nodes))
+          )) true;
+        expectedError = {
+          type = "ThrownError";
+          msg = "^gen-view\\.writesOf: the target names channel 'other' but the view relation is named 'settings'.*$";
         };
       };
     };

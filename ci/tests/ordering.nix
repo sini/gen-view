@@ -560,5 +560,138 @@ in
         [ "child" ]
       ];
     };
+
+    # ★ THE DEPENDENCY LISTS ARE IN NAME ORDER, PINNED OVER TWELVE UNITS. `edges` reads writers
+    # off an index built once and sorts the names, which reproduces the old filter over `writes`
+    # (itself in `attrNames` order); the fixture's names put `u10` before `u3`, so a numeric or an
+    # arrival order would move them.
+    test-the-dependency-lists-are-in-name-order-over-twelve-units =
+      let
+        smallGraph =
+          sc:
+          v.scopeGraph {
+            carrier = f.carrier;
+            scopes = [ "r" ] ++ sc;
+            edges = {
+              parent = _: [ ];
+              include = id: if id == "r" then sc else [ ];
+            };
+            data = map (s: {
+              scope = s;
+              relation = "import";
+              datum = [ s ];
+            }) sc;
+          };
+        rels =
+          map
+            (
+              sc:
+              v.viewRelation {
+                definition = f.mkDefinition {
+                  root = "r";
+                  order = f.flatOrder;
+                };
+                graph = smallGraph sc;
+                marks = f.noMarks;
+                orderMark = f.identityMark;
+              }
+            )
+            [
+              [
+                "a"
+                "b"
+              ]
+              [
+                "b"
+                "c"
+              ]
+              [
+                "c"
+                "d"
+              ]
+              [ "e" ]
+            ];
+        units = builtins.listToAttrs (
+          builtins.genList (i: {
+            name = "u${toString (11 - i)}";
+            value = v.unit {
+              relation = builtins.elemAt rels (i - 4 * (i / 4));
+              target = v.placement.targets.root {
+                scope = builtins.elemAt [
+                  "a"
+                  "b"
+                  "c"
+                  "d"
+                  "e"
+                  "r"
+                ] (i - 6 * (i / 6));
+                channel = "settings";
+              };
+              mode = if i - 3 * (i / 3) == 0 then "merge" else "nest";
+            };
+          }) 12
+        );
+        rel = v.accumulatorRelation { inherit units; };
+      in
+      {
+        expr = builtins.listToAttrs (
+          map (n: {
+            inherit (n) name;
+            value = map (m: m.name) (rel.edges n);
+          }) rel.nodes
+        );
+        expected = {
+          u0 = [
+            "u1"
+            "u7"
+          ];
+          u1 = [
+            "u3"
+            "u9"
+          ];
+          u10 = [
+            "u3"
+            "u4"
+            "u9"
+          ];
+          u11 = [
+            "u10"
+            "u4"
+          ];
+          u2 = [
+            "u10"
+            "u3"
+            "u4"
+            "u9"
+          ];
+          u3 = [
+            "u10"
+            "u4"
+          ];
+          u4 = [
+            "u1"
+            "u7"
+          ];
+          u5 = [
+            "u3"
+            "u9"
+          ];
+          u6 = [
+            "u10"
+            "u3"
+            "u4"
+            "u9"
+          ];
+          u7 = [
+            "u10"
+            "u4"
+          ];
+          u8 = [
+            "u1"
+            "u7"
+          ];
+          u9 = [ "u3" ];
+        };
+      };
   };
 }

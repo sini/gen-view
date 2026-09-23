@@ -59,6 +59,7 @@ let
     elem
     filter
     foldl'
+    genAttrs
     head
     imap0
     length
@@ -579,7 +580,10 @@ let
         !(builtins.isAttrs e)
         || sort builtins.lessThan (builtins.attrNames e) != sort builtins.lessThan datumFields
       ) (if builtins.isList a.data then a.data else [ ]);
-      offScope = filter (e: !(elem e.scope scopes)) (if builtins.isList a.data then a.data else [ ]);
+      scopeIndex = genAttrs (map builtins.unsafeDiscardStringContext scopes) (_: null);
+      offScope = filter (
+        e: !(builtins.isString e.scope && scopeIndex ? ${builtins.unsafeDiscardStringContext e.scope})
+      ) (if builtins.isList a.data then a.data else [ ]);
       offRelation = filter (e: !(c.relations.member e.relation)) (
         if builtins.isList a.data then a.data else [ ]
       );

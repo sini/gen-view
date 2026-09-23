@@ -610,5 +610,28 @@ in
         theFive = 5;
       };
     };
+
+    # A datum filed at a context-carrying copy of a declared scope is on-scope: `elem` ignored the
+    # context, so the scope set is keyed by the context-discarded text, and a set keyed with the
+    # context kept would abort uncatchably on the store path.
+    test-a-datum-at-a-context-carrying-copy-of-a-scope-constructs = {
+      expr =
+        (v.scopeGraph {
+          carrier = f.carrier;
+          scopes = [
+            "r"
+            "zz"
+          ];
+          edges = { };
+          data = [
+            {
+              scope = "${builtins.substring 0 0 (toString (builtins.toFile "ar4kb-ctx" "x"))}zz";
+              relation = "import";
+              datum = [ "x" ];
+            }
+          ];
+        }).__element;
+      expected = "scopeGraph";
+    };
   };
 }

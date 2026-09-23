@@ -532,6 +532,34 @@ let
             }
           ) competed;
 
+      tieRank =
+        if def.tieSet.arm == "orderedFold" then
+          builtins.listToAttrs (
+            concatMap (
+              i:
+              let
+                o = builtins.elemAt def.tieSet.order i;
+              in
+              if builtins.isString o then
+                [
+                  {
+                    name = builtins.unsafeDiscardStringContext o;
+                    value = i;
+                  }
+                ]
+              else
+                [ ]
+            ) (builtins.genList (i: i) (length def.tieSet.order))
+          )
+        else
+          { };
+      rankOfScope =
+        s:
+        if builtins.isString s then
+          tieRank.${builtins.unsafeDiscardStringContext s} or null
+        else
+          indexOf def.tieSet.order s;
+
       # 7 — the tie-set disposition.
       disposed = map (
         grp:
@@ -554,16 +582,14 @@ let
           # survivors, so a scope it does not name is refused by name rather than sorted to an end
           # nobody declared.
           let
-            unranked = filter (c: indexOf def.tieSet.order c.scope == null) grp.visible;
+            unranked = filter (c: rankOfScope c.scope == null) grp.visible;
           in
           if unranked != [ ] then
             refuse "viewRelation" "channel ${renderSubject def.name} declares tieSet 'orderedFold' whose declared order (${quote def.tieSet.order}) does not rank the contributing scope '${(head unranked).scope}'; the order is total over the surviving set"
           else
             grp
             // {
-              visible = sort (
-                x: y: indexOf def.tieSet.order x.scope < indexOf def.tieSet.order y.scope
-              ) grp.visible;
+              visible = sort (x: y: rankOfScope x.scope < rankOfScope y.scope) grp.visible;
             }
       ) competedCollapsed;
 

@@ -20,6 +20,7 @@ let
   inherit (prelude)
     filter
     elem
+    groupBy
     head
     length
     sort
@@ -97,12 +98,16 @@ let
   # `strings site what xs` — a list of distinct non-empty strings, the shape every alphabet and
   # name set in the carrier takes. Duplicates are refused rather than collapsed: a set written
   # twice is a caller who believes two things about it, and silently deduplicating picks one.
+  # `counts` keys by the context-discarded text, as gen-prelude `unique` does: `==` ignores string
+  # context, so two copies differing only in context are a duplicate, and `groupBy` aborts on a
+  # context-carrying key.
   strings =
     site: what: xs:
     let
       bad = filter (x: !(builtins.isString x)) xs;
       empties = filter (x: x == "") xs;
-      dups = filter (x: length (filter (y: y == x) xs) > 1) xs;
+      counts = groupBy builtins.unsafeDiscardStringContext xs;
+      dups = filter (k: length counts.${k} > 1) (attrNames counts);
     in
     if !(builtins.isList xs) then
       refuse site "${what} must be a list, not a ${builtins.typeOf xs}"

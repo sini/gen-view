@@ -1182,6 +1182,46 @@ in
       };
     };
 
+    # The declared order ranks by the context-discarded text, as `indexOf`'s `==` did: an order
+    # whose entries carry string context disposes the surviving set exactly as the plain order.
+    test-orderedfold-ranks-a-context-carrying-order-as-the-plain-one = {
+      expr =
+        let
+          ctx = s: "${builtins.substring 0 0 (toString (builtins.toFile "ar4kb-ctx" "x"))}${s}";
+          run =
+            order:
+            map (c: c.scope)
+              (f.mkRelation {
+                definition = f.mkDefinition {
+                  order = f.flatOrder;
+                  tieSet = v.tieSets.orderedFold { inherit order; };
+                };
+              }).contributions;
+        in
+        {
+          plain = run [
+            "mid"
+            "inc"
+          ];
+          withContext = run (
+            map ctx [
+              "mid"
+              "inc"
+            ]
+          );
+        };
+      expected = {
+        plain = [
+          "mid"
+          "inc"
+        ];
+        withContext = [
+          "mid"
+          "inc"
+        ];
+      };
+    };
+
     # ── DEDUP: EVERY DROP IS A RECORD ──
     # The surface this replaces DECLARED a dedup and enumerated no drops, so an answer that came
     # back short could not be told from a contribution that was never made. Here the drop names the

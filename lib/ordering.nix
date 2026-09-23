@@ -60,6 +60,8 @@ let
   inherit (prelude)
     elem
     filter
+    sort
+    genAttrs
     map
     unique
     ;
@@ -202,6 +204,15 @@ let
           inherit (n.unit) relation target mode;
         };
       }) nodes;
+      writersOf = builtins.groupBy (x: builtins.unsafeDiscardStringContext x.cell) (
+        builtins.concatMap (
+          w:
+          map (c: {
+            cell = c;
+            inherit (w) name;
+          }) w.cells
+        ) writes
+      );
       byName = builtins.listToAttrs (
         map (x: {
           inherit (x) name;
@@ -222,9 +233,21 @@ let
           n:
           let
             reads = readsOf n.unit.relation;
-            depends = filter (w: w.name != n.name && (filter (c: elem c reads) w.cells) != [ ]) writes;
+            depends =
+              if builtins.length writes < 2 then
+                [ ]
+              else
+                sort builtins.lessThan (
+                  unique (
+                    filter (m: m != n.name) (
+                      builtins.concatMap (
+                        c: map (x: x.name) (writersOf.${builtins.unsafeDiscardStringContext c} or [ ])
+                      ) reads
+                    )
+                  )
+                );
           in
-          map (w: byName.${w.name}) depends;
+          map (m: byName.${m}) depends;
       };
 
   # `accumulatorOrder { relations }` — the schedule, as the caller's names in producers-first
@@ -353,8 +376,8 @@ let
   #
   # COST. This construct is QUADRATIC in `|nodes|`, and it INHERITS that term rather than
   # introducing it: `den-hoag-o29j` already prices `gen-graph.condensation` at a documented
-  # O(nodes²), and this library's own containment line is the second quadratic term (`elem e nodes`
-  # per endpoint, at `missingEndpoints`). Measured end-to-end on a linear chain (|E| = n−1, best of
+  # O(nodes²), and that is the only quadratic term: `missingEndpoints` looks each endpoint up in
+  # `nodeIndex`, an attrset built once, rather than scanning `nodes`. Measured end-to-end on a linear chain (|E| = n−1, best of
   # three, net of an n = 2 baseline of 42 ms): 82 / 314 / 1258 / 5300 ms at n = 400 / 800 / 1600 /
   # 3200 — exponent 2.0 over three doublings. ★ THE TOTAL CHECK ADDS A LINEAR TERM, NOT A QUADRATIC
   # ONE, and that is why `admissions` is an attrset rather than a second application site: the
@@ -384,7 +407,12 @@ let
       # its values the targets. No evaluator, no second construction — see the header above.
       sources = builtins.attrNames declaredDependencies.index;
       targets = builtins.concatLists (builtins.attrValues declaredDependencies.index);
-      missingEndpoints = unique (filter (e: !(elem e nodes)) (sources ++ targets));
+      nodeIndex = genAttrs (map builtins.unsafeDiscardStringContext nodes) (_: null);
+      missingEndpoints = unique (
+        filter (e: !(builtins.isString e && nodeIndex ? ${builtins.unsafeDiscardStringContext e})) (
+          sources ++ targets
+        )
+      );
       edges = declaredDependencies.dependencies;
       condensation = graph.condensation { inherit nodes edges; };
       selfLoop = n: elem n (edges n);
