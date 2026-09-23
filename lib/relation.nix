@@ -502,9 +502,15 @@ let
             dropped = [ ];
           }
         else
-          # The index is an ATTRSET rather than a rescan of what has been kept. A rescan pays the
-          # kept list once per contribution, which is quadratic in the group's size on the one
-          # step whose whole purpose is to make a large gather smaller.
+          # BY BUCKET, READ BACK IN WALK ORDER. Each survivor is tagged ONCE with its walk position,
+          # its key and its bucket address; `builtins.groupBy` buckets them in one pass, keeping walk
+          # order within a bucket. Per bucket, a fold keeps a candidate iff nothing KEPT BEFORE IT in
+          # that bucket is `same`, and collapses it into the FIRST such kept element. `map` over the
+          # tagged list then reads every decision back in walk order, so `kept` and `dropped` are
+          # both in walk order. No accumulator is carried across the whole walk: a fold whose state
+          # is `kept ++ [ c ]` or an attrset index `seen // { … }` copies that state on every step,
+          # and both are quadratic in the group's size — on the one step whose whole purpose is to
+          # make a large gather smaller.
           #
           # ★ THE ENCODING IS THE ADDRESS, NEVER THE DECISION. `idx` selects a BUCKET; what decides
           # survival is `same`, the relation the arm's own constructor declares — `byDatum` is
@@ -521,43 +527,33 @@ let
           # every recorded drop is one the declaration licenses — and leaves COMPLETENESS exactly
           # as it was: a licensed collapse across encoding classes is still not made, and still not
           # recorded.
-          foldl'
-            (
-              acc: c:
+          let
+            tagged = builtins.genList (
+              i:
               let
+                c = builtins.elemAt surviving i;
                 k = dedupKey c;
-                idx = builtins.toJSON k;
-                bucket = acc.seen.${idx} or [ ];
-                same = s: if def.dedup.arm == "byDatum" then c.datum == s.c.datum else k == s.k;
-                matches = filter same bucket;
               in
-              if matches != [ ] then
-                acc
-                // {
-                  dropped = acc.dropped ++ [
-                    {
-                      contribution = c;
-                      collapsedInto = (head matches).c;
-                      policy = def.dedup.arm;
-                      key = k;
-                    }
-                  ];
-                }
-              else
-                acc
-                // {
-                  kept = acc.kept ++ [ c ];
-                  seen = acc.seen // {
-                    ${idx} = bucket ++ [ { inherit c k; } ];
-                  };
-                }
-            )
-            {
-              kept = [ ];
-              dropped = [ ];
-              seen = { };
-            }
-            surviving;
+              {
+                inherit i c k;
+                idx = builtins.toJSON k;
+              }
+            ) (length surviving);
+            same = t: s: if def.dedup.arm == "byDatum" then t.c.datum == s.c.datum else t.k == s.k;
+            keptIn = builtins.mapAttrs (
+              _: foldl' (acc: t: if builtins.any (same t) acc then acc else acc ++ [ t ]) [ ]
+            ) (builtins.groupBy (t: t.idx) tagged);
+            decided = map (t: t // { matches = filter (s: s.i < t.i && same t s) keptIn.${t.idx}; }) tagged;
+          in
+          {
+            kept = map (t: t.c) (filter (t: t.matches == [ ]) decided);
+            dropped = map (t: {
+              contribution = t.c;
+              collapsedInto = (head t.matches).c;
+              policy = def.dedup.arm;
+              key = t.k;
+            }) (filter (t: t.matches != [ ]) decided);
+          };
 
       # 9 — the fold, over the list AS IT STANDS: balanced bracketing under the declared
       # associativity, the list's order still the authority; no sort, no dedup by rank, no reorder.

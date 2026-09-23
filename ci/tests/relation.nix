@@ -536,6 +536,81 @@ let
   # .default` crash) rather than needing one `ci/tests-error.nix` cell per tie-set arm for a message
   # that is IDENTICAL across all three (6a refuses before step 7's tieSet dispatch is ever reached).
   throws = expr: !(builtins.tryEval (builtins.deepSeq expr expr)).success;
+
+  # ── THE ORDER FIXTURE: WALK ORDER, BUCKET ORDER AND KEEP-LAST ALL DISAGREE (den-hoag-qj233) ──
+  # One scope, one entry per element of `entries`, a flat order, `union`. Each entry has its OWN
+  # competition key (`k`), so competition groups are singletons and emerge in walk order, and a
+  # DEDUP key `d` read by `byKey`. Step 8 buckets by `toJSON d`; with `d` walked z a z a the
+  # bucket (encoding) order is the REVERSE of walk order, so a construction that emits `kept` or
+  # `dropped` by bucket, or keeps the last duplicate, reads differently from the pinned rule.
+  orderLabels = v.edgeLabels { letters = [ "parent" ]; };
+  orderAdmission = v.labelWellFormedness {
+    alphabet = orderLabels;
+    expression = "parent*";
+  };
+  orderFlat = v.labelOrder {
+    alphabet = orderLabels;
+    layers = [ [ "parent" ] ];
+    endOfPath = 0;
+  };
+  orderKey = v.dataOrder {
+    channel = "cfg";
+    keyOf = c: (builtins.head c.datum).k;
+  };
+  orderRelation =
+    entries: dedup:
+    v.viewRelation {
+      definition = v.viewDefinition {
+        channel = orderKey;
+        inherit dedup;
+        admission = orderAdmission;
+        order = orderFlat;
+        wellFormed = _: true;
+        relation = "cfg";
+        root = "root";
+        direction = "outbound";
+        distance = s: s.distance + 1;
+        tieSet = v.tieSets.union;
+        empty = [ ];
+        combine = v.combines.listAppend;
+      };
+      graph = v.scopeGraph {
+        carrier = v.carrier {
+          labels = orderLabels;
+          relations = v.relations { names = [ "cfg" ]; };
+          relatumLabels = v.relatumLabels { names = [ "relatum-target" ]; };
+          labelWellFormedness = orderAdmission;
+          labelOrder = orderFlat;
+          dataOrder = orderKey;
+        };
+        scopes = [ "root" ];
+        edges.parent = _: [ ];
+        data = builtins.genList (i: {
+          scope = "root";
+          relation = "cfg";
+          datum = [ ({ k = "k${toString i}"; } // builtins.elemAt entries i) ];
+        }) (builtins.length entries);
+      };
+      marks = _: [ ];
+      orderMark = orderFlat;
+    };
+  orderTag = c: (builtins.head c.datum).tag;
+  orderRead = r: {
+    kept = map orderTag r.contributions;
+    dropped = map (d: "${orderTag d.contribution}>${orderTag d.collapsedInto}") r.dropped;
+  };
+  # d walked z a z a; each tag is `d` plus its walk index.
+  zaza = builtins.genList (
+    i:
+    let
+      d = builtins.elemAt [ "z" "a" "z" "a" ] i;
+    in
+    {
+      inherit d;
+      tag = "${d}${toString i}";
+    }
+  ) 4;
+  byOrderKey = v.dedups.byKey { keyOf = c: (builtins.head c.datum).d; };
 in
 {
   flake.tests.relation = {
@@ -835,6 +910,114 @@ in
           "root"
         ];
       };
+    };
+
+    # ── STEP 8's ORDERS, PINNED (den-hoag-qj233) ──
+    # Step 8 buckets survivors by address, so the order of `kept` and of `dropped` and the identity
+    # of the survivor are properties the construction must RESTORE, not ones it inherits. On the
+    # z a z a fixture walk order, bucket order and keep-last all disagree.
+    test-dedup-keeps-the-first-in-walk-order-and-records-drops-in-walk-order = {
+      expr = orderRead (orderRelation zaza byOrderKey);
+      expected = {
+        kept = [
+          "z0"
+          "a1"
+        ];
+        dropped = [
+          "z2>z0"
+          "a3>a1"
+        ];
+      };
+    };
+
+    # A drop collapses into the FIRST kept element of its bucket that is `same`, even where `==`
+    # is not transitive and a later kept element is `same` too. A, B and C all encode to `"K"` (one
+    # bucket); `A == B` and `B == C` hold while `A == C` does not, so walking A C B keeps A and C, and
+    # B matches BOTH. The first match is o0; a last-match slip reads `o2>o1`.
+    test-dedup-collapses-into-the-first-kept-match =
+      let
+        keyA = {
+          outPath = "K";
+          n = 9007199254740993;
+        };
+        keyB = {
+          outPath = "K";
+          n = 9007199254740992.0;
+        };
+        keyC = {
+          outPath = "K";
+          n = 9007199254740992;
+        };
+      in
+      {
+        expr = {
+          nonTransitive = [
+            (keyA == keyB)
+            (keyB == keyC)
+            (keyA == keyC)
+          ];
+          dedup = orderRead (
+            orderRelation [
+              {
+                d = keyA;
+                tag = "o0";
+              }
+              {
+                d = keyC;
+                tag = "o1";
+              }
+              {
+                d = keyB;
+                tag = "o2";
+              }
+            ] byOrderKey
+          );
+        };
+        expected = {
+          nonTransitive = [
+            true
+            true
+            false
+          ];
+          dedup = {
+            kept = [
+              "o0"
+              "o1"
+            ];
+            dropped = [ "o2>o0" ];
+          };
+        };
+      };
+
+    # `transform.scan` is the INCLUSIVE prefix in walk order: each datum is the accumulation up to
+    # and including its own contribution. An exclusive scan reads `[ [ ] [ "z0" ] … ]`.
+    test-scan-is-the-inclusive-prefix-in-walk-order = {
+      expr =
+        map (c: c.datum)
+          (v.transform.scan {
+            relation = orderRelation zaza v.dedups.none;
+            name = "scanned";
+            empty = [ ];
+            f = s: c: s ++ [ (orderTag c) ];
+          }).contributions;
+      expected = [
+        [ "z0" ]
+        [
+          "z0"
+          "a1"
+        ]
+        [
+          "z0"
+          "a1"
+          "z2"
+        ]
+        [
+          "z0"
+          "a1"
+          "z2"
+          "a3"
+        ]
+      ];
     };
 
     # ══════════════════════════════════════════════════════════════════════════════════════

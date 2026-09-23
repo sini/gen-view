@@ -25,7 +25,7 @@
 # result would say which was authoritative.
 { prelude }:
 let
-  inherit (prelude) foldl' map length;
+  inherit (prelude) map length;
   refusal = import ./refusal.nix { inherit prelude; };
   enums = import ./enumerations.nix { inherit prelude; };
   inherit (refusal) refuse fields;
@@ -86,18 +86,13 @@ let
       ] args;
       r = viewIn "scan" a.relation;
       name = named "scan" a.name;
-      stepped =
-        (foldl'
-          (acc: c: {
-            state = a.f acc.state c;
-            out = acc.out ++ [ (c // { datum = a.f acc.state c; }) ];
-          })
-          {
-            state = a.empty;
-            out = [ ];
-          }
-          r.contributions
-        ).out;
+      cs = r.contributions;
+      states = builtins.genList (
+        i: a.f (if i == 0 then a.empty else builtins.elemAt states (i - 1)) (builtins.elemAt cs i)
+      ) (length cs);
+      stepped = builtins.genList (i: builtins.elemAt cs i // { datum = builtins.elemAt states i; }) (
+        length cs
+      );
     in
     if !(builtins.isFunction a.f) then
       refuse "scan" "field 'f' must be a binary step `accumulator → contribution → accumulator`"
