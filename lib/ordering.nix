@@ -73,6 +73,7 @@ let
     fields
     choice
     strings
+    attrKey
     quote
     renderSubject
     ;
@@ -425,7 +426,7 @@ let
       # keys are exactly its members.
       admissions = builtins.listToAttrs (
         map (n: {
-          name = n;
+          name = attrKey n;
           value = a.admitsCycle n;
         }) nodes
       );
@@ -433,13 +434,13 @@ let
       # forces its predicate over EVERY member of `nodes`, so every admission is typed here
       # whatever shape the declared relation has, and a pattern formal aborts here rather than
       # being short-circuited into silence on an acyclic relation.
-      illTypedAdmissions = filter (n: !(builtins.isBool admissions.${n})) nodes;
+      illTypedAdmissions = filter (n: !(builtins.isBool admissions.${attrKey n})) nodes;
       # `builtins.all` still SHORT-CIRCUITS at the first `false`, but it can no longer swallow a
       # type refusal: every member of `nodes` is typed above before this is forced, and every SCC
       # member is a member of `nodes` because `condensation` partitions it — so the values read
       # here are bools, and the only refusal reachable from this line is the cycle refusal itself.
       badSccs = filter (
-        scc: isCyclicScc scc && !(builtins.all (n: admissions.${n}) scc)
+        scc: isCyclicScc scc && !(builtins.all (n: admissions.${attrKey n}) scc)
       ) condensation.sccs;
     in
     if missingEndpoints != [ ] then
@@ -448,7 +449,7 @@ let
       refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must be a function from a node identifier to a bool (`isRegistered`'s shape — the membership authority `mkNodeRef` itself takes); received a ${builtins.typeOf a.admitsCycle}"
     else if illTypedAdmissions != [ ] then
       refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must return a bool for every node identifier; for `${builtins.head illTypedAdmissions}` it returned a ${
-        builtins.typeOf admissions.${builtins.head illTypedAdmissions}
+        builtins.typeOf admissions.${attrKey (builtins.head illTypedAdmissions)}
       }"
     else if badSccs != [ ] then
       refuse "boundedWellDefinedSchedule" "the declared relation has a cyclic component `admitsCycle` does not admit: ${builtins.toJSON badSccs}. Declare `admitsCycle` true for every member (Sloane 2009 iterate-to-fixpoint) or break the cycle; this refusal is not a well-definedness verdict (well-definedness ⟸ absence of a declared cycle, never ⟺)"

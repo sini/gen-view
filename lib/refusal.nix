@@ -95,6 +95,14 @@ let
     else
       refuse site "field '${field}' is ${renderValue value}, which is not one of the declared arms (${quote allowed})";
 
+  # `attrKey k` — the attribute name a caller-supplied identifier is KEYED under: its text, with
+  # string context discarded from the key only. An attribute name cannot carry context, and `==`
+  # and `strings`' duplicate check below both ignore it, so the text is exactly what a key can hold
+  # (gen-prelude `unique`'s keying). The caller's value is never replaced. A non-string passes
+  # through unchanged, because the discard COERCES an `outPath`/`__toString` set or a path and
+  # would silently admit it as a name.
+  attrKey = k: if builtins.isString k then builtins.unsafeDiscardStringContext k else k;
+
   # `strings site what xs` — a list of distinct non-empty strings, the shape every alphabet and
   # name set in the carrier takes. Duplicates are refused rather than collapsed: a set written
   # twice is a caller who believes two things about it, and silently deduplicating picks one.
@@ -126,6 +134,7 @@ in
     fields
     choice
     strings
+    attrKey
     quote
     renderValue
     renderSubject

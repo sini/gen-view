@@ -42,6 +42,7 @@ let
     fields
     choice
     strings
+    attrKey
     quote
     ;
 
@@ -110,7 +111,10 @@ let
         # name. That is the whole observable difference between the two families, and it is one
         # expression rather than three.
         placed =
-          if mode == "merge" then setAttrByPath path a.value else setAttrByPath (path ++ [ a.name ]) a.value;
+          if mode == "merge" then
+            setAttrByPath (map attrKey path) a.value
+          else
+            setAttrByPath (map attrKey (path ++ [ a.name ])) a.value;
       };
 
   # `pathKey` / `targetKey` / `sourceKey` — the rendered components the frozen sort key is built

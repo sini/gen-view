@@ -71,6 +71,7 @@ let
     refuse
     fields
     strings
+    attrKey
     quote
     renderValue
     renderSubject
@@ -300,12 +301,25 @@ let
         acc
         // builtins.listToAttrs (
           map (l: {
-            name = l;
+            name = attrKey l;
             value = i;
           }) (builtins.elemAt layers i)
         )
       ) { } (builtins.genList (i: i) (length layers));
-      rankOf = l: if l == "$" then a.endOfPath else ranks.${l};
+      # Every rank read goes through here, so a label outside L̂ is refused by name at every
+      # published reader: `ranks.${l}` aborts past `tryEval` on an unranked name and on a
+      # non-string. `ranks`' keys are exactly the alphabet (`missing` and `foreign` below).
+      rankOf =
+        l:
+        let
+          k = attrKey l;
+        in
+        if l == "$" then
+          a.endOfPath
+        else if builtins.isString l && ranks ? ${k} then
+          ranks.${k}
+        else
+          refuse "labelOrder" "${renderSubject l} is not a label of L̂ (${quote alphabet.letters}, or `$`)";
     in
     if !(builtins.isList layers) || any (l: !(builtins.isList l)) layers then
       refuse "labelOrder" "layers must be a list of lists — each inner list is one rank, and two letters sharing a rank are incomparable, which is how a strict PARTIAL order is declared"
@@ -323,20 +337,8 @@ let
         # `<l` itself: the strict partial order over L̂ the figure defines. Two DISTINCT letters of
         # one layer are incomparable — `precedes` is false in BOTH directions — and a letter is
         # never `<l` itself. Same label ⇒ same rank, so the rank comparison already says this.
-        # A label outside L̂ is refused by name before `rankOf` reads it: `ranks.${l}` aborts past
-        # `tryEval` on an unranked name and on a non-string. `==` and `member` never coerce, so the
-        # test itself is total.
-        precedes =
-          x: y:
-          let
-            known =
-              l:
-              if l == "$" || alphabet.member l then
-                l
-              else
-                refuse "labelOrder" "precedes was given ${renderSubject l}, which is not a label of L̂ (${quote alphabet.letters}, or `$`)";
-          in
-          rankOf (known x) < rankOf (known y);
+        # A label outside L̂ is refused by name in `rankOf`.
+        precedes = x: y: rankOf x < rankOf y;
 
         # ★ A PROJECTION FOR DIAGNOSTICS AND LAYERING, AND EXPLICITLY *NOT* THE BASIS OF THE
         # COMPARISON. It is published because the ranks of a path's labels are worth reading; it is
@@ -609,7 +611,7 @@ let
       # `a.data`, so an authored `ordinal` field is refused by name (the closed set is the three)
       # before this index is ever built.
       indexed = imap0 (i: e: e // { ordinal = i; }) a.data;
-      datumsAt = builtins.groupBy (e: e.scope) indexed;
+      datumsAt = builtins.groupBy (e: attrKey e.scope) indexed;
     in
     if !(builtins.isAttrs a.edges) then
       refuse "scopeGraph" "edges must be an attrset of label → (scope → [ scope ]); it is the per-label accessor the walk steps"
@@ -668,7 +670,7 @@ let
       refuse "relationEntries" "scope is ${renderValue a.scope}; a scope is named by a string"
     else
       filter (entry: entry.relation == a.relation && a.wellFormed entry.datum) (
-        g.datumsAt.${a.scope} or [ ]
+        g.datumsAt.${attrKey a.scope} or [ ]
       );
 
   # `relationLookup` — the datum projection over `relationEntries`. It carries no refusal of its

@@ -372,7 +372,7 @@ in
         expr = f.order.precedes "nope" "parent";
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.labelOrder: precedes was given 'nope', which is not a label of L̂ \\(include, parent, or `\\$`\\)$";
+          msg = "^gen-view\\.labelOrder: 'nope' is not a label of L̂ \\(include, parent, or `\\$`\\)$";
         };
       };
 
@@ -2013,6 +2013,59 @@ in
               };
             }).value
             "^gen-view\\.viewRelation: the definition's order ranks '[a-z]+' at <a lambda>.*$";
+      };
+
+    # A schedule node carrying string context is keyed by its text, so the admission check reads
+    # it and names it, where the keying used to abort past `tryEval`. The value half is
+    # `ci/tests/context-identifiers.nix`.
+    flake.testsError.context-identifiers =
+      let
+        ctx = s: "${builtins.substring 0 0 (toString (builtins.toFile "3tsd3-ctx" "x"))}${s}";
+        unknownLabel = expr: {
+          inherit expr;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.labelOrder: 'nope' is not a label of L̂ \\(include, parent, or `\\$`\\)$";
+          };
+        };
+        step = label: { inherit label; };
+      in
+      {
+        test-a-schedule-node-carrying-context-reaches-the-admission-check = {
+          expr = builtins.deepSeq (v.boundedWellDefinedSchedule {
+            nodes = [
+              (ctx "s0")
+              "s1"
+            ];
+            declaredDependencies = graph.mkDeclaredEdges { };
+            equations = { };
+            admitsCycle = _: 1;
+          }) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' must return a bool for every node identifier; for `s0` it returned a int$";
+          };
+        };
+        # A set with an `outPath` is not a letter, and is not coerced into one by the key.
+        test-a-forged-letter-is-not-coerced-into-a-rank = {
+          expr = f.order.precedes { outPath = "include"; } "parent";
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.labelOrder: <a set> is not a label of L̂ .*$";
+          };
+        };
+        # Every rank read goes through `rankOf`, so a label outside L̂ is refused by name at each
+        # published reader rather than aborting on the rank table.
+        test-rankOf-names-an-unknown-label = unknownLabel (f.order.rankOf "nope");
+        test-rankWord-names-an-unknown-label = unknownLabel (
+          builtins.deepSeq (f.order.rankWord [ (step "nope") ]) true
+        );
+        test-pathPrecedes-names-an-unknown-label = unknownLabel (
+          f.order.pathPrecedes [ (step "nope") ] [ (step "parent") ]
+        );
+        test-rankLess-names-an-unknown-label = unknownLabel (
+          f.order.rankLess [ (step "nope") ] [ (step "parent") ]
+        );
       };
   };
 }
