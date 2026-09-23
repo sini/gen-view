@@ -21,8 +21,9 @@
 # carrying the wrong VALUE (a `datumsAt` indexing other data) is the cooperative-caller residue
 # 8rkc names. An operation the library can restate from checked structure is restated and never
 # applied — `member` from the lists above, the walk's `step` and `stateKey` from gen-graph's kernel
-# (l83dk) — so a forged one is a claim nothing here reads; `scopeGraph.labeled` is not yet restated
-# (den-hoag-cer8j). A caller-authored function's RESULT is checked where it is applied
+# (l83dk), `scopeGraph.labeled` from `carrier`, `scopes` and `edges` under the constructor's own
+# law (`labeledOf`, den-hoag-cer8j) — so a forged one is a claim nothing here reads; each stays
+# published and is never read. A caller-authored function's RESULT is checked where it is applied
 # (den-hoag-0gpyq's class). Other lists' ELEMENTS are checked where they are read (`tupleKey`,
 # `attrKey`, `rankOf`).
 #

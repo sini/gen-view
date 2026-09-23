@@ -540,26 +540,25 @@ let
   # the separate component — `data` below — so its datums do not ride on `labeledEdges`. Admitting
   # an `R` label anyway is the stated condition read literally, and such an edge is inert by the
   # same argument; refusing it would be narrowing a law this library does not own.
-  scopeGraph =
-    args:
+  # `labeledOf site at c scopes edges` — the labeled graph of a scopeGraph, derived from its checked
+  # structure. The constructor and every reader run THIS, never a `labeled` an element carries
+  # (den-hoag-cer8j), so a forged `labeled` is inert and forged `edges`/`scopes` meet the
+  # constructor's own law, refused at the reading door. An accessor's RESULT is the graph's law
+  # wherever it is applied, so its refusal names `scopeGraph` at every door. A read costs
+  # O(|scopes|) for `strings` and the scope index, plus O(|edge labels|·(|L|+|R|+|Λ|)) for
+  # `unclassified`, a constant in the data.
+  labeledOf =
+    site: at: c: scopes0: edges:
     let
-      a = fields "scopeGraph" [
-        "carrier"
-        "scopes"
-        "edges"
-        "data"
-      ] args;
-      c = elementOf "scopeGraph" "carrier" "carrier" a.carrier;
-      scopes = strings "scopeGraph" "scopes" a.scopes;
-      edgeLabelNames = builtins.attrNames a.edges;
+      fieldName = n: if at == "" then n else "field '${at}${n}'";
+      scopes = strings site (fieldName "scopes") scopes0;
+      scopeIndex = genAttrs (map builtins.unsafeDiscardStringContext scopes) (_: null);
+      edgeLabelNames = builtins.attrNames edges;
       unclassified = filter (
         l: !(elem l c.labels.letters || elem l c.relations.names || elem l c.relatumLabels.names)
       ) edgeLabelNames;
-      # Each accessor's RESULT is checked where the walk consumes it: a list, on every label. The
-      # TARGET is checked only on an L label, where `Edges ::= s —l→ s` makes it a scope of this
-      # graph; an R edge's target is a datum (`s —r→ d`) and a Λ edge's is a binding node, both
-      # admitted above as inert, so narrowing their targets would narrow a law this library does not
-      # own. A target is forced to WHNF only when the walk reads it, as it would be unchecked.
+      patterned = sortNames (filter (l: formalsOf edges.${l} != [ ]) edgeLabelNames);
+      nonAccessor = sort builtins.lessThan (filter (l: !(builtins.isFunction edges.${l})) edgeLabelNames);
       labeled = graph.labeledFrom {
         perLabel = builtins.mapAttrs (
           l: acc: s:
@@ -580,9 +579,43 @@ let
               else
                 refuse "scopeGraph" "the edge accessor ${renderSubject l} at scope ${renderSubject s} returned the target ${renderValue t}, which is not a scope of this graph (${quote scopes}); an L edge is `s —l→ s′` between scopes of the graph"
             ) out
-        ) a.edges;
+        ) edges;
         nodes = scopes;
       };
+    in
+    if !(builtins.isAttrs edges) then
+      refuse site "${fieldName "edges"} must be an attrset of label → (scope → [ scope ]); it is the per-label accessor the walk steps"
+    else if unclassified != [ ] then
+      refuse site "${fieldName "edges"} carry the label '${head (sort builtins.lessThan unclassified)}', which is in none of the three populations — L (${quote c.labels.letters}), R (${quote c.relations.names}) or Λ (${quote c.relatumLabels.names}); the classification of an edge label is total, and a label outside all three would be walked by nothing and classified as nothing"
+    else if patterned != [ ] then
+      refuse site "the edge accessor ${renderSubject (head patterned)} destructures an attrset (formals: ${
+        quote (formalsOf edges.${head patterned})
+      }); it is applied to a scope id, a string, so it can never be applied"
+    else if nonAccessor != [ ] then
+      refuse site "${fieldName "edges"} carry the label '${head nonAccessor}' bound to ${
+        renderValue edges.${head nonAccessor}
+      }; each label's value must be the accessor scope → [ scope ] the walk steps"
+    else
+      builtins.seq (builtins.length scopes) labeled;
+
+  scopeGraph =
+    args:
+    let
+      a = fields "scopeGraph" [
+        "carrier"
+        "scopes"
+        "edges"
+        "data"
+      ] args;
+      c = elementOf "scopeGraph" "carrier" "carrier" a.carrier;
+      # The scopes `labeledOf` checked, so `strings` runs once per construction.
+      scopes = labeled.nodes;
+      # Each accessor's RESULT is checked where the walk consumes it: a list, on every label. The
+      # TARGET is checked only on an L label, where `Edges ::= s —l→ s` makes it a scope of this
+      # graph; an R edge's target is a datum (`s —r→ d`) and a Λ edge's is a binding node, both
+      # admitted above as inert, so narrowing their targets would narrow a law this library does not
+      # own. A target is forced to WHNF only when the walk reads it, as it would be unchecked.
+      labeled = labeledOf "scopeGraph" "" c a.scopes a.edges;
       # `Data ::= s —r→ d` — THREE components and no more. The field set is CLOSED, and that is
       # what makes a walk answer unsayable here: a contribution carries `path`, `admission`,
       # `distance` and `channel` besides, so it is refused in a data position BY NAME rather than
@@ -614,14 +647,8 @@ let
       # before this index is ever built.
       indexed = imap0 (i: e: e // { ordinal = i; }) a.data;
       datumsAt = builtins.groupBy (e: attrKey e.scope) indexed;
-      patterned = sortNames (filter (l: formalsOf a.edges.${l} != [ ]) edgeLabelNames);
-      nonAccessor = sort builtins.lessThan (
-        filter (l: !(builtins.isFunction a.edges.${l})) edgeLabelNames
-      );
     in
-    if !(builtins.isAttrs a.edges) then
-      refuse "scopeGraph" "edges must be an attrset of label → (scope → [ scope ]); it is the per-label accessor the walk steps"
-    else if builtins.isFunction a.data then
+    if builtins.isFunction a.data then
       refuse "scopeGraph" "data is a FUNCTION; it must be a plain list of datums `[ { scope; relation; datum; } ]`. In the calculus `data(G)` is a COMPONENT of the graph, so a datum is in it or it is not and no traversal can put one there — a function is what let the substrate's own accessor re-emit, which is the one shape the component form exists to remove"
     else if !(builtins.isList a.data) then
       refuse "scopeGraph" "data must be a list of datums `[ { scope; relation; datum; } ]` — Fig. 1's `Data ::= s —r→ d`, the ⟨scopes, edges, data⟩ triple's third component"
@@ -631,18 +658,8 @@ let
       refuse "scopeGraph" "a datum is filed at scope ${renderSubject (head offScope).scope}, which is not a scope of this graph (${quote scopes})"
     else if offRelation != [ ] then
       refuse "scopeGraph" "a datum is filed under relation ${renderSubject (head offRelation).relation}, which is not a name in R (${quote c.relations.names}); the sort a datum is reached by is declared, and an undeclared one is reachable by no query"
-    else if unclassified != [ ] then
-      refuse "scopeGraph" "edges carry the label '${head (sort builtins.lessThan unclassified)}', which is in none of the three populations — L (${quote c.labels.letters}), R (${quote c.relations.names}) or Λ (${quote c.relatumLabels.names}); the classification of an edge label is total, and a label outside all three would be walked by nothing and classified as nothing"
-    else if patterned != [ ] then
-      refuse "scopeGraph" "the edge accessor ${renderSubject (head patterned)} destructures an attrset (formals: ${
-        quote (formalsOf a.edges.${head patterned})
-      }); it is applied to a scope id, a string, so it can never be applied"
-    else if nonAccessor != [ ] then
-      refuse "scopeGraph" "edges carry the label '${head nonAccessor}' bound to ${
-        renderValue a.edges.${head nonAccessor}
-      }; each label's value must be the accessor scope → [ scope ] the walk steps"
     else
-      decided [ c scopes ] {
+      builtins.seq labeled decided [ c scopes ] {
         __element = "scopeGraph";
         carrier = c;
         inherit scopes labeled datumsAt;
@@ -710,6 +727,7 @@ in
     dataOrder
     carrier
     scopeGraph
+    labeledOf
     relationLookup
     relationEntries
     elementOf

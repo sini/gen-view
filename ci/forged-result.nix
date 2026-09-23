@@ -154,6 +154,40 @@ let
       mode = "merge";
     };
   };
+  # A function NESTED inside a non-function, non-element field (den-hoag-cer8j): the top-level census
+  # above reads the shape register, which types such a field `set`/`list`/`any` and cannot see in.
+  # This walks the genuine VALUES; a field whose value holds a function leaf needs a disposition.
+  nestedDisposition = {
+    "scopeGraph.labeled" = "restated";
+    "scopeGraph.edges" = "checked";
+  };
+  holdsFunction =
+    d: x:
+    builtins.isFunction x
+    || (
+      d > 0
+      && !(builtins.isAttrs x && x ? __element)
+      && (
+        (builtins.isAttrs x && builtins.any (n: holdsFunction (d - 1) x.${n}) (builtins.attrNames x))
+        || (builtins.isList x && builtins.any (holdsFunction (d - 1)) x)
+      )
+    );
+  nestedFields = builtins.concatMap (
+    k:
+    let
+      s = shapes.${k} genuine.${k};
+    in
+    map (n: "${k}.${n}") (
+      builtins.filter (
+        n: !(s.${n} ? element) && (s.${n}.what or null) != "a function" && holdsFunction 5 genuine.${k}.${n}
+      ) (builtins.attrNames s)
+    )
+  ) (builtins.attrNames shapes);
+  forgedLabeled = over: f.graph // { labeled = f.graph.labeled // over; };
+  inboundDef = f.mkDefinition {
+    direction = "inbound";
+    root = "root";
+  };
   functionFields = builtins.concatMap (
     k:
     let
@@ -261,6 +295,80 @@ in
     test-a-forged-relatum-member-is-inert-on-a-graph-with-a-relatum-edge = inert (
       viaGraph (graphOver (v.carrier (carrierArgs // { relatumLabels = badRoles; })) roleEdge)
     );
+    # restated — scopeGraph.labeled, from the checked edges, scopes and carrier (den-hoag-cer8j)
+    test-every-function-nested-in-an-element-field-has-a-disposition = {
+      expr = builtins.sort builtins.lessThan nestedFields;
+      expected = builtins.sort builtins.lessThan (builtins.attrNames nestedDisposition);
+    };
+    test-a-forged-labeled-answering-no-edges-is-inert = inert (
+      viaGraph (forgedLabeled {
+        labeledEdges = _: [ ];
+      })
+    );
+    test-a-forged-labeled-adding-an-edge-is-inert = inert (
+      viaGraph (forgedLabeled {
+        labeledEdges =
+          id:
+          f.graph.labeled.labeledEdges id
+          ++ [
+            {
+              label = "parent";
+              target = "root";
+            }
+          ];
+      })
+    );
+    test-a-forged-labeled-returning-an-int-is-inert = inert (
+      viaGraph (forgedLabeled {
+        labeledEdges = forty2;
+      })
+    );
+    test-a-forged-labeled-with-no-labeledEdges-is-inert = inert (
+      viaGraph (f.graph // { labeled = { inherit (f.graph) scopes; }; })
+    );
+    test-a-forged-labeled-is-inert-on-an-inbound-walk = {
+      expr = read (
+        f.mkRelation {
+          definition = inboundDef;
+          graph = forgedLabeled { labeledEdges = _: [ ]; };
+        }
+      );
+      expected = read (f.mkRelation { definition = inboundDef; });
+    };
+    # what the restatement reads meets the constructor's law at the reading door
+    test-forged-edges-with-a-non-accessor-are-refused-at-viewRelation = refused (viaGraph (
+      f.graph
+      // {
+        edges = f.edges // {
+          include = 42;
+        };
+      }
+    )) "^gen-view\\.viewRelation: field 'graph\\.edges' carry the label 'include' bound to 42;.*$";
+    test-forged-edges-with-an-unclassified-label-are-refused-at-viewRelation =
+      refused
+        (viaGraph (
+          f.graph
+          // {
+            edges = f.edges // {
+              bogus = _: [ ];
+            };
+          }
+        ))
+        "^gen-view\\.viewRelation: field 'graph\\.edges' carry the label 'bogus', which is in none of the three populations.*$";
+    test-forged-scopes-carrying-a-non-string-are-refused-at-viewRelation = refused (viaGraph (
+      f.graph // { scopes = f.scopes ++ [ 1 ]; }
+    )) "^gen-view\\.viewRelation: field 'graph\\.scopes' carries a int where a string is required.*$";
+    test-forged-edges-with-an-off-scope-target-are-refused-by-name =
+      refused
+        (viaGraph (
+          f.graph
+          // {
+            edges = f.edges // {
+              include = _: [ "nowhere" ];
+            };
+          }
+        ))
+        "^gen-view\\.scopeGraph: the edge accessor 'include' at scope 'leaf' returned the target \"nowhere\", which is not a scope of this graph.*$";
     # restated — the walk's derivative and its state key
     test-a-forged-step-returning-an-int-is-inert = inert (viaDef {
       admission = f.admission // {

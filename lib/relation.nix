@@ -77,7 +77,7 @@ let
     renderValue
     sortNames
     ;
-  inherit (carrierLib) elementOf;
+  inherit (carrierLib) elementOf labeledOf;
 
   indexOf =
     xs: x:
@@ -164,7 +164,8 @@ let
       markOrder = elementOf "viewRelation" "orderMark" "labelOrder" a.orderMark;
 
       # 1 — direction.
-      directed = if def.direction == "inbound" then graph.labeledTranspose g.labeled else g.labeled;
+      labeled = labeledOf "viewRelation" "graph." g.carrier g.scopes g.edges;
+      directed = if def.direction == "inbound" then graph.labeledTranspose labeled else labeled;
 
       # 2 — effective E. `boundedBy` removes edges AT THE ACCESSOR and reports what it removed;
       # the companion diagnostic is never empty where it fires, so silence and a boundary are
@@ -752,7 +753,7 @@ let
           inherit scope;
           inherit (w) label target marks;
         }) (bounded.withheld scope)
-      ) g.scopes;
+      ) labeled.nodes;
     in
     if !(builtins.isFunction a.marks) then
       refuse "viewRelation" "field 'marks' is ${renderValue a.marks}; it must be a function from a scope id to the list of boundary marks at it"
