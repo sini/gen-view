@@ -61,6 +61,7 @@
       extraModules = [
         ./tests-error.nix
         ./forged-intake.nix
+        ./forged-result.nix
       ];
     };
 }

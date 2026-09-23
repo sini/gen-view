@@ -234,7 +234,8 @@ let
 
       # Distance and residual derivative state, folded along each witness. The residual state is
       # the admission policy still in force at the arrival — the component the ⟨node,
-      # derivative-state⟩ collapse is keyed on.
+      # derivative-state⟩ collapse is keyed on. The walk steps gen-graph's kernel directly, as
+      # `graph.query` does, never the element's `step` or `stateKey` (den-hoag-l83dk).
       measured = map (
         ans:
         let
@@ -247,7 +248,7 @@ let
                     inherit (step) label from to;
                   }
                 );
-                state = def.admission.step step.label acc.state;
+                state = graph.regex.deriv step.label acc.state;
               })
               {
                 distance = 0;
@@ -258,7 +259,7 @@ let
         {
           inherit (ans) node path;
           inherit (walked) distance;
-          admission = def.admission.stateKey walked.state;
+          admission = graph.regex.stateKey walked.state;
         }
       ) answers;
 

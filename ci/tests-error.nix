@@ -1816,24 +1816,28 @@ in
               };
             }).value
             "^gen-view\\.viewRelation: field 'definition\\.combine\\.arm' is <a lambda>, which is not one of the declared arms.*$";
-        test-forged-alphabet-letter-renders-a-lambda-at-labelOrder = cell (v.labelOrder {
-          alphabet = f.labels // {
-            letters = [
-              "parent"
-              "include"
-              fn
+        # ── den-hoag-l83dk: a label population's list is checked by its constructor's own law at
+        # intake, so a lambda planted in `letters` or `names` is refused THERE, rendered by its type,
+        # and never reaches the unranked-letter, collision or alphabet-seam refusals these cells
+        # used to pin. Each plant is the one it was; the refusal it meets is the intake's. ──
+        test-forged-alphabet-letter-renders-a-lambda-at-labelOrder = cell (v.labelOrder
+          {
+            alphabet = f.labels // {
+              letters = [
+                "parent"
+                "include"
+                fn
+              ];
+            };
+            layers = [
+              [ "include" ]
+              [ "parent" ]
             ];
-          };
-          layers = [
-            [ "include" ]
-            [ "parent" ]
-          ];
-          endOfPath = -1;
-        }) "^gen-view\\.labelOrder: letter <a lambda> is not ranked;.*$";
+            endOfPath = -1;
+          }
+        ) "^gen-view\\.labelOrder: field 'alphabet\\.letters' carries a lambda where a string is required$";
         test-forged-relation-name-renders-a-lambda-at-the-carrier = cell (v.carrier {
-          labels = f.labels // {
-            member = _: true;
-          };
+          inherit (f) labels;
           relations = f.relations // {
             names = [ fn ];
           };
@@ -1841,55 +1845,57 @@ in
           labelWellFormedness = f.admission;
           labelOrder = f.order;
           dataOrder = f.key;
-        }) "^gen-view\\.carrier: <a lambda> is both a letter of L and a name in R;.*$";
-        test-forged-role-label-renders-a-lambda-against-the-letters = cell (v.carrier {
-          labels = f.labels // {
-            member = notString;
-          };
-          inherit (f) relations;
-          relatumLabels = f.roles // {
-            names = [ fn ];
-          };
-          labelWellFormedness = f.admission;
-          labelOrder = f.order;
-          dataOrder = f.key;
-        }) "^gen-view\\.carrier: <a lambda> is both a letter of L and a relatum label in Λ;.*$";
-        test-forged-role-label-renders-a-lambda-against-the-relations = cell (v.carrier {
-          inherit (f) labels;
-          relations = f.relations // {
-            member = notString;
-          };
-          relatumLabels = f.roles // {
-            names = [ fn ];
-          };
-          labelWellFormedness = f.admission;
-          labelOrder = f.order;
-          dataOrder = f.key;
-        }) "^gen-view\\.carrier: <a lambda> is both a name in R and a relatum label in Λ;.*$";
+        }) "^gen-view\\.carrier: field 'relations\\.names' carries a lambda where a string is required$";
+        test-forged-role-label-renders-a-lambda-at-the-carrier = cell (v.carrier
+          {
+            inherit (f) labels relations;
+            relatumLabels = f.roles // {
+              names = [ fn ];
+            };
+            labelWellFormedness = f.admission;
+            labelOrder = f.order;
+            dataOrder = f.key;
+          }
+        ) "^gen-view\\.carrier: field 'relatumLabels\\.names' carries a lambda where a string is required$";
+        test-forged-letter-renders-a-lambda-at-the-carrier =
+          let
+            labels = f.labels // {
+              letters = f.labels.letters ++ [ fn ];
+            };
+          in
+          cell (v.carrier {
+            inherit labels;
+            inherit (f) relations;
+            relatumLabels = f.roles;
+            labelWellFormedness = f.admission;
+            labelOrder = f.order;
+            dataOrder = f.key;
+          }) "^gen-view\\.carrier: field 'labels\\.letters' carries a lambda where a string is required$";
 
         # ── den-hoag-gen-view-refusal-sort-abort-tm84v: the name to report is chosen without a sort ──
         # `lessThan` aborts past `tryEval` on two lambdas, so before `sortNames` each of these read
         # `cannot compare a function with a function` where the refusal above belongs. Two forged
-        # names each, which is the least that reaches a comparison.
-        test-two-forged-alphabet-letters-reach-labelOrder = cell (v.labelOrder {
-          alphabet = f.labels // {
-            letters = [
-              "parent"
-              "include"
-              fn
-              fn
+        # names each, which is the least that reaches a comparison; since l83dk the comparison they
+        # reach is the intake's list law, which reports the first non-string without sorting.
+        test-two-forged-alphabet-letters-reach-labelOrder = cell (v.labelOrder
+          {
+            alphabet = f.labels // {
+              letters = [
+                "parent"
+                "include"
+                fn
+                fn
+              ];
+            };
+            layers = [
+              [ "include" ]
+              [ "parent" ]
             ];
-          };
-          layers = [
-            [ "include" ]
-            [ "parent" ]
-          ];
-          endOfPath = -1;
-        }) "^gen-view\\.labelOrder: letter <a lambda> is not ranked;.*$";
+            endOfPath = -1;
+          }
+        ) "^gen-view\\.labelOrder: field 'alphabet\\.letters' carries a lambda where a string is required$";
         test-two-forged-relation-names-reach-the-carrier = cell (v.carrier {
-          labels = f.labels // {
-            member = _: true;
-          };
+          inherit (f) labels;
           relations = f.relations // {
             names = [
               fn
@@ -1900,37 +1906,38 @@ in
           labelWellFormedness = f.admission;
           labelOrder = f.order;
           dataOrder = f.key;
-        }) "^gen-view\\.carrier: <a lambda> is both a letter of L and a name in R;.*$";
-        test-two-forged-role-labels-reach-the-letters = cell (v.carrier {
-          labels = f.labels // {
-            member = notString;
-          };
-          inherit (f) relations;
-          relatumLabels = f.roles // {
-            names = [
-              fn
-              fn
-            ];
-          };
-          labelWellFormedness = f.admission;
-          labelOrder = f.order;
-          dataOrder = f.key;
-        }) "^gen-view\\.carrier: <a lambda> is both a letter of L and a relatum label in Λ;.*$";
-        test-two-forged-role-labels-reach-the-relations = cell (v.carrier {
-          inherit (f) labels;
-          relations = f.relations // {
-            member = notString;
-          };
-          relatumLabels = f.roles // {
-            names = [
-              fn
-              fn
-            ];
-          };
-          labelWellFormedness = f.admission;
-          labelOrder = f.order;
-          dataOrder = f.key;
-        }) "^gen-view\\.carrier: <a lambda> is both a name in R and a relatum label in Λ;.*$";
+        }) "^gen-view\\.carrier: field 'relations\\.names' carries a lambda where a string is required$";
+        test-two-forged-role-labels-reach-the-carrier = cell (v.carrier
+          {
+            inherit (f) labels relations;
+            relatumLabels = f.roles // {
+              names = [
+                fn
+                fn
+              ];
+            };
+            labelWellFormedness = f.admission;
+            labelOrder = f.order;
+            dataOrder = f.key;
+          }
+        ) "^gen-view\\.carrier: field 'relatumLabels\\.names' carries a lambda where a string is required$";
+        test-two-forged-letters-reach-the-carrier =
+          let
+            labels = f.labels // {
+              letters = f.labels.letters ++ [
+                fn
+                fn
+              ];
+            };
+          in
+          cell (v.carrier {
+            inherit labels;
+            inherit (f) relations;
+            relatumLabels = f.roles;
+            labelWellFormedness = f.admission;
+            labelOrder = f.order;
+            dataOrder = f.key;
+          }) "^gen-view\\.carrier: field 'labels\\.letters' carries a lambda where a string is required$";
         test-two-forged-order-letters-reach-the-alphabet-seam =
           cell
             (f.mkRelation {
@@ -1945,7 +1952,7 @@ in
                 };
               };
             }).value
-            "^gen-view\\.viewRelation: the definition's alphabet is not the graph's \\(<a list> vs include, parent\\); one composition has one L$";
+            "^gen-view\\.viewRelation: field 'definition\\.order\\.alphabet\\.letters' carries a lambda where a string is required$";
 
         # ── den-hoag-gen-view-fields-attrnames-abort-txc33: `fields` refuses a non-attrset by name ──
         # `attrNames` over a function aborts past `tryEval`, so before the `isAttrs` arm every

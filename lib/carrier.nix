@@ -53,7 +53,6 @@
 { prelude, graph }:
 let
   inherit (prelude)
-    all
     any
     concatMap
     elem
@@ -81,19 +80,15 @@ let
     sortNames
     ;
 
-  # A label is a word in gen-graph's parse alphabet. This is not decoration: `regex.stateKey`
-  # renders a composite with `* | . ( )`, so a label carrying one of those can collide with a
-  # composite's canonical rendering and two dissimilar derivative states can share a seen-key.
-  # The constructor owns the constraint because it is the only place that sees the whole set.
-  isLabelChar =
-    c:
-    (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9") || c == "_" || c == "-";
-  isLabelWord =
-    s:
-    let
-      n = builtins.stringLength s;
-    in
-    n > 0 && all (i: isLabelChar (builtins.substring i 1 s)) (builtins.genList (i: i) n);
+  # The three label populations' list laws (a letter is a label word; `_` and `$` are reserved;
+  # R is non-empty) live in elements.nix as ONE definition, run here by each constructor and there
+  # by the intake — the library decides membership by reading these lists and never through the
+  # `member` each element publishes, so a forged list must meet the constructor's own law.
+  inherit (import ./elements.nix { inherit prelude; })
+    lettersLaw
+    relationNamesLaw
+    relatumNamesLaw
+    ;
 
   # ── L — the STRUCTURAL-ONLY label alphabet ─────────────────────────────────────────────────
   # Fig. 1: `labels l ∈ L`, "a set of edge labels". Structural-only is the Q21 consequence: a
@@ -109,24 +104,15 @@ let
     args:
     let
       a = fields "edgeLabels" [ "letters" ] args;
-      letters = strings "edgeLabels" "letters" a.letters;
-      reserved = filter (l: l == "_" || l == "$") letters;
-      malformed = filter (l: !(isLabelWord l)) letters;
+      letters = lettersLaw "edgeLabels" "letters" a.letters;
     in
-    if letters == [ ] then
-      refuse "edgeLabels" "letters is empty; an alphabet with no letters admits no path, so every view over it is empty and nothing says why"
-    else if reserved != [ ] then
-      refuse "edgeLabels" "letter '${head reserved}' is reserved — `_` is the any-label wildcard of the path-expression grammar and `$` is the extended label marking the end of a path (van Antwerpen 2018 Fig. 1); neither can also name an edge"
-    else if malformed != [ ] then
-      refuse "edgeLabels" "letter '${head malformed}' is outside the label word alphabet [A-Za-z0-9_-]+; a letter carrying an expression metacharacter can collide with a composite's canonical rendering in the derivative state key"
-    else
-      {
-        __element = "edgeLabels";
-        inherit letters;
-        # L̂ := L ∪ {$}. Derived, never declared.
-        extended = letters ++ [ "$" ];
-        member = l: elem l letters;
-      };
+    builtins.seq letters {
+      __element = "edgeLabels";
+      inherit letters;
+      # L̂ := L ∪ {$}. Derived, never declared.
+      extended = letters ++ [ "$" ];
+      member = l: elem l letters;
+    };
 
   # ── R — the relation sort ───────────────────────────────────────────────────────────────────
   # Fig. 1: `relations r ∈ R`, "a set of relation names". A SYNTAX parameter, like L, and unlike L
@@ -143,16 +129,13 @@ let
     args:
     let
       a = fields "relations" [ "names" ] args;
-      names = strings "relations" "names" a.names;
+      names = relationNamesLaw "relations" "names" a.names;
     in
-    if names == [ ] then
-      refuse "relations" "names is empty; a carrier with no relation sort can reach no datum, and (NR-Rel) is the only rule by which a view reaches content"
-    else
-      {
-        __element = "relations";
-        inherit names;
-        member = r: elem r names;
-      };
+    builtins.seq names {
+      __element = "relations";
+      inherit names;
+      member = r: elem r names;
+    };
 
   # ── Λ — the RELATUM LABELS, a THIRD population, and NOT a carrier element ──────────────────
   # ★★★ IT IS NOT ONE OF THE FIVE, AND SAYING SO IS THE POINT. A binding is a NODE — a reified
@@ -187,7 +170,7 @@ let
     args:
     let
       a = fields "relatumLabels" [ "names" ] args;
-      names = strings "relatumLabels" "names" a.names;
+      names = relatumNamesLaw "relatumLabels" "names" a.names;
     in
     decided [ names ] {
       __element = "relatumLabels";
@@ -228,7 +211,7 @@ let
         else
           [ ];
       literals = literalsOf expr;
-      foreign = filter (l: !(alphabet.member l)) literals;
+      foreign = filter (l: !(elem l alphabet.letters)) literals;
     in
     if !(builtins.isString a.expression) then
       refuse "labelWellFormedness" "field 'expression' is ${renderValue a.expression}; it must be a path expression over the alphabet, written as a string"
@@ -300,7 +283,7 @@ let
       # name rather than silently taking whichever layer the fold visited last.
       flat = strings "labelOrder" "layers" (concatMap (l: l) layers);
       missing = filter (l: !(elem l flat)) alphabet.letters;
-      foreign = filter (l: !(alphabet.member l)) flat;
+      foreign = filter (l: !(elem l alphabet.letters)) flat;
       ranks = foldl' (
         acc: i:
         acc
@@ -478,9 +461,9 @@ let
       # `R ∩ Λ = ∅` — a role that is also a relation name makes the classification of an edge
       #               ambiguous, and the partition realisation of the same law is then not a
       #               function.
-      lr = filter (r: labels.member r) rels.names;
-      llam = filter (l: labels.member l) roles.names;
-      rlam = filter (l: rels.member l) roles.names;
+      lr = filter (r: elem r labels.letters) rels.names;
+      llam = filter (l: elem l labels.letters) roles.names;
+      rlam = filter (l: elem l rels.names) roles.names;
     in
     if wfl.alphabet.letters != labels.letters then
       refuse "carrier" "labelWellFormedness is built over a different alphabet than `labels` (${quote wfl.alphabet.letters} vs ${quote labels.letters}); one carrier has one L"
@@ -570,7 +553,7 @@ let
       scopes = strings "scopeGraph" "scopes" a.scopes;
       edgeLabelNames = builtins.attrNames a.edges;
       unclassified = filter (
-        l: !(c.labels.member l || c.relations.member l || c.relatumLabels.member l)
+        l: !(elem l c.labels.letters || elem l c.relations.names || elem l c.relatumLabels.names)
       ) edgeLabelNames;
       # Each accessor's RESULT is checked where the walk consumes it: a list, on every label. The
       # TARGET is checked only on an L label, where `Edges ::= s —l→ s` makes it a scope of this
@@ -587,7 +570,7 @@ let
                 builtins.isList
                 (acc s);
           in
-          if !(c.labels.member l) then
+          if !(elem l c.labels.letters) then
             out
           else
             map (
@@ -618,7 +601,7 @@ let
       offScope = filter (
         e: !(builtins.isString e.scope && scopeIndex ? ${builtins.unsafeDiscardStringContext e.scope})
       ) (if builtins.isList a.data then a.data else [ ]);
-      offRelation = filter (e: !(c.relations.member e.relation)) (
+      offRelation = filter (e: !(elem e.relation c.relations.names)) (
         if builtins.isList a.data then a.data else [ ]
       );
       # The per-scope index, DERIVED once and shared. It is a projection of the component, never a
@@ -692,7 +675,7 @@ let
       ] args;
       g = elementOf "relationEntries" "graph" "scopeGraph" a.graph;
     in
-    if !(g.carrier.relations.member a.relation) then
+    if !(elem a.relation g.carrier.relations.names) then
       refuse "relationEntries" "${renderSubject a.relation} is not a name in R (${quote g.carrier.relations.names}); an undeclared relation is refused rather than answered empty, because an empty answer cannot be told from a relation with no datums"
     else if !(builtins.isFunction a.wellFormed) then
       refuse "relationEntries" "wellFormed must be a predicate on data terms; it is WFD, the visibility parameter that decides whether the datum found at the path's end is the one being looked for"

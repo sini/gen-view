@@ -11,14 +11,20 @@
 # or derives from its arguments: a name, a closed arm, a function, a nested element. Content is
 # the computed answer — a view relation's `value`, `contributions`, `shadowed`, `withheld`,
 # `dropped` — and is never forced here: its reader checks what it reads. Each check forces one
-# field to WHNF and no further, so the cost is the size of the element TREE, a constant in the
-# data, and a genuine element pays only WHNF reads of fields its constructor already forced.
+# field to WHNF and no further, WITH ONE EXCEPTION: the three label-population lists (`letters`,
+# and `names` twice) are checked element by element by their constructor's own law, because the
+# library decides membership by reading those lists (den-hoag-l83dk). So the cost is the size of
+# the element TREE plus, per label-population element in it, that list's law — O(|L|·w) for L,
+# w the longest letter, and O(|R|), O(|Λ|) — a constant in the data.
 #
 # ★ WHAT THIS DOES NOT CLOSE, named so nobody reads it as closed: a forged field of the right TYPE
-# carrying the wrong VALUE (a `member` that disagrees with `letters`, a `datumsAt` indexing other
-# data) is the cooperative-caller residue 8rkc names; a derived function's RESULT is checked where
-# it is applied, if at all (den-hoag-0gpyq's class); a list's ELEMENTS are checked where they are
-# read (`tupleKey`, `attrKey`, `rankOf`).
+# carrying the wrong VALUE (a `datumsAt` indexing other data) is the cooperative-caller residue
+# 8rkc names. An operation the library can restate from checked structure is restated and never
+# applied — `member` from the lists above, the walk's `step` and `stateKey` from gen-graph's kernel
+# (l83dk) — so a forged one is a claim nothing here reads; `scopeGraph.labeled` is not yet restated
+# (den-hoag-cer8j). A caller-authored function's RESULT is checked where it is applied
+# (den-hoag-0gpyq's class). Other lists' ELEMENTS are checked where they are read (`tupleKey`,
+# `attrKey`, `rankOf`).
 #
 # ★ A KIND WITH NO SHAPE HERE IS TAG-TESTED ONLY, EXACTLY AS BEFORE. `elementOf` is consumed
 # outside this library (gen-bind's ci imports `carrier.nix` for its own `peerRelation` element),
@@ -31,9 +37,13 @@
 # its own shape; the `genuine-parity` cells in `ci/forged-intake.nix` hold the two equal. (A
 # non-empty `expression` would refuse `labelWellFormedness`'s lawful empty-word expression `""`.)
 #
-# COST, MEASURED (`nrFunctionCalls`): an intake pays O(its element tree), constant in the data, and
-# a door re-entered with an already-checked value pays it again. On the scheduling path, which does
-# not materialize, `accumulatorOrder` over n units each over its OWN relation costs 1,290 → 5,846
+# COST, MEASURED (`nrFunctionCalls`): an intake pays O(its element tree) plus its label lists'
+# laws, constant in the data, and a door re-entered with an already-checked value pays it again
+# (l83dk, measured: building one `viewRelation` from its constructors re-runs L's law about 15
+# times — 346 calls per letter against 22 for one run — so on the name-only path a 5-letter
+# alphabet costs 11,789 → 13,056 calls (+11%) and a 2,000-letter one 64,364 → 681,396, and the
+# fixture's walk at 400 scopes moves by under 1%). On the scheduling path, which does not
+# materialize, `accumulatorOrder` over n units each over its OWN relation costs 1,290 → 5,846
 # calls per unit at n = 400 and 1,326 → 5,881 at n = 4000 (4.4×), linear in n. Reading only `.name`
 # of a relation pays `datumsAt`'s `groupBy` once per graph (4,570 → 7,855 at 400 scopes). There is
 # no memo: a verdict stored in the element is copied by `//` into a forged `genuine // { f = bad; }`,
@@ -49,7 +59,63 @@ let
     decided
     choice
     renderValue
+    strings
     ;
+
+  # ── THE LIST LAWS OF THE THREE LABEL POPULATIONS — one definition, run by each constructor
+  # (`edgeLabels`, `relations`, `relatumLabels` in carrier.nix) and by the intake below. ───────────
+  # ★★ THE LIBRARY READS THESE LISTS, NEVER THE `member` IT PUBLISHES (den-hoag-l83dk), so the lists
+  # are what a forged element's membership is decided by, and the intake must hold them to the SAME
+  # law the constructor does or a forged list is admitted where its constructor refuses it. One
+  # definition is what makes the intake exactly as strict as the constructor and never stricter —
+  # `rootNames` in placement.nix is the same arrangement for a root target's names.
+  #
+  # A label is a word in gen-graph's parse alphabet. This is not decoration: `regex.stateKey`
+  # renders a composite with `* | . ( )`, so a label carrying one of those can collide with a
+  # composite's canonical rendering and two dissimilar derivative states can share a seen-key.
+  isLabelChar =
+    c:
+    (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9") || c == "_" || c == "-";
+  isLabelWord =
+    s:
+    let
+      n = builtins.stringLength s;
+    in
+    n > 0 && builtins.all (i: isLabelChar (builtins.substring i 1 s)) (builtins.genList (i: i) n);
+
+  # `lettersLaw site what xs` — L: distinct non-empty strings, at least one, none reserved, each a
+  # label word. Returns `xs`.
+  lettersLaw =
+    site: what: xs:
+    let
+      letters = strings site what xs;
+      reserved = builtins.filter (l: l == "_" || l == "$") letters;
+      malformed = builtins.filter (l: !(isLabelWord l)) letters;
+    in
+    if letters == [ ] then
+      refuse site "${what} is empty; an alphabet with no letters admits no path, so every view over it is empty and nothing says why"
+    else if reserved != [ ] then
+      refuse site "${what} carries the reserved letter '${builtins.head reserved}' — `_` is the any-label wildcard of the path-expression grammar and `$` is the extended label marking the end of a path (van Antwerpen 2018 Fig. 1); neither can also name an edge"
+    else if malformed != [ ] then
+      refuse site "${what} carries the letter '${builtins.head malformed}', which is outside the label word alphabet [A-Za-z0-9_-]+; a letter carrying an expression metacharacter can collide with a composite's canonical rendering in the derivative state key"
+    else
+      letters;
+
+  # `relationNamesLaw site what xs` — R: distinct non-empty strings, at least one.
+  relationNamesLaw =
+    site: what: xs:
+    let
+      names = strings site what xs;
+    in
+    if names == [ ] then
+      refuse site "${what} is empty; a carrier with no relation sort can reach no datum, and (NR-Rel) is the only rule by which a view reaches content"
+    else
+      names;
+
+  # `relatumNamesLaw site what xs` — Λ: distinct non-empty strings; empty is lawful.
+  relatumNamesLaw =
+    site: what: xs:
+    strings site what xs;
 
   t = what: ok: { inherit what ok; };
   str = t "a non-empty string" (v: builtins.isString v && v != "");
@@ -197,6 +263,17 @@ let
   # The cross-field law a unit carries, decided with its fields (rymxu gate C2): a root target
   # names the channel of the relation it places.
   laws = {
+    # The list laws above, over the element's own lists: what the library reads in place of the
+    # `member` each of these kinds publishes.
+    edgeLabels =
+      site: at: e:
+      builtins.isList (lettersLaw site "field '${at}.letters'" e.letters);
+    relations =
+      site: at: e:
+      builtins.isList (relationNamesLaw site "field '${at}.names'" e.names);
+    relatumLabels =
+      site: at: e:
+      builtins.isList (relatumNamesLaw site "field '${at}.names'" e.names);
     # A root target's two names are checked by `rootNames`, the one definition its constructor and
     # every root consumer already share (h0e7t), so the refusal is the same one wherever it fires.
     # An output target's path is checked by `tupleKey`'s path position, the guard every output
@@ -296,5 +373,12 @@ let
       cs;
 in
 {
-  inherit elementOf shapes contributionsOf;
+  inherit
+    elementOf
+    shapes
+    contributionsOf
+    lettersLaw
+    relationNamesLaw
+    relatumNamesLaw
+    ;
 }
