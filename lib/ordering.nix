@@ -158,7 +158,10 @@ let
       refuse "writesOf"
         "the target names channel ${renderSubject target.channel} but the view relation is named ${renderSubject v.name}; a result lands in the cell it is named for, and a target naming another cell would put the schedule's arc where nothing writes"
     else
-      [ (cell target.scope target.channel (if mode == "merge" then "output" else "input")) ];
+      let
+        t = placement.rootNames "writesOf" target;
+      in
+      [ (cell t.scope t.channel (if mode == "merge" then "output" else "input")) ];
 
   # `unit { relation; target; mode; }` — a materialized view relation together with the placement
   # that decides which cell it produces. It is what the schedule's nodes are, because neither half

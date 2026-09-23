@@ -44,6 +44,7 @@ let
     strings
     attrKey
     quote
+    renderValue
     ;
 
   modes = [
@@ -51,6 +52,29 @@ let
     "nest"
     "nest-verbatim"
   ];
+
+  # `rootNames site target` — THE ONE CHECK ON A ROOT TARGET'S TWO NAMES, returning the target
+  # unchanged so it is a pass-through and cannot be written and not called. Every consumer of a root
+  # target interpolates `scope` and `channel` (`targetKey`, `writesOf`'s cell, `edgeSortKey` through
+  # `targetKey`), and interpolation aborts past `tryEval` on anything that is not a string, so an
+  # ill-typed name is refused here by name instead.
+  #
+  # ★ IT RUNS AT CONSTRUCTION AND AGAIN AT EACH CONSUMER'S ROOT ARM, because an element tag is a
+  # CLAIM and not a proof: a hand-built record carrying `__element = "target"` reaches a consumer
+  # without passing `targets.root`, and it is owed the same named refusal. One definition, so the
+  # sites cannot drift apart.
+  #
+  # ★ THE CHECK IS THE WHNF OF THE RESULT, never a field of it. A per-field check inside the record
+  # would defer until the field is read, and `elementOf` forces only the tag, so a consumer would
+  # accept the element and meet the abort later.
+  rootNames =
+    site: target:
+    if !(builtins.isString target.scope) || target.scope == "" then
+      refuse site "field 'scope' is ${renderValue target.scope}; it must be a non-empty scope id, the root the result lands at"
+    else if !(builtins.isString target.channel) || target.channel == "" then
+      refuse site "field 'channel' is ${renderValue target.channel}; it must be a non-empty channel name, the cell the result lands in"
+    else
+      target;
 
   # THE TARGETS. Two arms, and the second is the TERMINAL SINK — a position outside the graph
   # entirely, which is why it is an arm of its own rather than a scope that happens to be special.
@@ -63,7 +87,7 @@ let
           "channel"
         ] args;
       in
-      {
+      rootNames "targets.root" {
         __element = "target";
         arm = "root";
         inherit (a) scope channel;
@@ -126,7 +150,10 @@ let
     if target.arm == "output" then
       "out:" + builtins.concatStringsSep "." target.path
     else
-      "root:" + target.scope + "/" + target.channel;
+      let
+        t = rootNames "targetKey" target;
+      in
+      "root:" + t.scope + "/" + t.channel;
   sourceKey = source: source.scope + "/" + source.relation;
 in
 {
@@ -137,5 +164,6 @@ in
     pathKey
     targetKey
     sourceKey
+    rootNames
     ;
 }

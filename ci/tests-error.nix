@@ -1672,11 +1672,13 @@ in
           relation = fn;
           wellFormed = _: true;
         }) "^gen-view\\.relationEntries: <a lambda> is not a name in R.*$";
-        test-target-channel-renders-a-lambda =
+        test-forged-target-channel-renders-a-lambda-at-writesOf =
           cell
             (v.writesOf {
               inherit (f) relation;
-              target = v.placement.targets.root {
+              target = {
+                __element = "target";
+                arm = "root";
                 scope = "leaf";
                 channel = fn;
               };
@@ -2066,6 +2068,78 @@ in
         test-rankLess-names-an-unknown-label = unknownLabel (
           f.order.rankLess [ (step "nope") ] [ (step "parent") ]
         );
+      };
+
+    # ── A ROOT TARGET'S NAMES ARE REFUSED WHERE THE TARGET IS BUILT ──
+    # `scope` and `channel` are the two names a root target carries, and every consumer of the
+    # target interpolates them (`targetKey`, `writesOf`'s cell, `edgeSortKey` through `targetKey`).
+    # The check sits in the constructor's refusal chain, AHEAD of the record, so a consumer that
+    # forces only the tag (`elementOf`) already meets it; the WHNF cell is what separates that
+    # placement from a lazy per-field check, which the deepSeq cells alone cannot see.
+    #
+    # ★ AND AGAIN AT EACH CONSUMER, because an element tag is a claim: a hand-built record tagged
+    # `target` never passed `targets.root`, and the consumer names the same refusal from its own
+    # site rather than aborting on the interpolation or answering a cell at the empty scope.
+    flake.testsError.target-refusals =
+      let
+        fn = x: x;
+        root = scope: channel: v.placement.targets.root { inherit scope channel; };
+        forged = scope: channel: {
+          __element = "target";
+          arm = "root";
+          inherit scope channel;
+        };
+        writes =
+          target:
+          v.writesOf {
+            inherit (f) relation;
+            inherit target;
+            mode = "merge";
+          };
+        entryAt = target: {
+          inherit target;
+          path = [ ];
+          source = {
+            scope = "leaf";
+            relation = "import";
+          };
+          mode = "merge";
+        };
+        cell = expr: msg: {
+          expr = builtins.deepSeq expr true;
+          expectedError = {
+            type = "ThrownError";
+            inherit msg;
+          };
+        };
+      in
+      {
+        test-a-function-channel-is-refused-at-targets-root = cell (root "leaf" fn) "^gen-view\\.targets\\.root: field 'channel' is <a lambda>; .*$";
+        test-an-int-channel-is-refused-at-targets-root = cell (root "leaf" 42) "^gen-view\\.targets\\.root: field 'channel' is 42; .*$";
+        test-an-empty-channel-is-refused-at-targets-root = cell (root "leaf" "") "^gen-view\\.targets\\.root: field 'channel' is \"\"; .*$";
+        test-a-function-scope-is-refused-at-targets-root = cell (root fn "settings") "^gen-view\\.targets\\.root: field 'scope' is <a lambda>; .*$";
+        test-an-int-scope-is-refused-at-targets-root = cell (root 42 "settings") "^gen-view\\.targets\\.root: field 'scope' is 42; .*$";
+        test-an-empty-scope-is-refused-at-targets-root = cell (root "" "settings") "^gen-view\\.targets\\.root: field 'scope' is \"\"; .*$";
+        test-the-tag-alone-meets-the-channel-refusal = cell (root "leaf" fn).__element "^gen-view\\.targets\\.root: field 'channel' is <a lambda>; .*$";
+        test-targetKey-meets-the-refusal-rather-than-an-abort = cell (v.placement.targetKey (root 42 "settings")) "^gen-view\\.targets\\.root: field 'scope' is 42; .*$";
+        test-traceEntryOf-over-a-lambda-channel-contribution-meets-the-refusal = cell (v.traceEntryOf {
+          contribution = {
+            scope = "leaf";
+            channel = fn;
+            relation = "import";
+            distance = 0;
+            path = [ ];
+          };
+          placement = {
+            mode = "merge";
+            path = [ ];
+          };
+        }) "^gen-view\\.targets\\.root: field 'channel' is <a lambda>; .*$";
+        test-forged-int-channel-is-refused-at-targetKey = cell (v.placement.targetKey (forged "leaf" 42)) "^gen-view\\.targetKey: field 'channel' is 42; .*$";
+        test-forged-lambda-scope-is-refused-at-targetKey = cell (v.placement.targetKey (forged fn "settings")) "^gen-view\\.targetKey: field 'scope' is <a lambda>; .*$";
+        test-forged-int-scope-is-refused-at-writesOf = cell (writes (forged 42 "settings")) "^gen-view\\.writesOf: field 'scope' is 42; .*$";
+        test-forged-empty-scope-is-refused-at-writesOf = cell (writes (forged "" "settings")) "^gen-view\\.writesOf: field 'scope' is \"\"; .*$";
+        test-forged-int-channel-is-refused-at-edgeSortKey = cell (v.edgeSortKey (entryAt (forged "leaf" 42))) "^gen-view\\.targetKey: field 'channel' is 42; .*$";
       };
   };
 }

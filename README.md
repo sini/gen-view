@@ -184,6 +184,10 @@ fields: folding placement or content transformation into the declaration would r
 released edge grammar under new names. `over` is the one operator that can **reorder**, so its
 result reports whether it did.
 
+A root target's `scope` and `channel` are non-empty strings. `placement.targets.root` refuses any
+other value by name where the target is built, and `targetKey` and `writesOf` refuse a hand-built
+`target` record the same way, because an element tag is a claim rather than a proof.
+
 `placement.setAttrByPath` **was** part of that family and is **no longer exported**: the owner
 ruled (2026-08-27) that the path writer/reader pair lands in **gen-prelude**, and every live
 hand-roll converges on it. Use `gen-prelude`'s `setAttrByPath`, which additionally **refuses by

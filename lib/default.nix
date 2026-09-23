@@ -180,7 +180,17 @@ in
     ;
 
   # ── PLACEMENT — a construct family beside the declaration, never inside it ──────────────────
-  placement = placementLib;
+  # Published by name: `rootNames` is the internal check the family's consumers share, not surface.
+  placement = {
+    inherit (placementLib)
+      modes
+      targets
+      place
+      pathKey
+      targetKey
+      sourceKey
+      ;
+  };
 
   # ── CONTENT TRANSFORMATION — likewise a family, and `over` reports its own reorder ───────────
   transform = {

@@ -125,6 +125,39 @@ in
         };
       };
     };
+    # A root target's name check is `isString`, which admits a context-carrying name and keeps it:
+    # the key renders the text, and the context rides along on the caller's value.
+    test-a-root-target-admits-a-context-carrying-scope-and-channel = {
+      expr = v.placement.targetKey (
+        v.placement.targets.root {
+          scope = ctx "leaf";
+          channel = ctx "settings";
+        }
+      );
+      expected = "root:leaf/settings";
+    };
+    test-a-root-target-keeps-the-context-of-its-scope = {
+      expr = builtins.hasContext (
+        v.placement.targetKey (
+          v.placement.targets.root {
+            scope = ctx "leaf";
+            channel = "settings";
+          }
+        )
+      );
+      expected = true;
+    };
+    test-control-a-context-free-root-target-carries-none = {
+      expr = builtins.hasContext (
+        v.placement.targetKey (
+          v.placement.targets.root {
+            scope = "leaf";
+            channel = "settings";
+          }
+        )
+      );
+      expected = false;
+    };
     # Every door that reaches a keying site string-checks its input first, so the key's own
     # `isString` guard is read here directly: the discard COERCES an `outPath` set to its text, and
     # a key formed that way would admit the set as a name.
