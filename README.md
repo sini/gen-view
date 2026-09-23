@@ -252,11 +252,11 @@ content.
 
 `hashTrace` is that instrument's topology fingerprint: `sha256` over the canonical JSON of the
 trace, invariant under the order the edges were presented in and sensitive to which edges they are.
-It is taken over the **trace** and never over the sort key, because the key is a `" | "`-join over
-free strings — a component carrying the separator shifts the field boundaries, so two structurally
-distinct entries render one key. Canonical JSON has no such route: every component sits under its
-own name. The collision degrades `trace`'s primary order to a tie and the canonical-JSON secondary
-resolves it.
+It is taken over the **trace** and never over the sort key, because the key is a projection — it
+leaves out the witness distance and word, so two structurally distinct entries render one key. (Its
+components are the JSON of their name tuples, so no name shifts a field boundary.) Canonical JSON
+has no such route: every component sits under its own name. The collision degrades `trace`'s
+primary order to a tie and the canonical-JSON secondary resolves it.
 
 ## Tests
 

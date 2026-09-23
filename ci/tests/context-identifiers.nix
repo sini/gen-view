@@ -134,7 +134,7 @@ in
           channel = ctx "settings";
         }
       );
-      expected = "root:leaf/settings";
+      expected = "[\"root\",\"leaf\",\"settings\"]";
     };
     test-a-root-target-keeps-the-context-of-its-scope = {
       expr = builtins.hasContext (

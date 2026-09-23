@@ -59,6 +59,56 @@ let
 in
 {
   config = {
+    # ── A KEY COMPONENT OF THE WRONG SHAPE IS REFUSED BY NAME ──
+    # `tupleKey` guards by POSITION: every component is a string except a tuple's path, which is a
+    # list of strings. The shapes are what keep the target arms apart, so a guard admitting either
+    # shape anywhere lets a list-valued scope forge an output cell, or a string-valued path forge a
+    # root one. Without the guard a non-string also aborts uncatchably inside interpolation.
+    flake.testsError.key-encoding =
+      let
+        refused = expr: msg: {
+          expr = builtins.deepSeq expr true;
+          expectedError = {
+            type = "ThrownError";
+            inherit msg;
+          };
+        };
+        forgedStringPath = {
+          __element = "target";
+          arm = "output";
+          path = "x/y";
+        };
+      in
+      {
+        test-a-non-string-cell-component-is-refused-by-name = refused (v.cell 1 "c"
+          "input"
+        ) "^gen-view\\.cell: a key component is 1; a name in a key must be a string$";
+        test-a-non-string-path-segment-is-refused-by-name = refused (v.placement.pathKey [
+          1
+        ]) "^gen-view\\.pathKey: a key component is 1; a name in a key must be a string$";
+        # A list where a cell's scope belongs would otherwise key equal to the output write of the
+        # path `[ "x/y" ]`: `[ "out", [ "x/y" ], "output" ]` both ways.
+        test-a-list-in-a-cell-name-position-is-refused-by-name = refused (v.cell "out" [
+          "x/y"
+        ] "output") "^gen-view\\.cell: a key component is \\[\"x/y\"\\]; a name in a key must be a string$";
+        # A string where an output write's path belongs would otherwise key equal to the root
+        # target ⟨out, x/y⟩'s output cell.
+        test-a-string-in-a-write-path-position-is-refused-by-name = refused (v.writesOf {
+          inherit (f) relation;
+          target = forgedStringPath;
+          mode = "merge";
+        }) "^gen-view\\.writesOf: a key component is \"x/y\"; a path in a key must be a list of strings$";
+        # ★ `sourceKey` IS JSON-ENCODED BUT DELIBERATELY UNGUARDED (see `lib/placement.nix`): a
+        # non-string must abort exactly as it did under interpolation, not be silently keyed. A
+        # bare `toJSON` would key `[1,"import"]` and this cell would see no error at all.
+        test-a-non-string-source-scope-still-aborts-as-before = {
+          expr = builtins.deepSeq (v.placement.sourceKey {
+            scope = 1;
+            relation = "import";
+          }) true;
+          expectedError.type = "TypeError";
+        };
+      };
     # ── EVERY OMITTED FIELD IS NAMED, ONE CELL PER FIELD ──
     # Generated from the library's own field enumeration, so a thirteenth field cannot arrive
     # without a message cell arriving with it. The pattern is anchored at the front and pins the
@@ -701,7 +751,7 @@ in
       # LIVE CONTROL: the door accepts the materialized projection.
       test-control-the-ordering-door-accepts-the-materialized-projection = {
         expr = v.readsOf f.relation;
-        expected = [ "inc/settings@input" ];
+        expected = [ "[\"inc\",\"settings\",\"input\"]" ];
       };
     };
 

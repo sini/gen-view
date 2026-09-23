@@ -233,10 +233,12 @@ has **moved the oracle rather than met it**.
 
 **Oracle cluster**: `trace` `traceEntryOf` `renderTrace` `renderEntry` `edgeSortKey` `hashTrace`.
 
-★ **Fingerprint a topology with `hashTrace`, never with `edgeSortKey`.** The key is a `" | "`-join
-over free strings, so a component carrying the separator shifts the field boundaries and two
-structurally distinct entries render one key — it is **not preimage-injective**, and anything keyed
-on it can be forged by that shift. `hashTrace` is `sha256` over the canonical JSON of the trace,
+★ **Fingerprint a topology with `hashTrace`, never with `edgeSortKey`.** The key is a
+**projection**: it leaves out the witness distance and word, so two structurally distinct entries
+render one key — it is **not preimage-injective**, and anything keyed on it mints one value for
+such a pair. (Its components are self-delimiting: `targetKey`, `pathKey`, `sourceKey` and `cell`
+are each the JSON of their name tuple, so a name carrying a separator no longer shifts a
+boundary.) `hashTrace` is `sha256` over the canonical JSON of the trace,
 where every component sits under its own name; entries that collide on the key still separate there.
 The collision only degrades `trace`'s **primary** order to a tie, which the canonical-JSON secondary
 resolves.

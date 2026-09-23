@@ -118,6 +118,40 @@ let
   # would silently admit it as a name.
   attrKey = k: if builtins.isString k then builtins.unsafeDiscardStringContext k else k;
 
+  # `tupleKey site pathAt components` — the key of a tuple of caller names: the JSON of the
+  # component list. A JSON string literal escapes `"` and `\`, so each component ends at its first
+  # unescaped quote and a list of them parses one way only: distinct tuples give distinct keys BY
+  # CONSTRUCTION, where a separator join lets a name carrying the separator shift the boundaries.
+  # `lib/relation.nix` keys its groupings the same way (`elementKeyOf`).
+  #
+  # ★ THE GUARD IS POSITION-AWARE, because the shapes are what keep the arms apart: every component
+  # is a string except the one at `pathAt` (`null` where the tuple has no path), which is a list of
+  # strings. A guard admitting either shape anywhere would key `cell "out" [ "x/y" ] "output"` equal
+  # to the output arm's `[ "out" [ "x/y" ] "output" ]`. It refuses by name before `toJSON`, which
+  # would otherwise coerce an `outPath` set to its string, or silently key an int or a plain set.
+  tupleKey =
+    site: pathAt: components:
+    let
+      ok =
+        i: c:
+        if i == pathAt then builtins.isList c && builtins.all builtins.isString c else builtins.isString c;
+      bad = filter (i: !(ok i (builtins.elemAt components i))) (
+        builtins.genList (i: i) (length components)
+      );
+      i = head bad;
+    in
+    if !(builtins.isList components) then
+      refuse site "a key is a list of components, not a ${builtins.typeOf components}"
+    else if bad != [ ] then
+      refuse site "a key component is ${renderValue (builtins.elemAt components i)}; ${
+        if i == pathAt then
+          "a path in a key must be a list of strings"
+        else
+          "a name in a key must be a string"
+      }"
+    else
+      builtins.toJSON components;
+
   # `strings site what xs` — a list of distinct non-empty strings, the shape every alphabet and
   # name set in the carrier takes. Duplicates are refused rather than collapsed: a set written
   # twice is a caller who believes two things about it, and silently deduplicating picks one.
@@ -145,6 +179,7 @@ let
 in
 {
   inherit
+    tupleKey
     refuse
     fields
     decided

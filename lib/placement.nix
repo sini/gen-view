@@ -29,9 +29,9 @@
 # still holds: the primitive is published, just not from a placement library. Placement keeps the
 # CONSTRUCT and stops keeping the PRIMITIVE.
 #
-# ★ THE ORDERING COUPLING, RECORDED BECAUSE IT DECIDES A RETIREMENT SEQUENCE: the frozen sort key
+# ★ THE ORDERING COUPLING, RECORDED BECAUSE IT DECIDES A RETIREMENT SEQUENCE: the sort key
 # of the oracle cluster (`trace.nix`) keys on the PATH and the MODE, both of which are components
-# of this family. The frozen key therefore cannot be re-expressed until placement has a home, which
+# of this family. The key therefore cannot be re-expressed until placement has a home, which
 # is here — so this file is upstream of that cluster's retirement, not beside it.
 { prelude }:
 let
@@ -44,6 +44,7 @@ let
     choice
     strings
     attrKey
+    tupleKey
     quote
     renderValue
     ;
@@ -143,20 +144,38 @@ let
             setAttrByPath (map attrKey (path ++ [ a.name ])) a.value;
       };
 
-  # `pathKey` / `targetKey` / `sourceKey` — the rendered components the frozen sort key is built
-  # from. Published because the key is built from them and a caller re-deriving one by hand would
-  # be re-deriving the frozen format.
-  pathKey = path: if path == [ ] then "-" else builtins.concatStringsSep "." path;
+  # `pathKey` / `targetKey` / `sourceKey` — the components the sort key is built from, each the JSON
+  # of its name tuple (`tupleKey`), so distinct names give distinct components by construction.
+  # Published because the key is built from them and a caller re-deriving one by hand would be
+  # re-deriving the encoding. The arm tag and the shape at position 1 (a string for a root's scope,
+  # a list for an output's path) keep the two target arms apart.
+  pathKey = path: tupleKey "pathKey" null path;
   targetKey =
     target:
     if target.arm == "output" then
-      "out:" + builtins.concatStringsSep "." target.path
+      tupleKey "targetKey" 1 [
+        "out"
+        target.path
+      ]
     else
       let
         t = rootNames "targetKey" target;
       in
-      "root:" + t.scope + "/" + t.channel;
-  sourceKey = source: source.scope + "/" + source.relation;
+      tupleKey "targetKey" null [
+        "root"
+        t.scope
+        t.channel
+      ];
+  # ★ JSON-ENCODED BUT NOT GUARDED: interpolation keeps exactly today's admission — a non-string
+  # still aborts, an `outPath`/`__toString` set still coerces — because the raw trace surface's
+  # coercion class is an open owner reading (`den-hoag-g1qy0`) that a guard here would pre-empt. A
+  # bare `toJSON` would be worse than either: it silently keys an int, a plain set, a list or null.
+  sourceKey =
+    source:
+    builtins.toJSON [
+      "${source.scope}"
+      "${source.relation}"
+    ];
 in
 {
   inherit

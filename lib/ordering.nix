@@ -75,13 +75,15 @@ let
     choice
     strings
     attrKey
+    tupleKey
     quote
     renderSubject
     ;
   inherit (carrierLib) elementOf;
 
   # A CELL is the unit both sets range over: a ⟨scope, channel, SIDE⟩ bucket, rendered to a string
-  # so set intersection is a comparison rather than a structural scan.
+  # so set intersection is a comparison rather than a structural scan. The string is the JSON of the
+  # triple (`tupleKey`), so a name carrying a separator cannot make two cells one.
   #
   # ★★ THE SIDE IS LOAD-BEARING AND IS NOT BOOKKEEPING. A collector READS the input cells of the
   # scopes it gathered and WRITES an output cell at its own root — and those are DIFFERENT cells at
@@ -96,7 +98,11 @@ let
   # comes from.
   cell =
     scope: channel: side:
-    "${scope}/${channel}@${side}";
+    tupleKey "cell" null [
+      scope
+      channel
+      side
+    ];
 
   # ★ THE DOOR'S TYPE CHECK, WRITTEN AS ITS OWN BINDING BECAUSE EVERY ENTRY POINT HERE OWES IT.
   # A raw labelled graph is recognisable — it carries `labeledEdges` — so the refusal can say what
@@ -150,7 +156,13 @@ let
     in
     decided [ v mode ] (
       if target.arm == "output" then
-        [ ("out:" + builtins.concatStringsSep "." target.path + "@output") ]
+        [
+          (tupleKey "writesOf" 1 [
+            "out"
+            target.path
+            "output"
+          ])
+        ]
       else if target.channel != v.name then
         # ★ THE CROSS-CHECK IS WHAT MAKES THE TYPE CHECK ABOVE LOAD-BEARING RATHER THAN DECORATIVE.
         # A root target carries its own channel, so a caller can name a cell this result does not

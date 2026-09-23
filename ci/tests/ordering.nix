@@ -221,8 +221,8 @@ in
         };
       };
       expected = {
-        reads = [ "inc/settings@input" ];
-        writes = [ "leaf/settings@output" ];
+        reads = [ "[\"inc\",\"settings\",\"input\"]" ];
+        writes = [ "[\"leaf\",\"settings\",\"output\"]" ];
       };
     };
 
@@ -245,8 +245,8 @@ in
         differ = v.cell "mid" "settings" "input" != v.cell "mid" "settings" "output";
       };
       expected = {
-        input = "mid/settings@input";
-        output = "mid/settings@output";
+        input = "[\"mid\",\"settings\",\"input\"]";
+        output = "[\"mid\",\"settings\",\"output\"]";
         differ = true;
       };
     };
@@ -267,9 +267,9 @@ in
         }
       ) v.placement.modes;
       expected = [
-        [ "inc/settings@output" ]
-        [ "inc/settings@input" ]
-        [ "inc/settings@input" ]
+        [ "[\"inc\",\"settings\",\"output\"]" ]
+        [ "[\"inc\",\"settings\",\"input\"]" ]
+        [ "[\"inc\",\"settings\",\"input\"]" ]
       ];
     };
 
@@ -285,7 +285,7 @@ in
         };
         mode = "merge";
       };
-      expected = [ "out:flake.packages@output" ];
+      expected = [ "[\"out\",[\"flake\",\"packages\"],\"output\"]" ];
     };
 
     # A target naming a cell this result does not produce is refused: the schedule's arc would
@@ -313,8 +313,8 @@ in
         consumerReads = v.readsOf consumerRelation;
       };
       expected = {
-        producerWrites = [ "inc/settings@input" ];
-        consumerReads = [ "inc/settings@input" ];
+        producerWrites = [ "[\"inc\",\"settings\",\"input\"]" ];
+        consumerReads = [ "[\"inc\",\"settings\",\"input\"]" ];
       };
     };
 

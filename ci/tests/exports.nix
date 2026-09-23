@@ -208,11 +208,9 @@ let
       inherit placement;
     };
 
-  # ── ONE SORT KEY, TWO PLACEMENTS ──
-  # `pathKey` joins the placement path with `"."`, so a single segment CONTAINING the separator
-  # renders the same string as the two segments it was joined from. Both placements come from the
-  # published `place`, so the colliding pair is one a caller can actually build; the third differs
-  # from the second in a field the entry does not carry, which is the stability arm.
+  # ── ONE TOPOLOGY, TWO PLACEMENTS ──
+  # Both placements come from the published `place` and differ only in a field the entry does not
+  # carry (the name), which is the stability arm.
   placedAt =
     p: n:
     v.placement.place {
@@ -221,7 +219,6 @@ let
       name = n;
       value = f.relation.value;
     };
-  dottedSegment = placedAt [ "a.b" ] "settings";
   twoSegments = placedAt [
     "a"
     "b"
@@ -230,12 +227,6 @@ let
     "a"
     "b"
   ] "other";
-  traceUnder =
-    placement:
-    v.trace {
-      relation = tUnbounded;
-      inherit placement;
-    };
   fingerprintUnder =
     placement:
     v.hashTrace {
@@ -323,8 +314,8 @@ let
     edge = {
       capability =
         e:
-        e.source == "inc/import"
-        && e.target == "root:inc/settings"
+        e.source == "[\"inc\",\"import\"]"
+        && e.target == "[\"root\",\"inc\",\"settings\"]"
         && e.path == [ "cfg" ]
         && e.mode == "merge";
       fixture =
@@ -351,7 +342,7 @@ let
     # SOURCES' COLLECTED ARM: the receiver-rooted collector, whose members are RESOLVED and
     # ISOLATION-BOUNDED.
     sources = {
-      capability = reads: reads == [ "mid/settings@input" ];
+      capability = reads: reads == [ "[\"mid\",\"settings\",\"input\"]" ];
       fixture = v.readsOf (f.mkRelation { marks = f.includeMark; });
       # ONE RESPECT ALTERED: the isolation bound is dropped, so the members resolve to a different
       # set — the same collector without the half that makes it bounded.
@@ -363,8 +354,8 @@ let
     targets = {
       capability =
         t:
-        t.root == "root:leaf/settings"
-        && t.output == "out:flake.packages"
+        t.root == "[\"root\",\"leaf\",\"settings\"]"
+        && t.output == "[\"out\",[\"flake\",\"packages\"]]"
         &&
           t.arms == [
             "root"
@@ -646,7 +637,7 @@ let
 
     # RENDER-ENTRY: the per-entry half, carrying target, source, witness word and mode.
     renderEntry = {
-      capability = s: s == "root:inc/settings ← inc/import [include] d=1 merge";
+      capability = s: s == "[\"root\",\"inc\",\"settings\"] ← [\"inc\",\"import\"] [include] d=1 merge";
       fixture = v.renderEntry (entryOf mergeAtRoot);
       # ONE RESPECT ALTERED: the mode, which the rendering must carry.
       mutant = v.renderEntry (entryOf nestAtRoot);
@@ -675,9 +666,10 @@ let
       };
     };
 
-    # EDGE-SORT-KEY: the frozen `T | P | S | M [| K]` key.
+    # EDGE-SORT-KEY: the `T | P | S | M [| K]` key.
     edgeSortKey = {
-      capability = k: k == "root:inc/settings | cfg | inc/import | merge | import";
+      capability =
+        k: k == "[\"root\",\"inc\",\"settings\"] | [\"cfg\"] | [\"inc\",\"import\"] | merge | import";
       fixture = v.edgeSortKey (entryOf mergeAtRoot);
       # ONE RESPECT ALTERED: the M component.
       mutant = v.edgeSortKey (entryOf nestAtRoot);
@@ -818,28 +810,41 @@ in
         };
 
       # ★★★ THE PREIMAGE ARGUMENT, ASSERTED RATHER THAN ONLY ARGUED. `lib/trace.nix` takes the
-      # fingerprint over the TRACE and never over the sort key, because the key is a `" | "`-join
-      # over free strings and two structurally distinct entries can render one key. Today that holds
-      # by construction — and a construction with no cell is an invariant someone has to maintain,
-      # which regresses silently on any later edit. Hashing the rendered keys instead of the
-      # structured trace mints ONE fingerprint for the pair below; this is what notices.
-      test-the-fingerprint-separates-a-sort-key-collision = {
-        expr = {
-          # The pair really does collide on the key. Without this arm the separation below would be
-          # about a pair the key had already told apart, which is no claim at all.
-          sortKeysCollide =
-            map v.edgeSortKey (traceUnder dottedSegment) == map v.edgeSortKey (traceUnder twoSegments);
-          # …and the traces really are distinct, so a fingerprint that agreed would be losing
-          # information rather than reporting a sameness the topologies carry.
-          tracesDiffer = traceUnder dottedSegment != traceUnder twoSegments;
-          fingerprintsSeparate = fingerprintUnder dottedSegment != fingerprintUnder twoSegments;
+      # fingerprint over the TRACE and never over the sort key, because the key is a PROJECTION: it
+      # leaves out the witness distance and word, so two structurally distinct entries share one
+      # key. Today that holds by construction — and a construction with no cell is an invariant
+      # someone has to maintain, which regresses silently on any later edit. Hashing the rendered
+      # keys instead of the structured trace mints ONE fingerprint for the pair below (one
+      # contribution at distance 1 and at distance 3); this is what notices.
+      test-the-fingerprint-separates-a-sort-key-collision =
+        let
+          c = builtins.head f.relation.contributions;
+          argsOf = cs: {
+            relation = f.relation // {
+              contributions = cs;
+            };
+            placement = f.placement;
+          };
+          near = [ c ];
+          far = [ (c // { distance = 3; }) ];
+        in
+        {
+          expr = {
+            # The pair really does collide on the key. Without this arm the separation below would be
+            # about a pair the key had already told apart, which is no claim at all.
+            sortKeysCollide =
+              map v.edgeSortKey (v.trace (argsOf near)) == map v.edgeSortKey (v.trace (argsOf far));
+            # …and the traces really are distinct, so a fingerprint that agreed would be losing
+            # information rather than reporting a sameness the topologies carry.
+            tracesDiffer = v.trace (argsOf near) != v.trace (argsOf far);
+            fingerprintsSeparate = v.hashTrace (argsOf near) != v.hashTrace (argsOf far);
+          };
+          expected = {
+            sortKeysCollide = true;
+            tracesDiffer = true;
+            fingerprintsSeparate = true;
+          };
         };
-        expected = {
-          sortKeysCollide = true;
-          tracesDiffer = true;
-          fingerprintsSeparate = true;
-        };
-      };
 
       # ★★ THE STABILITY ARM, ON THE SAME AXIS, and it is what keeps the cell above from being
       # satisfied by an instrument that separates every pair it is shown. These two placements

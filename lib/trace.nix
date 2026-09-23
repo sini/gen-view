@@ -1,4 +1,4 @@
-# THE ORACLE CLUSTER — the structured trace, its frozen sort key, the rendering, and the trace's
+# THE ORACLE CLUSTER — the structured trace, its sort key, the rendering, and the trace's
 # structural fingerprint.
 #
 # ★★ WHY THIS CLUSTER IS BUILT HERE BEFORE ANYTHING RETIRES. These six constructs are THE
@@ -37,9 +37,10 @@ let
     ;
   inherit (placement) pathKey targetKey sourceKey;
 
-  # `edgeSortKey` — the frozen `T | P | S | M [| K]` key. The kind component is APPENDED only when
-  # present, so an entry that carries no kind renders the historical four-component form
-  # unchanged rather than gaining an empty field.
+  # `edgeSortKey` — the `T | P | S | M [| K]` key. The skeleton is fixed; the components' text is
+  # not: T, P and S are the JSON name tuples of `targetKey`/`pathKey`/`sourceKey`, so each ends at
+  # a point no name can move. The kind component is APPENDED only when present, so an entry that
+  # carries no kind renders the four-component form rather than gaining an empty field.
   edgeSortKey =
     entry:
     targetKey entry.target
@@ -106,7 +107,7 @@ let
 
   # `trace { relation; placement; }` — a TOTAL order over the entries.
   #
-  # Primary key: the frozen sort key. Secondary: the canonical JSON of the entry itself, so the
+  # Primary key: the sort key. Secondary: the canonical JSON of the entry itself, so the
   # trace is a pure function of the SET even where two contributions share a sort key but differ in
   # identity; only genuinely identical entries collapse to an order-irrelevant tie.
   trace =
@@ -163,13 +164,14 @@ let
   # to fingerprint alike, and that is a limit of the instrument rather than a defect in it.
   #
   # ★★ THE PREIMAGE ARGUMENT IS WHY THE HASH IS TAKEN OVER THE TRACE AND NEVER OVER THE SORT KEY.
-  # The key above is a `" | "`-join over components that are FREE STRINGS, so a component carrying
-  # the separator shifts the field boundaries and two structurally distinct entries render one key —
-  # the key is not preimage-injective, and a fingerprint built on it would be forgeable by exactly
-  # that shift. The trace encoding has no such route: canonical JSON carries every component under
-  # its own name, so no component's content can be read as another's, and entries that collide on
-  # the key still separate here. The key's collision degrades `trace`'s PRIMARY order to a tie and
-  # the canonical-JSON secondary resolves it — which is what the secondary is for.
+  # The key above is a PROJECTION of the entry: it carries neither the witness distance nor the
+  # word, so two structurally distinct entries — one contribution reached at distance 1 and at
+  # distance 3 — render one key. The key is therefore not preimage-injective, and a fingerprint
+  # built on it would mint one value for that pair. (Its components no longer shift into one
+  # another: each is the JSON of its name tuple.) The trace encoding has no such route: canonical
+  # JSON carries every component under its own name, so entries that collide on the key still
+  # separate here. The key's collision degrades `trace`'s PRIMARY order to a tie and the
+  # canonical-JSON secondary resolves it — which is what the secondary is for.
   #
   # ★ PERMUTATION INVARIANCE IS INHERITED, NOT RESTATED. `trace` is a function of the entry SET, so
   # two presentations of one set reach `toJSON` byte-equal and there is nothing left here to make
