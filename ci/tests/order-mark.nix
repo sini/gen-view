@@ -426,8 +426,8 @@ in
     # ★★★ AND WHY THE LEX PRODUCT WAS. The composite key is the PAIR `(rankₘ l, rank_q l)`, and lex
     # on pairs is TOTAL — so the induced relation is a strict weak order and FLATTENS onto the
     # shipped carrier, equal pairs sharing a rank. What step 6 reads is one ordinary `labelOrder`,
-    # so `pathPrecedes` and `rankLess` are untouched and the sort-plus-survivors-scan bound
-    # survives. THE PAIR IS AN INTERMEDIATE, NEVER A SECOND NUMBER LINE: what M9 admits is ONE more
+    # so `rankOf` and `pathPrecedes` are untouched and step 6's prefix minimum reads it
+    # unchanged. THE PAIR IS AN INTERMEDIATE, NEVER A SECOND NUMBER LINE: what M9 admits is ONE more
     # integer lattice over labels, which is exactly what the existing `layers` already admitted.
     # The empty middle layer is `$` holding a composite rank no letter shares, written down.
     test-o8c-the-lexicographic-product-flattens-onto-the-shipped-label-order = {
@@ -451,7 +451,7 @@ in
     # path lift is not integer-representable: `P·X` and `I·P` diverge at position 0 on two letters
     # the order leaves INCOMPARABLE, so `pathPrecedes` is false BOTH ways while the total sort key
     # `rankLess` cheerfully decides the pair. That gap is the antichain the competition keeps, and
-    # it is why `rankLess` is a sort bound and never the visibility order.
+    # it is why `rankLess` is a total sort key and never the visibility order.
     # ★ CONTROL: a pair the lift DOES order, so the two falses above are a verdict and not a dead
     # predicate.
     test-o8c-the-path-level-falsifier-fails-as-it-did-and-the-lift-is-live = {

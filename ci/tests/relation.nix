@@ -200,6 +200,308 @@ let
   # by different ranked labels".
   siblingRanked = siblingWith f.order;
 
+  # ── THE RANK-TIED DISTINCT-LABEL FIXTURE, for step 6's survival classes ──
+  # `A` and `P` are one hop from `r` on DISTINCT labels of ONE rank, so their rank words are equal
+  # while their label words are not; `AA` extends `A` by one more `include`. Under an order in
+  # which continuing outranks stopping (`endOfPath` above the letters' shared rank), `AA` shadows
+  # `A` and nothing shadows `P`. Any construction that lets `P` share `A`'s fate — by keying
+  # anything on RANKS rather than LABELS — drops `P`; any that forgets the `$` branch keeps `A`.
+  tiedGraph = v.scopeGraph {
+    carrier = f.carrier;
+    scopes = [
+      "r"
+      "A"
+      "AA"
+      "P"
+    ];
+    edges = {
+      include =
+        id:
+        {
+          r = [ "A" ];
+          A = [ "AA" ];
+        }
+        .${id} or [ ];
+      parent = id: if id == "r" then [ "P" ] else [ ];
+    };
+    data = f.authored {
+      A = [
+        {
+          relation = "import";
+          datum = [ "a" ];
+        }
+      ];
+      AA = [
+        {
+          relation = "import";
+          datum = [ "aa" ];
+        }
+      ];
+      P = [
+        {
+          relation = "import";
+          datum = [ "p" ];
+        }
+      ];
+    };
+  };
+  continueOrder = v.labelOrder {
+    alphabet = f.labels;
+    layers = [
+      [
+        "include"
+        "parent"
+      ]
+    ];
+    endOfPath = 1;
+  };
+  tiedWith =
+    order:
+    v.viewRelation {
+      definition = f.mkDefinition {
+        root = "r";
+        inherit order;
+      };
+      graph = tiedGraph;
+      marks = f.noMarks;
+      orderMark = f.identityMark;
+    };
+  tiedContinue = tiedWith continueOrder;
+
+  # ── THE EXHAUSTIVE COMPETITION, for step 6's survivor set over every small group ──
+  # Every group of ≤ 3 distinct label words drawn from all 13 words of length ≤ 2 over {a b c},
+  # each also with its first word carried by a second member, under all 13 weak orders on the
+  # letters × `endOfPath` ∈ −1..3 — so `$` sits strictly below, tied with, between and above every
+  # layer. The graph is the word trie itself: scope `r` is the empty word and each other scope is
+  # named by the word that reaches it, so a member's path IS its word. Each group is one registry
+  # entity, so every group competes on its own inside ONE query per order.
+  exLetters = [
+    "a"
+    "b"
+    "c"
+  ];
+  exLabels = v.edgeLabels { letters = exLetters; };
+  exWords = [ "" ] ++ exLetters ++ builtins.concatMap (x: map (y: x + y) exLetters) exLetters;
+  exScopeOf = w: if w == "" then "r" else w;
+  exSubsets =
+    let
+      go =
+        start: size:
+        if size == 0 then
+          [ [ ] ]
+        else
+          builtins.concatMap (i: map (rest: [ i ] ++ rest) (go (i + 1) (size - 1))) (
+            builtins.genList (j: j + start) (builtins.length exWords - start)
+          );
+    in
+    builtins.concatMap (go 0) [
+      1
+      2
+      3
+    ];
+  exMembers = builtins.concatLists (
+    builtins.genList (
+      g:
+      let
+        s = builtins.elemAt exSubsets g;
+        on =
+          key:
+          map (i: {
+            inherit key;
+            w = builtins.elemAt exWords i;
+          });
+      in
+      on "g${toString g}" s ++ on "d${toString g}" (s ++ [ (builtins.head s) ])
+    ) (builtins.length exSubsets)
+  );
+  exAdmission = v.labelWellFormedness {
+    alphabet = exLabels;
+    expression = "(a|b|c)*";
+  };
+  exFlat = v.labelOrder {
+    alphabet = exLabels;
+    layers = [ exLetters ];
+    endOfPath = 0;
+  };
+  exGraph = v.scopeGraph {
+    carrier = v.carrier {
+      labels = exLabels;
+      inherit (f) relations;
+      relatumLabels = f.roles;
+      labelWellFormedness = exAdmission;
+      labelOrder = exFlat;
+      dataOrder = v.dataOrder {
+        channel = "settings";
+        keyOf = c: builtins.head c.datum;
+      };
+    };
+    scopes = map exScopeOf exWords;
+    edges = builtins.listToAttrs (
+      map (l: {
+        name = l;
+        value =
+          id:
+          if id == "r" then
+            [ l ]
+          else if builtins.stringLength id == 1 then
+            [ (id + l) ]
+          else
+            [ ];
+      }) exLetters
+    );
+    data = builtins.genList (
+      j:
+      let
+        m = builtins.elemAt exMembers j;
+      in
+      {
+        scope = exScopeOf m.w;
+        relation = "import";
+        datum = [
+          m.key
+          (toString j)
+        ];
+      }
+    ) (builtins.length exMembers);
+  };
+  exOrders =
+    builtins.concatMap
+      (
+        layers:
+        map
+          (
+            endOfPath:
+            v.labelOrder {
+              alphabet = exLabels;
+              inherit layers endOfPath;
+            }
+          )
+          [
+            (-1)
+            0
+            1
+            2
+            3
+          ]
+      )
+      [
+        [ exLetters ]
+        [
+          [ "a" ]
+          [
+            "b"
+            "c"
+          ]
+        ]
+        [
+          [ "b" ]
+          [
+            "a"
+            "c"
+          ]
+        ]
+        [
+          [ "c" ]
+          [
+            "a"
+            "b"
+          ]
+        ]
+        [
+          [
+            "a"
+            "b"
+          ]
+          [ "c" ]
+        ]
+        [
+          [
+            "a"
+            "c"
+          ]
+          [ "b" ]
+        ]
+        [
+          [
+            "b"
+            "c"
+          ]
+          [ "a" ]
+        ]
+        [
+          [ "a" ]
+          [ "b" ]
+          [ "c" ]
+        ]
+        [
+          [ "a" ]
+          [ "c" ]
+          [ "b" ]
+        ]
+        [
+          [ "b" ]
+          [ "a" ]
+          [ "c" ]
+        ]
+        [
+          [ "b" ]
+          [ "c" ]
+          [ "a" ]
+        ]
+        [
+          [ "c" ]
+          [ "a" ]
+          [ "b" ]
+        ]
+        [
+          [ "c" ]
+          [ "b" ]
+          [ "a" ]
+        ]
+      ];
+  # Per order: each group's survivors as the query returns them, against the pairwise definition
+  # over the published `pathPrecedes` on the same members.
+  exCompare =
+    order:
+    let
+      r = v.viewRelation {
+        definition = v.compositions.registry {
+          channel = "settings";
+          relation = "import";
+          root = "r";
+          direction = "outbound";
+          admission = exAdmission;
+          inherit order;
+          wellFormed = f.admitAll;
+          tieSet = v.tieSets.union;
+          empty = [ ];
+          combine = v.combines.listAppend;
+          dedup = v.dedups.none;
+          entityOf = c: builtins.head c.datum;
+        };
+        graph = exGraph;
+        marks = f.noMarks;
+        orderMark = exFlat;
+      };
+      byGroup =
+        cs:
+        builtins.mapAttrs (_: ms: builtins.sort builtins.lessThan (map (c: builtins.elemAt c.datum 1) ms)) (
+          builtins.groupBy (c: builtins.head c.datum) cs
+        );
+      all = builtins.groupBy (c: builtins.head c.datum) (r.contributions ++ r.shadowed);
+      pairwise = byGroup (
+        builtins.concatMap (
+          ms: builtins.filter (c: !(builtins.any (o: order.pathPrecedes o.path c.path) ms)) ms
+        ) (builtins.attrValues all)
+      );
+      visible = byGroup r.contributions;
+    in
+    map (g: {
+      agree = (visible.${g} or [ ]) == pairwise.${g};
+      decides = builtins.length pairwise.${g} < builtins.length all.${g};
+    }) (builtins.attrNames all);
+  exCases = builtins.concatMap exCompare exOrders;
+
   # ── THE PER-SCOPE-KEY RELATION OVER THE DUPLICATE GRAPH, for the dedup records ──
   dupWith =
     dedup:
@@ -1574,12 +1876,13 @@ in
       };
     };
 
-    # ★★ THE DIFFERENTIAL CONTROL ON THE BOUNDED SCAN. The competition computes minimality with a
-    # sort by `rankLess` plus a scan against the survivors kept so far — a bound that rests on `<p`
-    # refining `rankLess` and on `<p` being transitive. This cell runs the DIRECT pairwise
-    # definition ("nothing in the group strictly precedes it") over the same groups and asserts the
-    # two agree. If the bound's argument were wrong, the two would disagree here rather than in a
-    # consumer's answer six libraries away.
+    # ★★ THE DIFFERENTIAL CONTROL ON THE PREFIX MINIMUM. The competition computes minimality as a
+    # prefix minimum over label words — a member survives iff its symbol has the minimum rank at
+    # every node of its word·$ — which rests on `<p` deciding at the first label divergence. This
+    # cell runs the DIRECT pairwise definition ("nothing in the group strictly precedes it") over
+    # the published `pathPrecedes` on the same groups and asserts the two agree. If the
+    # characterisation were wrong, the two would disagree here rather than in a consumer's answer
+    # six libraries away.
     test-control-the-bounded-minimality-scan-agrees-with-the-pairwise-definition = {
       expr =
         builtins.all
@@ -1599,8 +1902,29 @@ in
             { relation = divergentLayered; }
             { relation = f.relation; }
             { relation = f.mkRelation { definition = f.mkDefinition { order = f.flatOrder; }; }; }
+            { relation = tiedContinue; }
+            { relation = tiedWith f.flatOrder; }
           ];
       expected = true;
+    };
+
+    # ★ THE SURVIVAL CLASS IS THE LABEL WORD, NEVER THE RANK WORD. `A` and `P` have one rank word
+    # and different label words; `AA` shadows `A` through the `$` branch, and `P` survives because
+    # nothing diverges from it on a lower-ranked label. Pinned by scope, so a construction that
+    # shares fate across a rank tie (drops `P`) or forgets the end-of-path branch (keeps `A`) reds
+    # here as well as in the differential cell above.
+    test-a-rank-tie-between-distinct-labels-does-not-share-survival = {
+      expr = {
+        visible = scopesOf tiedContinue;
+        shadowed = map (c: c.scope) tiedContinue.shadowed;
+      };
+      expected = {
+        visible = [
+          "AA"
+          "P"
+        ];
+        shadowed = [ "A" ];
+      };
     };
 
     # ★ AND THE CONTROL'S OWN CONTROL: the four cases are not all trivially one-element groups, so
@@ -1610,12 +1934,33 @@ in
         divergentFlat
         divergentLayered
         f.relation
+        tiedContinue
       ];
       expected = [
         2
         2
         3
+        3
       ];
+    };
+
+    # ★★ THE EXHAUSTIVE DIFFERENTIAL. The cells above agree on fixed fixtures; this one agrees on
+    # EVERY group of ≤ 3 words of length ≤ 2 over three letters, under every weak order and every
+    # place `$` can sit, through the query itself. `cases` pins the enumeration so a dead generator
+    # cannot read as agreement, and `decided` counts the groups in which minimality shadowed
+    # something, so the agreement is not over groups where every member survives. Driven red: a
+    # node keyed by the RANK prefix agrees on 44606, one without the `$` branch on 34298.
+    test-control-the-prefix-minimum-agrees-with-the-pairwise-definition-exhaustively = {
+      expr = {
+        cases = builtins.length exCases;
+        agree = builtins.length (builtins.filter (x: x.agree) exCases);
+        decided = builtins.length (builtins.filter (x: x.decides) exCases);
+      };
+      expected = {
+        cases = 49010;
+        agree = 49010;
+        decided = 42252;
+      };
     };
 
     # ══ AUTHORSHIP-VISIBILITY (den-hoag-2vzn) — §3's oracles ══

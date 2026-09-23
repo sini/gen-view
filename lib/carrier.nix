@@ -359,13 +359,12 @@ let
 
         # ★★ A TOTAL ORDER ON RANK WORDS, PUBLISHED UNDER A NAME THAT SAYS WHAT IT IS: A SORT KEY.
         # It is NOT the visibility order and must never be substituted for one — it is the finer
-        # order `pathPrecedes` was corrected away from. What it is FOR is bounding the minimality
-        # computation: `a <p b` implies `rankLess a b`, because the first position where the rank
-        # words differ can only be a position where the LABELS differ (equal labels have equal
-        # ranks), and `<p` decides exactly there. So sorting by this key puts every dominator ahead
-        # of everything it dominates, and a scan that compares each candidate only against the
-        # survivors kept so far is complete — `<p` being transitive, anything dropped was dropped by
-        # something already kept.
+        # order `pathPrecedes` was corrected away from. `<p` refines it — `a <p b` implies
+        # `rankLess a b`, because the first position where the rank words differ can only be a
+        # position where the LABELS differ (equal labels have equal ranks), and `<p` decides exactly
+        # there — so sorting by it puts every dominator ahead of everything it dominates. Step 6 no
+        # longer sorts: it decides minimality as a prefix minimum over LABEL words, and nothing in
+        # this library consumes this key; it stays published as the rank-word calculus's total order.
         rankLess =
           pa: pb:
           let

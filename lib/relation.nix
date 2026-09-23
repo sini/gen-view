@@ -55,7 +55,6 @@
 let
   inherit (prelude)
     concatMap
-    elem
     filter
     foldl'
     head
@@ -290,8 +289,8 @@ let
       # comparator at step 6. The composite key of `l` is the pair `(rankₘ l, rank_q l)` under the
       # lex order on pairs; lex on pairs is TOTAL, so the induced relation is a strict WEAK order
       # and the distinct pairs number consecutively with equal pairs sharing a rank. What step 6
-      # reads is therefore one ordinary `labelOrder` — `pathPrecedes` and `rankLess` are untouched,
-      # and the one-sort-plus-survivors-scan bound survives unchanged. THE PAIR IS AN INTERMEDIATE
+      # reads is therefore one ordinary `labelOrder` — `rankOf` and `pathPrecedes` are untouched,
+      # and step 6's prefix minimum reads it unchanged. THE PAIR IS AN INTERMEDIATE
       # OF THE COMPOSITION AND NEVER A DURABLE SECOND NUMBER LINE: nothing downstream of the
       # flattening ever sees it.
       #
@@ -380,15 +379,33 @@ let
       # THE SURVIVING-MAXIMAL SET IS THEREFORE COMPUTED AS MINIMALITY: a contribution survives iff
       # NOTHING in its group strictly precedes it.
       #
-      # ★★ THE SCAN IS BOUNDED WITHOUT WEAKENING THAT. `rankLess` is a TOTAL order on rank words
-      # that `<p` refines — `a <p b` implies `rankLess a b`, because the first position where two
-      # rank words differ can only be a position where the LABELS differ, and `<p` decides exactly
-      # there. So sorting by it puts every dominator ahead of everything it dominates, and each
-      # candidate need only be compared against the SURVIVORS KEPT SO FAR: `<p` is transitive, so a
-      # candidate dropped by an already-dropped element was dropped by whatever dropped that one.
-      # The cost is Θ(n log n) plus the antichain's width, which is 1 wherever the order is total —
-      # the ordinary case — against Θ(n²) for the pairwise definition.
-      # `ci/tests/relation.nix` runs both forms against each other on the same fixtures.
+      # ★★ MINIMALITY IS A PREFIX MINIMUM OVER LABEL WORDS, AND THAT IS WHAT IS COMPUTED. Write
+      # `ŵ = w·$` for a member's label word. `$` occurs only last and `edgeLabels` refuses it as a
+      # letter, so the ŵ are prefix-free: two distinct ones first differ at a position `i` inside
+      # both, below a shared prefix `u`, and `pathPrecedes` decides `a <p b` exactly there, by
+      # `rankOf â[i] < rankOf b̂[i]`. So `c` is minimal iff at EVERY node `u = ĉ[0..i)` of its word
+      # the symbol `ĉ[i]` has the minimum rank among the symbols the group's members take at `u`.
+      # Not minimal ⇒ dropped: a `d <p c` diverges from `c` at some `i`, so `d` is at `ĉ[0..i)`
+      # with a lower-ranked symbol and `c` misses that node's minimum. Dropped ⇒ not minimal: a `d`
+      # at `ĉ[0..i)` whose symbol ranks below `ĉ[i]` takes a DIFFERENT symbol — `rankOf` is a
+      # function, so unequal ranks are unequal symbols — hence `i` is their first divergence and
+      # `d <p c`. The minimum is taken over every member at the node, dominated ones included,
+      # because minimality quantifies over the whole group.
+      #
+      # ★★ THE NODE IS THE LABEL PREFIX, NEVER THE RANK PREFIX. Two DISTINCT labels of ONE rank
+      # both attain the minimum at their shared node and then split into DIFFERENT children, where
+      # they are never compared again — Fig. 1's prefix order only orders paths that share a
+      # prefix. A node keyed by ranks would merge those children, and a third path extending one
+      # of them would shadow the other: that drops a genuine survivor
+      # (`test-a-rank-tie-between-distinct-labels-does-not-share-survival` pins it). The address is
+      # `toJSON` of a list of letters, injective on lists of strings, so two members share a node
+      # iff their label prefixes are `==`; survival is still decided by `<` on ranks, never by the
+      # address.
+      #
+      # The cost is Θ(Σ ℓ²) over the group's members, ℓ a member's path length (each prefix address
+      # is rebuilt), so it is linear in the number of members, scopes and distinct words; nothing
+      # is sorted and no member is scanned against the survivors. `ci/tests/relation.nix` checks it
+      # against the pairwise definition over the published `pathPrecedes`.
       #
       # ★ THE `seq` IS BOTH ALPHABET REFUSALS' ONLY REACH INTO THE EMPTY CASE, and it is here rather
       # than at the binding because `map` over NO groups would never force the order at all — a
@@ -396,23 +413,27 @@ let
       # to gather nothing would then answer `[ ]` instead of refusing, which is this library's own
       # named defect: an empty answer standing in for a refusal.
       #
-      # ★★ AND "THERE IS A GROUP" DOES NOT MAKE IT FORCED, which is the reading that gets this `seq`
-      # deleted. MEASURED by removing it: a SINGLETON group forces nothing either — `sort` never
-      # calls its comparator on one element and `builtins.any` over an empty accumulator never calls
-      # `pathPrecedes` — so a fixture that DOES gather went radioactive alongside the empty-root one.
-      # The order is forced here or at no reachable point of the ordinary case.
+      # ★★ A GROUP DOES FORCE IT — every member's survival reads `rankOf` at every node of its
+      # word, a singleton's included — so the reach this `seq` owns is the EMPTY case alone.
+      # MEASURED by removing it: only the two empty-gather cells go radioactive. It stays, because
+      # without it the order is forced at no reachable point of a query that gathers nothing.
       competed = builtins.seq effectiveOrder (
         map (
           grp:
           let
-            byRank = sort (x: y: effectiveOrder.rankLess x.path y.path) grp.members;
-            kept = foldl' (
-              acc: c:
-              if builtins.any (o: effectiveOrder.pathPrecedes o.path c.path) acc then acc else acc ++ [ c ]
-            ) [ ] byRank;
-            # Emitted in WALK order, never in the sort key's: the sort is a bound on the computation
-            # and has no business pinning the answer's order.
-            survives = c: elem c kept;
+            branchesOf =
+              c:
+              let
+                s = map (step: step.label) c.path ++ [ "$" ];
+              in
+              builtins.genList (i: {
+                node = builtins.toJSON (builtins.genList (j: builtins.elemAt s j) i);
+                rank = effectiveOrder.rankOf (builtins.elemAt s i);
+              }) (length s);
+            minRank = builtins.mapAttrs (
+              _: bs: foldl' (m: b: if b.rank < m then b.rank else m) (head bs).rank bs
+            ) (builtins.groupBy (b: b.node) (concatMap branchesOf grp.members));
+            survives = c: builtins.all (b: b.rank == minRank.${b.node}) (branchesOf c);
           in
           {
             inherit (grp) key;
