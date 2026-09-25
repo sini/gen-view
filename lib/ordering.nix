@@ -47,14 +47,21 @@
 # the refusal below names that accessor specifically so the next reader meets the reason and not
 # just the denial.
 #
-# ── A SECOND DOOR, A DIFFERENT INPUT-TYPE LAW ────────────────────────────────────────────────
+# ── A SECOND DOOR, A VERDICT AND NO ORDER ────────────────────────────────────────────────────
 # `boundedWellDefinedSchedule` (ADR-0008 §3) is not this door and does not owe it the law above.
 # Its input type is `gen-graph.mkDeclaredEdges`'s contracted declared relation, and that relation
 # obtains its guarantee at CONSTRUCTION — `deepSeq`-forced there, so a relation closing back over
 # the evaluation it orders diverges before this library ever reads it — never by materialization.
-# The two doors share nothing but the file: one refuses a raw labelled-edge accessor because a
-# query's answer cannot decide whether an edge exists, the other admits a value already forced
-# closed at its own construction site.
+# ★ THAT RELATION IS ADR-0008 §3's DECLARED RELATION, and under den-hoag-6s1t (iii) it includes
+# every declared production's CANDIDATE, on or off: a static well-definedness gate
+# over-approximates, as Knuth's circularity test ranges over every production and not over the
+# trees that happen to occur. So it carries edges that resolve OFF, and an order, count or
+# accessor over it would make an off edge observable — which ADR-0019 forbids ("indistinguishable
+# from an edge that never existed through every fold, count and ordering"; "never the raw edge
+# relation"). ⇒ THE GATE PUBLISHES ITS VERDICT AND THE CALLER'S EQUATIONS, AND NEVER AN ORDER,
+# COUNT OR ACCESSOR OVER THAT RELATION. Reached-only is not an option here: the gate never reads an
+# in-flight edge set, and this library holds no evaluator. An order over REACHED structure is
+# taken at the `materialized` door above (`accumulatorOrder`), over a materialized projection.
 { prelude, graph }:
 let
   inherit (prelude)
@@ -375,7 +382,9 @@ let
   # once-per-path non-terminal bound; ADR-0008 §3 rules the gate takes the first two and omits
   # finiteness. ★ THIS CONSTRUCT COMPUTES THE SECOND CONJUNCT ONLY. `equations` is accepted,
   # required and returned unread — so a caller can pair the schedule with the equations it was built
-  # from — but no field of it is read HERE, so completeness (every attribute of every symbol is
+  # from — and NOTHING ELSE IS RETURNED: admission is `{ equations; }`, refusal throws, and no
+  # partition or edge accessor over the declared relation is published (header, "A SECOND DOOR").
+  # No field of `equations` is read HERE, so completeness (every attribute of every symbol is
   # effectively computable) is neither checked nor assumed by this code. Whether it holds by
   # construction elsewhere in gen, or is owed to a later construct, is not decided in this file; a
   # caller relying on it must find that ground independently. AT VOGT'S OWN STATED PRICE FOR
@@ -536,7 +545,6 @@ let
     else
       {
         inherit (a) equations;
-        inherit condensation edges;
       };
 in
 {

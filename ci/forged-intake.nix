@@ -66,23 +66,30 @@ let
   mark = {
     inherit (genuineEdges) _type;
   };
+  genuineCyclic = graph.mkDeclaredEdges [
+    {
+      from = ref "a";
+      to = ref "b";
+    }
+    {
+      from = ref "b";
+      to = ref "a";
+    }
+  ];
   schedule =
     dd:
-    let
-      r = v.boundedWellDefinedSchedule {
-        nodes = [
-          "a"
-          "b"
-        ];
-        declaredDependencies = dd;
-        equations = { };
-        admitsCycle = _: false;
-      };
-    in
-    {
-      inherit (r.condensation) sccs;
-      ea = r.edges "a";
+    v.boundedWellDefinedSchedule {
+      nodes = [
+        "a"
+        "b"
+      ];
+      declaredDependencies = dd;
+      equations = { };
+      admitsCycle = _: false;
     };
+  # The gate publishes its verdict and no order, so what a forged intake can reach is read off the
+  # verdict: admitted is the absence of a refusal.
+  admitted = r: (builtins.tryEval (builtins.deepSeq r true)).success;
 
   # A walk that throws: the planted CONTENT. A door that forces it fails this family.
   walkThrows = f.mkRelation {
@@ -523,13 +530,13 @@ in
 
       # ── gen-graph's declared-edges marker at `boundedWellDefinedSchedule` (Q3) ──
       test-control-a-genuine-declared-relation-schedules = {
-        expr = schedule genuineEdges;
+        expr = {
+          acyclic = admitted (schedule genuineEdges);
+          cyclic = admitted (schedule genuineCyclic);
+        };
         expected = {
-          sccs = [
-            [ "b" ]
-            [ "a" ]
-          ];
-          ea = [ "b" ];
+          acyclic = true;
+          cyclic = false;
         };
       };
       test-declared-index-not-a-set = refused (schedule (
@@ -575,27 +582,33 @@ in
           ))
           "^gen-view\\.boundedWellDefinedSchedule: field 'declaredDependencies' carries gen-graph's declared-edges marker with no 'dependencies'; .*$";
       # The edges are DERIVED from the checked `index`, so a forged `dependencies` has nothing to
-      # reach: one returning a non-list, and one disagreeing with `index`, both answer the index's
-      # relation. Before, the first aborted and the second answered `[ ]` in silence.
+      # reach: one returning a non-list, and one closing a cycle the acyclic `index` does not, are
+      # both admitted — the verdict follows the index. The control above refuses the genuine cycle
+      # on the same two nodes, so an admission here is the index's verdict and not a gate that
+      # admits everything.
       test-declared-dependencies-result-is-never-read = {
-        expr = schedule (
-          mark
-          // {
-            index.a = [ "b" ];
-            dependencies = _: 42;
-          }
+        expr = admitted (
+          schedule (
+            mark
+            // {
+              index.a = [ "b" ];
+              dependencies = _: 42;
+            }
+          )
         );
-        expected = schedule genuineEdges;
+        expected = true;
       };
       test-declared-dependencies-disagreeing-with-index-is-never-read = {
-        expr = schedule (
-          mark
-          // {
-            index.a = [ "b" ];
-            dependencies = _: [ ];
-          }
+        expr = admitted (
+          schedule (
+            mark
+            // {
+              index.a = [ "b" ];
+              dependencies = id: if id == "a" then [ "b" ] else [ "a" ];
+            }
+          )
         );
-        expected = schedule genuineEdges;
+        expected = true;
       };
 
       # ── A KIND WITH NO SHAPE IS TAG-TESTED ONLY (gate C1) ──

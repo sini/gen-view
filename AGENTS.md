@@ -122,10 +122,13 @@ relation. Theorem 3.2 carries THREE conjuncts — completeness, no cycle under E
 once-per-path non-terminal bound; ADR-0008 §3 rules the gate takes the first two and omits
 finiteness, at Vogt's own stated price: "Finite expansion of the structure tree, however, is no
 longer guaranteed." ★ THIS CONSTRUCT COMPUTES THE SECOND CONJUNCT ONLY. `equations` is accepted,
-required and returned so a caller can pair the schedule with the equations it orders, but no field
-of it is read by this construct, so completeness is neither checked nor assumed here; whether it
-holds by construction elsewhere in gen, or is owed to a later construct, is not decided by this
-file. Its input type is materialized at **construction**, not by a materialized-projection door:
+required and returned so a caller can pair the schedule with the equations it was built from, but
+no field of it is read by this construct, so completeness is neither checked nor assumed here;
+whether it holds by construction elsewhere in gen, or is owed to a later construct, is not decided
+by this file. ★ **It returns `{ equations; }` or refuses, and nothing else**: the declared relation
+carries every declared production's candidate edges, on or off, so a partition, order or edge
+accessor over it would make an edge that resolved off observable (ADR-0019). An order over reached
+structure is taken at the materialized-projection door (`accumulatorOrder`). Its input type is materialized at **construction**, not by a materialized-projection door:
 `gen-graph.mkDeclaredEdges`'s own `deepSeq`-forcing is the guarantee, and this construct owes it
 nothing else — except containment: `nodes` must name every endpoint of the declared relation it is
 handed, checked from the contracted value alone and refused BY NAME when it does not. A refusal

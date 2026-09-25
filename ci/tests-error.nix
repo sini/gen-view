@@ -1278,16 +1278,15 @@ in
       # refuses whatever it is handed and a message that never varies with its input.
       test-control-the-same-construct-with-the-cycle-broken-does-not-refuse = {
         expr =
-          (v.boundedWellDefinedSchedule (
-            wdsScheduleArgs
-            // {
-              declaredDependencies = wdsDeclaredAcyclic;
-            }
-          )).condensation.sccs;
-        expected = [
-          [ "parent" ]
-          [ "child" ]
-        ];
+          (builtins.tryEval (
+            builtins.deepSeq (v.boundedWellDefinedSchedule (
+              wdsScheduleArgs
+              // {
+                declaredDependencies = wdsDeclaredAcyclic;
+              }
+            )) true
+          )).success;
+        expected = true;
       };
 
       # ══ C-1 — `nodes` MUST CONTAIN EVERY ENDPOINT OF THE DECLARED RELATION; CHECKED, NOT

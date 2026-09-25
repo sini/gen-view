@@ -24,6 +24,9 @@ let
   v = genView;
 
   refuses = thunk: !(builtins.tryEval (builtins.deepSeq thunk true)).success;
+  # The gate's verdict is all it publishes (its header, "A SECOND DOOR"), so an admission is read
+  # as the absence of a refusal; the returned shape is pinned once, by the published-order cell.
+  admitted = thunk: !(refuses thunk);
 
   # ══ W1 FIXTURE — boundedWellDefinedSchedule, ORACLE O1/O3/O4/O6/O7 and its own door pair ══
   # A two-node declared relation, `child -> parent`, minted the ONLY way `graph.isDeclaredEdges`
@@ -423,15 +426,11 @@ in
 
     # ── O3, LIVE CONTROL, same run: the same fixture with the cycle broken at one edge is clean ──
     test-control-the-same-relation-with-the-cycle-broken-does-not-refuse = {
-      expr =
-        (wdsSchedule {
-          declaredDependencies = wdsDeclaredAcyclic;
-          admitsCycle = wdsKindSynthesized;
-        }).condensation.sccs;
-      expected = [
-        [ "parent" ]
-        [ "child" ]
-      ];
+      expr = admitted (wdsSchedule {
+        declaredDependencies = wdsDeclaredAcyclic;
+        admitsCycle = wdsKindSynthesized;
+      });
+      expected = true;
     };
 
     # ══ O4 — THE CARVE-OUT: THE SAME 2-CYCLE, ADMITTED PER admitsCycle, BOTH ARMS ONE EVALUATION ══
@@ -441,59 +440,70 @@ in
           declaredDependencies = wdsDeclaredCyclic;
           admitsCycle = wdsKindSynthesized;
         });
-        admittedWhenDeclared =
-          (wdsSchedule {
-            declaredDependencies = wdsDeclaredCyclic;
-            admitsCycle = wdsKindCircular;
-          }).condensation.sccs;
+        admittedWhenDeclared = admitted (wdsSchedule {
+          declaredDependencies = wdsDeclaredCyclic;
+          admitsCycle = wdsKindCircular;
+        });
       };
       expected = {
         refusedWhenUndeclared = true;
-        admittedWhenDeclared = [
-          [
-            "child"
-            "parent"
-          ]
-        ];
+        admittedWhenDeclared = true;
       };
     };
 
     # ══ O6 — THE GATE READS THE CONTRACTED DECLARED RELATION AND NOTHING ELSE (no readsAttrs
-    # anywhere): refuses a declared cycle, admits an acyclic one. ★ `directCondensation` IS NOT AN
-    # INDEPENDENT CONTROL — `boundedWellDefinedSchedule` never post-filters its success return:
-    # `.condensation` IS `graph.condensation { nodes; edges; }` unmodified, so this arm and the
-    # subject necessarily compute the identical value from the identical arguments. What it
-    # demonstrates is that identity — the returned field is the raw partition, not some filtered
-    # derivative of it — not a comparison against an unshared input.
+    # anywhere): refuses a declared cycle, admits an acyclic one. The gate publishes no partition of
+    # that relation, so the verdict is the whole observable.
     test-the-gate-reads-the-contracted-declared-relation-and-nothing-else = {
       expr = {
         cyclicRefuses = refuses (wdsSchedule {
           declaredDependencies = wdsDeclaredCyclic;
           admitsCycle = wdsKindSynthesized;
         });
-        acyclicSccs =
-          (wdsSchedule {
-            declaredDependencies = wdsDeclaredAcyclic;
-            admitsCycle = wdsKindSynthesized;
-          }).condensation.sccs;
-        directCondensation =
-          (graph.condensation {
-            nodes = wdsNodes;
-            edges = wdsDeclaredAcyclic.dependencies;
-          }).sccs;
+        acyclicAdmitted = admitted (wdsSchedule {
+          declaredDependencies = wdsDeclaredAcyclic;
+          admitsCycle = wdsKindSynthesized;
+        });
       };
       expected = {
         cyclicRefuses = true;
-        acyclicSccs = [
-          [ "parent" ]
-          [ "child" ]
-        ];
-        directCondensation = [
-          [ "parent" ]
-          [ "child" ]
-        ];
+        acyclicAdmitted = true;
       };
     };
+
+    # ══ THE GATE PUBLISHES ITS VERDICT, NEVER AN ORDER ══
+    # The declared relation carries every declared production's candidate, on or off, so a
+    # partition, bottom-up order or edge accessor over it would make an edge that resolved off
+    # observable (ADR-0019). An admission therefore returns the caller's equations and nothing else.
+    # Live control, same run: the verdict still refuses the declared 2-cycle, so a bare return is
+    # not a gate that stopped deciding.
+    test-the-gate-publishes-its-verdict-and-no-order-over-the-declared-relation =
+      let
+        equations = {
+          parent.v = 1;
+        };
+        admission = v.boundedWellDefinedSchedule {
+          nodes = wdsNodes;
+          declaredDependencies = wdsDeclaredAcyclic;
+          inherit equations;
+          admitsCycle = wdsKindSynthesized;
+        };
+      in
+      {
+        expr = {
+          fields = builtins.attrNames admission;
+          returnsTheCallersEquations = admission.equations == equations;
+          cycleRefused = refuses (wdsSchedule {
+            declaredDependencies = wdsDeclaredCyclic;
+            admitsCycle = wdsKindSynthesized;
+          });
+        };
+        expected = {
+          fields = [ "equations" ];
+          returnsTheCallersEquations = true;
+          cycleRefused = true;
+        };
+      };
 
     # ══ O7 — THE DIRECTION IS ONE-WAY: THE GATE REFUSES WHAT THE EVALUATOR COMPUTES ══
     # The collapse (Vogt Definition 3.14, ⟸ only) is sound and not complete: this gate's refusal of
@@ -509,21 +519,17 @@ in
           admitsCycle = wdsKindSynthesized;
         });
         evaluatorComputesCyclic = wdsEvaluatorOn wdsUpward wdsDeclaredCyclic;
-        gateAdmitsAcyclic =
-          (wdsSchedule {
-            declaredDependencies = wdsDeclaredAcyclic;
-            admitsCycle = wdsKindSynthesized;
-          }).condensation.sccs;
+        gateAdmitsAcyclic = admitted (wdsSchedule {
+          declaredDependencies = wdsDeclaredAcyclic;
+          admitsCycle = wdsKindSynthesized;
+        });
         evaluatorComputesAcyclic = wdsEvaluatorOn wdsUpward wdsDeclaredAcyclic;
         evaluatorControlFlat = wdsEvaluatorOn wdsFlat wdsDeclaredAcyclic;
       };
       expected = {
         gateRefusesCyclic = true;
         evaluatorComputesCyclic = 11;
-        gateAdmitsAcyclic = [
-          [ "parent" ]
-          [ "child" ]
-        ];
+        gateAdmitsAcyclic = true;
         evaluatorComputesAcyclic = 11;
         evaluatorControlFlat = 1;
       };
@@ -550,15 +556,11 @@ in
     # consistent with a door that rejects everything, and the cell above would be measuring a
     # broken entry point rather than a type.
     test-control-the-schedule-door-accepts-the-minted-declared-edges = {
-      expr =
-        (wdsSchedule {
-          declaredDependencies = wdsDeclaredAcyclic;
-          admitsCycle = wdsKindSynthesized;
-        }).condensation.sccs;
-      expected = [
-        [ "parent" ]
-        [ "child" ]
-      ];
+      expr = admitted (wdsSchedule {
+        declaredDependencies = wdsDeclaredAcyclic;
+        admitsCycle = wdsKindSynthesized;
+      });
+      expected = true;
     };
 
     # ★ THE DEPENDENCY LISTS ARE IN NAME ORDER, PINNED OVER TWELVE UNITS. `edges` reads writers
