@@ -2152,6 +2152,27 @@ in
             msg = "^gen-view\\.viewRelation: channel 'settings' collapses a non-string datum at scope 'inc' with 1 `==`-equal twin\\(s\\) whose store dependencies it does not carry \\(.*-kunjm-ctx-a\\); .*den-hoag-gkrtw.*$";
           };
         };
+        # A set carrying BOTH coercions is read through `__toString`, as `toJSON` reads it: the
+        # twin's context lives in the string it renders, not in `outPath`.
+        test-a-set-with-both-coercions-that-would-drop-its-twins-edge-is-refused-by-name = {
+          expr =
+            let
+              toStr = self: self.s;
+              both = s: {
+                outPath = "x";
+                inherit s;
+                __toString = toStr;
+              };
+            in
+            builtins.deepSeq (byDatum [
+              [ (both bareA) ]
+              [ (both a) ]
+            ]) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.viewRelation: channel 'settings' collapses a non-string datum at scope 'inc' with 1 `==`-equal twin\\(s\\) whose store dependencies it does not carry \\(.*-kunjm-ctx-a\\); .*den-hoag-gkrtw.*$";
+          };
+        };
       };
 
     # ── A ROOT TARGET'S NAMES ARE REFUSED WHERE THE TARGET IS BUILT ──

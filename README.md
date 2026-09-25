@@ -151,9 +151,11 @@ condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, 
 
 A dedup collapse keeps every dependency edge. `==` is blind to string context, so data equal
 under it may carry different store paths; the kept datum then carries the union of its twins'
-contexts when it is a string, and a non-string that would lose an edge is refused by name
-(`ci/tests/dedup-context.nix`; den-hoag-gkrtw retires the refusal). A context held beside an
-`outPath` or `__toString` is not read, and its collapse stays silent.
+contexts when it is a string, and under `byDatum` a non-string that would lose an edge is refused
+by name (`ci/tests/dedup-context.nix`; den-hoag-gkrtw retires the refusal). Under `byKey` the
+union reaches a string datum only, so a non-string collapse stays silent, as it was before. The
+walk stops at a coercion, at `__toString`, else `outPath`: a context held beside one is not read,
+and its collapse stays silent.
 
 ## The data component, boundaries and ordering
 

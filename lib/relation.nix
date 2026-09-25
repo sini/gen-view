@@ -145,9 +145,10 @@ let
     builtins.toJSON (tag x);
 
   # `edgesOf v` — the dependency edges of `v`, as one empty string carrying their union. It stops
-  # at a coercion, where `bucketAddress`'s `toJSON` stops: a set with `outPath` is read through it
-  # (so a derivation, which refers to itself, is never walked) and a `__toString` set through its
-  # string. Functions, paths, numbers, bools and null carry no context.
+  # at a coercion, where `bucketAddress`'s `toJSON` stops, and in `toJSON`'s priority: a
+  # `__toString` set is read through its string, else a set with `outPath` through it (so a
+  # derivation, which refers to itself, is never walked). Functions, paths, numbers, bools and null
+  # carry no context.
   edgesOf =
     v:
     if builtins.isString v then
@@ -155,10 +156,10 @@ let
     else if builtins.isList v then
       builtins.concatStringsSep "" (map edgesOf v)
     else if builtins.isAttrs v then
-      if v ? outPath then
-        edgesOf v.outPath
-      else if v ? __toString then
+      if v ? __toString then
         builtins.substring 0 0 (toString v)
+      else if v ? outPath then
+        edgesOf v.outPath
       else
         builtins.concatStringsSep "" (map (n: edgesOf v.${n}) (builtins.attrNames v))
     else
@@ -737,11 +738,13 @@ let
           # blind to string context, so `idx` is addressed by text (`attrKey`: an attribute name
           # cannot carry context), and the kept datum carries the union of its `==`-equal twins'
           # edges — a string by its context, which is Nix's own concatenation. A non-string datum
-          # cannot carry the union, so a collapse that would lose an edge is refused by name. Under
-          # `byKey` only twins `==` to the kept datum are unioned: a collapse of unequal data drops
-          # the whole datum, as declared. `edgesOf` stops where `bucketAddress` stops, at a
-          # coercion, so a context held beside an `outPath` or `__toString` is not read and its
-          # collapse is still silent. den-hoag-gkrtw replaces this with the general quotient.
+          # cannot carry the union, so under `byDatum` a collapse that would lose an edge is refused
+          # by name. Under `byKey` the address walks the key, never the datum, so the union reaches
+          # a STRING kept datum only, and only its `==` twins: a collapse of unequal data drops the
+          # whole datum, as declared, and a non-string datum's twins are never forced or walked, so
+          # its collapse is silent exactly as before the rule. `edgesOf` stops where `bucketAddress`
+          # stops, at `__toString`, else `outPath`, so a context held beside a coercion is not read
+          # and its collapse is still silent. den-hoag-gkrtw replaces this with the general quotient.
           let
             tagged = builtins.genList (
               i:
@@ -766,7 +769,9 @@ let
               let
                 datum = t.c.datum;
                 twins = map (s: s.c.datum) (
-                  filter (s: def.dedup.arm == "byDatum" || s.c.datum == datum) (absorbed.${toString t.i} or [ ])
+                  filter (s: def.dedup.arm == "byDatum" || (builtins.isString datum && s.c.datum == datum)) (
+                    absorbed.${toString t.i} or [ ]
+                  )
                 );
                 lost = builtins.concatStringsSep "" (map edgesOf twins);
               in

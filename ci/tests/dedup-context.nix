@@ -162,6 +162,46 @@ in
         edges = [ [ ] ];
       };
     };
+    # Under `byKey` the union reaches a STRING kept datum only: a pointer-shared cyclic datum is
+    # addressed by its key and never walked, so its collapse is a value, as it was before the rule.
+    test-a-bykey-collapse-of-a-shared-cyclic-datum-is-a-value = {
+      expr =
+        let
+          cyc = {
+            self = cyc;
+            x = 1;
+          };
+          r = run (movement (v.dedups.byKey { keyOf = _: "K"; })) [
+            cyc
+            cyc
+          ];
+        in
+        {
+          kept = builtins.length r.contributions;
+          dropped = builtins.length r.dropped;
+          read = map (c: c.datum.x) r.contributions;
+        };
+      expected = {
+        kept = 1;
+        dropped = 1;
+        read = [ 1 ];
+      };
+    };
+    # ★ PIN of today's SILENT drop: a `byKey` collapse of `==`-equal NON-string data whose contexts
+    # differ keeps the walk-first datum and loses `a`, exactly as before the rule, where `byKey`
+    # addressed the key only. A landing that reaches non-string data under `byKey` (den-hoag-kunjm's
+    # S1) flips this cell.
+    test-a-bykey-nonstring-collapse-of-equal-data-context-dropped-pending-S1 = {
+      expr = byKey (_: "K") [
+        [ bareA ]
+        [ a ]
+      ];
+      expected = {
+        kept = 1;
+        dropped = 1;
+        edges = [ [ ] ];
+      };
+    };
     # A non-string datum whose twin carries nothing it lacks collapses and keeps its edges.
     test-a-list-datum-collapsed-with-a-bare-twin-keeps-its-own-edge = {
       expr = byDatum [
