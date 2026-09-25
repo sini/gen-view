@@ -742,9 +742,18 @@ let
           # by name. Under `byKey` the address walks the key, never the datum, so the union reaches
           # a STRING kept datum only, and only its `==` twins: a collapse of unequal data drops the
           # whole datum, as declared, and a non-string datum's twins are never forced or walked, so
-          # its collapse is silent exactly as before the rule. `edgesOf` stops where `bucketAddress`
-          # stops, at `__toString`, else `outPath`, so a context held beside a coercion is not read
-          # and its collapse is still silent. den-hoag-gkrtw replaces this with the general quotient.
+          # its collapse is silent exactly as before the rule. Nor is the KEPT datum forced by the
+          # collapse: under `byKey` the union is the kept record's `datum` field, computed when the
+          # datum is read, so a record read without its datum reads as it did before the rule.
+          # `edgesOf` stops where `bucketAddress` stops, at `__toString`, else `outPath`, so a
+          # context held beside a coercion is not read and its collapse is still silent.
+          # den-hoag-gkrtw replaces this with the general quotient.
+          #
+          # ★ ADMISSION OF A NON-STRING COLLAPSE DEPENDS ON WALK ORDER, by construction: the
+          # walk-first datum is the one kept, and the collapse is refused iff it lacks an edge of a
+          # twin. A list holding a context-carrying string, walked before its context-free `==`
+          # twin, is a value, and the reverse order is refused; wherever both orders admit, the
+          # kept edges are equal. A reorder that flips a refusal is not a bug.
           let
             tagged = builtins.genList (
               i:
@@ -775,7 +784,16 @@ let
                 );
                 lost = builtins.concatStringsSep "" (map edgesOf twins);
               in
-              if twins == [ ] then
+              if def.dedup.arm == "byKey" then
+                if absorbed ? ${toString t.i} then
+                  t.c
+                  // {
+                    datum =
+                      if builtins.isString datum then builtins.appendContext datum (builtins.getContext lost) else datum;
+                  }
+                else
+                  t.c
+              else if twins == [ ] then
                 t.c
               else if !(builtins.hasContext lost) then
                 t.c

@@ -187,6 +187,25 @@ in
         read = [ 1 ];
       };
     };
+    # Under `byKey` a collapse does not force the KEPT datum: the union is computed when the datum
+    # is read, so a lazily-throwing kept datum with a twin is a value to a reader of its scope.
+    test-a-bykey-collapse-leaves-the-kept-datum-unforced = {
+      expr =
+        let
+          r = run (movement (v.dedups.byKey { keyOf = _: "K"; })) [
+            (throw "kept datum forced")
+            1
+          ];
+        in
+        {
+          dropped = builtins.length r.dropped;
+          read = map (c: c.scope) r.contributions;
+        };
+      expected = {
+        dropped = 1;
+        read = [ "inc" ];
+      };
+    };
     # ★ PIN of today's SILENT drop: a `byKey` collapse of `==`-equal NON-string data whose contexts
     # differ keeps the walk-first datum and loses `a`, exactly as before the rule, where `byKey`
     # addressed the key only. A landing that reaches non-string data under `byKey` (den-hoag-kunjm's
