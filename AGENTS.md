@@ -288,11 +288,18 @@ resolves.
 <!-- gen-citations:begin -->
 
 ```
-nix-unit --flake ./ci#tests        # the suite
-nix-unit --flake ./ci#testsError   # cells whose subject is an error MESSAGE
+nix develop ./ci --command ci                # the suite, guarded
+nix develop ./ci --command ci --tests-error  # cells whose subject is an error MESSAGE, guarded
+nix-unit --flake ./ci#tests                  # the suite, unguarded
+nix-unit --flake ./ci#testsError             # the error cells, unguarded
 ```
 
-Both need running. Error-message cells cannot live in `flake.tests`: the batch asserter behind
+`ci` refuses when anything under a declared read root is unknown to git — any extension or name,
+`_`-prefixed included — and the remedy is `git add` or a move. The bare `nix-unit` and
+`nix flake check` forms are unguarded: they read a git-filtered copy of the tree, so an untracked
+cell is silently absent and the run stays green.
+
+Both planes need running. Error-message cells cannot live in `flake.tests`: the batch asserter behind
 `checks.default` forces every `expr` unconditionally, so a throwing `expr` crashes that gate rather
 than failing it. `ci/tests-error.nix` sits outside `./tests` **structurally**, not by convention.
 

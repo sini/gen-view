@@ -283,6 +283,13 @@ primary order to a tie and the canonical-JSON secondary resolves it.
 ## Tests
 
 ```
-nix-unit --flake ./ci#tests        # the suite
-nix-unit --flake ./ci#testsError   # cells whose subject is an error message
+nix develop ./ci --command ci                # the suite, guarded
+nix develop ./ci --command ci --tests-error  # cells whose subject is an error message, guarded
+nix-unit --flake ./ci#tests                  # the suite, unguarded
+nix-unit --flake ./ci#testsError             # the error cells, unguarded
 ```
+
+`ci` refuses when anything under a declared read root is unknown to git — any extension or name,
+`_`-prefixed included — and the remedy is `git add` or a move. The bare `nix-unit` and
+`nix flake check` forms are unguarded: they read a git-filtered copy of the tree, so an untracked
+cell is silently absent and the run stays green.
