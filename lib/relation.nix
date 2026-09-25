@@ -72,6 +72,7 @@ let
     decided
     returned
     formalsOf
+    attrKey
     quote
     renderSubject
     renderValue
@@ -109,11 +110,11 @@ let
   groupsInWalkOrder =
     keyOf: xs:
     let
-      grouped = builtins.groupBy keyOf xs;
+      grouped = builtins.groupBy (x: attrKey (keyOf x)) xs;
     in
     map (k: {
       key = k;
-      members = grouped.${k};
+      members = grouped.${attrKey k};
     }) (unique (map keyOf xs));
 
   # `bucketAddress x` — step 8's bucket address: `toJSON` over `x` with every LAMBDA replaced by
@@ -142,6 +143,26 @@ let
           v;
     in
     builtins.toJSON (tag x);
+
+  # `edgesOf v` — the dependency edges of `v`, as one empty string carrying their union. It stops
+  # at a coercion, where `bucketAddress`'s `toJSON` stops: a set with `outPath` is read through it
+  # (so a derivation, which refers to itself, is never walked) and a `__toString` set through its
+  # string. Functions, paths, numbers, bools and null carry no context.
+  edgesOf =
+    v:
+    if builtins.isString v then
+      builtins.substring 0 0 v
+    else if builtins.isList v then
+      builtins.concatStringsSep "" (map edgesOf v)
+    else if builtins.isAttrs v then
+      if v ? outPath then
+        edgesOf v.outPath
+      else if v ? __toString then
+        builtins.substring 0 0 (toString v)
+      else
+        builtins.concatStringsSep "" (map (n: edgesOf v.${n}) (builtins.attrNames v))
+    else
+      "";
 
   viewRelation =
     args:
@@ -711,6 +732,16 @@ let
           # every recorded drop is one the declaration licenses — and leaves COMPLETENESS exactly
           # as it was: a licensed collapse across encoding classes is still not made, and still not
           # recorded.
+          #
+          # ★ A COLLAPSE KEEPS EVERY DEPENDENCY EDGE (den-hoag-kunjm, the quotient rule). `==` is
+          # blind to string context, so `idx` is addressed by text (`attrKey`: an attribute name
+          # cannot carry context), and the kept datum carries the union of its `==`-equal twins'
+          # edges — a string by its context, which is Nix's own concatenation. A non-string datum
+          # cannot carry the union, so a collapse that would lose an edge is refused by name. Under
+          # `byKey` only twins `==` to the kept datum are unioned: a collapse of unequal data drops
+          # the whole datum, as declared. `edgesOf` stops where `bucketAddress` stops, at a
+          # coercion, so a context held beside an `outPath` or `__toString` is not read and its
+          # collapse is still silent. den-hoag-gkrtw replaces this with the general quotient.
           let
             tagged = builtins.genList (
               i:
@@ -720,7 +751,7 @@ let
               in
               {
                 inherit i c k;
-                idx = bucketAddress k;
+                idx = attrKey (bucketAddress k);
               }
             ) (length surviving);
             same = t: s: if def.dedup.arm == "byDatum" then t.c.datum == s.c.datum else t.k == s.k;
@@ -728,12 +759,39 @@ let
               _: foldl' (acc: t: if builtins.any (same t) acc then acc else acc ++ [ t ]) [ ]
             ) (builtins.groupBy (t: t.idx) tagged);
             decided = map (t: t // { matches = filter (s: s.i < t.i && same t s) keptIn.${t.idx}; }) tagged;
+            keptTagged = filter (t: t.matches == [ ]) decided;
+            absorbed = builtins.groupBy (t: toString (head t.matches).i) (filter (t: t.matches != [ ]) decided);
+            quotientOf =
+              t:
+              let
+                datum = t.c.datum;
+                twins = map (s: s.c.datum) (
+                  filter (s: def.dedup.arm == "byDatum" || s.c.datum == datum) (absorbed.${toString t.i} or [ ])
+                );
+                lost = builtins.concatStringsSep "" (map edgesOf twins);
+              in
+              if twins == [ ] then
+                t.c
+              else if !(builtins.hasContext lost) then
+                t.c
+              else if builtins.isString datum then
+                t.c // { datum = builtins.appendContext datum (builtins.getContext lost); }
+              else if builtins.getContext (edgesOf datum + lost) == builtins.getContext (edgesOf datum) then
+                t.c
+              else
+                refuse "viewRelation" "channel ${renderSubject name} collapses a non-string datum at scope ${renderSubject t.c.scope} with ${toString (builtins.length twins)} `==`-equal twin(s) whose store dependencies it does not carry (${quote (builtins.attrNames (removeAttrs (builtins.getContext lost) (builtins.attrNames (builtins.getContext (edgesOf datum)))))}); a dedup collapse keeps every dependency edge, and only a string can carry the union (den-hoag-gkrtw retires this refusal)";
+            quotients = builtins.listToAttrs (
+              map (t: {
+                name = toString t.i;
+                value = quotientOf t;
+              }) keptTagged
+            );
           in
           {
-            kept = map (t: t.c) (filter (t: t.matches == [ ]) decided);
+            kept = map (t: quotients.${toString t.i}) keptTagged;
             dropped = map (t: {
               contribution = t.c;
-              collapsedInto = (head t.matches).c;
+              collapsedInto = quotients.${toString (head t.matches).i};
               policy = def.dedup.arm;
               key = t.k;
             }) (filter (t: t.matches != [ ]) decided);

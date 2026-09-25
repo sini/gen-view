@@ -601,46 +601,6 @@ in
 
     # ── THE MATERIALIZATION'S REFUSALS NAME THE CHANNEL AND THE CAUSE ──
     flake.testsError.materialization-refusals = {
-      # ★ NOT A REFUSAL THIS LIBRARY CHOSE — den-hoag-kunjm's held abort, pinned so that
-      # den-hoag-eunp3's address change is seen NOT to remove it: a function-bearing datum that
-      # also carries string context now reaches the context abort instead of the lambda abort.
-      # kunjm's landing flips this cell.
-      test-a-function-bearing-datum-with-string-context-still-reaches-the-context-abort = {
-        expr =
-          let
-            m = { config, ... }: { };
-            p = builtins.toFile "eunp3-ctx" "x";
-            datum = scope: {
-              inherit scope;
-              relation = "import";
-              datum = [
-                m
-                p
-              ];
-            };
-            r = v.viewRelation {
-              definition = f.mkDefinition {
-                order = f.flatOrder;
-                dedup = v.dedups.byDatum;
-              };
-              graph = v.scopeGraph {
-                inherit (f) carrier scopes edges;
-                data = [
-                  (datum "inc")
-                  (datum "mid")
-                ];
-              };
-              marks = f.noMarks;
-              orderMark = f.identityMark;
-            };
-          in
-          builtins.length r.contributions;
-        expectedError = {
-          type = "EvalError";
-          msg = "is not allowed to refer to a store path";
-        };
-      };
-
       # `refuse` names the channel, the count and the contributing scopes — the material a caller
       # needs to resolve the tie, not the verdict that one exists.
       test-a-refused-tie-names-the-channel-and-the-tied-scopes = {
@@ -2146,6 +2106,52 @@ in
         test-rankLess-names-an-unknown-label = unknownLabel (
           f.order.rankLess [ (step "nope") ] [ (step "parent") ]
         );
+      };
+
+    # A non-string datum cannot carry the union of its twins' edges, so a collapse that would drop
+    # one is refused by name (den-hoag-kunjm; den-hoag-gkrtw retires this refusal). The value half
+    # is `ci/tests/dedup-context.nix`.
+    flake.testsError.dedup-context =
+      let
+        a = builtins.toFile "kunjm-ctx-a" "a";
+        bareA = builtins.unsafeDiscardStringContext a;
+        byDatum =
+          datums:
+          (v.viewRelation {
+            definition = f.mkDefinition {
+              order = f.flatOrder;
+              dedup = v.dedups.byDatum;
+            };
+            graph = v.scopeGraph {
+              inherit (f) carrier scopes edges;
+              data = [
+                {
+                  scope = "inc";
+                  relation = "import";
+                  datum = builtins.elemAt datums 0;
+                }
+                {
+                  scope = "mid";
+                  relation = "import";
+                  datum = builtins.elemAt datums 1;
+                }
+              ];
+            };
+            marks = f.noMarks;
+            orderMark = f.identityMark;
+          }).contributions;
+      in
+      {
+        test-a-list-datum-that-would-drop-its-twins-edge-is-refused-by-name = {
+          expr = builtins.deepSeq (byDatum [
+            [ bareA ]
+            [ a ]
+          ]) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.viewRelation: channel 'settings' collapses a non-string datum at scope 'inc' with 1 `==`-equal twin\\(s\\) whose store dependencies it does not carry \\(.*-kunjm-ctx-a\\); .*den-hoag-gkrtw.*$";
+          };
+        };
       };
 
     # ── A ROOT TARGET'S NAMES ARE REFUSED WHERE THE TARGET IS BUILT ──

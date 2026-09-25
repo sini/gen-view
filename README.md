@@ -149,6 +149,12 @@ The closed enumerations: `tieSets.{ union, refuse, orderedFold }` · `combines.{
 condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, byKey }` ·
 `directions.{ outbound, inbound }`.
 
+A dedup collapse keeps every dependency edge. `==` is blind to string context, so data equal
+under it may carry different store paths; the kept datum then carries the union of its twins'
+contexts when it is a string, and a non-string that would lose an edge is refused by name
+(`ci/tests/dedup-context.nix`; den-hoag-gkrtw retires the refusal). A context held beside an
+`outPath` or `__toString` is not read, and its collapse stays silent.
+
 ## The data component, boundaries and ordering
 
 - **`data(G)` is a plain component of the graph value**, exactly as Fig. 1 writes it: a list of
