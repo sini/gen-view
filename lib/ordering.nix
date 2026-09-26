@@ -299,9 +299,7 @@ let
     args:
     let
       rel = accumulatorRelation args;
-      sorted = graph.topoOrderKahn {
-        inherit (rel) nodes edges keyOf;
-      };
+      sorted = graph.topoOrderKahn { inherit (rel) keyOf; } { inherit (rel) nodes edges; };
     in
     if sorted.ok then
       map (n: n.name) sorted.order
