@@ -149,8 +149,8 @@ let
 
   # The live counterpart to `forbidden`: a name this library reaches for where a tether would reach
   # for nixpkgs. `graph` is the second of the two substrates gen-view takes, and every gen-view
-  # source but SIX carries it — the exclusions are `lib/enumerations.nix`, `lib/placement.nix`,
-  # `lib/reference.nix`, `lib/refusal.nix`, `lib/trace.nix` and `lib/transform.nix`, the six modules
+  # source but FIVE carries it — the exclusions are `lib/enumerations.nix`, `lib/placement.nix`,
+  # `lib/refusal.nix`, `lib/trace.nix` and `lib/transform.nix`, the five modules
   # whose formal is `{ prelude }` alone and which therefore never name the graph algebra.
   # (`lib/elements.nix` takes `{ prelude }` alone too, and carries the token all the same: it names
   # the `scopeGraph` element kind, whose shape it holds.) Those
