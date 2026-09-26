@@ -148,6 +148,9 @@ and a destructuring functor stay the evaluator's own abort.
 The closed enumerations: `tieSets.{ union, refuse, orderedFold }` · `combines.{ listAppend, attrsShallow, setUnion }` (a set-semilattice combine declares its **ACC flag**, because that
 condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, byKey }` ·
 `directions.{ outbound, inbound }`.
+`directions` is derived, not added: `inbound` is the query over the labelled converse of the graph's
+L edges after its boundary marks, so a mark withholds the same authored edge whichever way the
+query walks.
 
 A dedup collapse keeps every dependency edge. `==` is blind to string context, so data equal
 under it may carry different store paths; the kept datum then carries the union of its twins'

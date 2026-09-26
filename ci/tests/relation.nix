@@ -967,6 +967,94 @@ let
     }
   ) 4;
   byOrderKey = v.dedups.byKey { keyOf = c: (builtins.head c.datum).d; };
+
+  # ── THE CHAIN, for direction × marks ──
+  # G is `leaf -parent-> mid -parent-> root` with one `import` datum at every scope, under the
+  # topology composition (key = scope), so every reached scope survives and the value lists exactly
+  # what the walk reached. `chainOf adj` builds the graph over any adjacency, so a cell can set the
+  # construction beside the calculus's own query over a HAND-WRITTEN converse or subgraph.
+  chainLabels = v.edgeLabels { letters = [ "parent" ]; };
+  chainAdmission = v.labelWellFormedness {
+    alphabet = chainLabels;
+    expression = "parent*";
+  };
+  chainOrder = v.labelOrder {
+    alphabet = chainLabels;
+    layers = [ [ "parent" ] ];
+    endOfPath = -1;
+  };
+  chainIdentityMark = v.labelOrder {
+    alphabet = chainLabels;
+    layers = [ [ "parent" ] ];
+    endOfPath = 0;
+  };
+  chainCarrier = v.carrier {
+    relatumLabels = f.roles;
+    labels = chainLabels;
+    labelWellFormedness = chainAdmission;
+    labelOrder = chainOrder;
+    relations = v.relations { names = [ "import" ]; };
+    dataOrder = v.dataOrder {
+      channel = "topo";
+      keyOf = c: c.scope;
+    };
+  };
+  chainScopes = [
+    "leaf"
+    "mid"
+    "root"
+  ];
+  chainWith =
+    extra: adj:
+    v.scopeGraph {
+      carrier = chainCarrier;
+      scopes = chainScopes;
+      edges = {
+        parent = id: adj.${id} or [ ];
+      }
+      // extra;
+      data = map (s: {
+        scope = s;
+        relation = "import";
+        datum = [ s ];
+      }) chainScopes;
+    };
+  chainOf = chainWith { };
+  chainAdjacency = {
+    leaf = [ "mid" ];
+    mid = [ "root" ];
+  };
+  chain = chainOf chainAdjacency;
+  # The mark at `mid` refusing `parent`: in G it withholds the authored edge `mid -parent-> root`.
+  midMark =
+    id:
+    if id == "mid" then
+      [
+        {
+          name = "mid-refuses-parent";
+          admits = l: l != "parent";
+        }
+      ]
+    else
+      [ ];
+  chainRun =
+    root: direction: graph: marks:
+    v.viewRelation {
+      definition = v.compositions.topology {
+        channel = "topo";
+        relation = "import";
+        inherit root direction;
+        admission = chainAdmission;
+        order = chainOrder;
+        wellFormed = f.admitAll;
+        tieSet = v.tieSets.union;
+        empty = [ ];
+        combine = v.combines.listAppend;
+        dedup = v.dedups.none;
+      };
+      inherit graph marks;
+      orderMark = chainIdentityMark;
+    };
 in
 {
   flake.tests.relation = {
@@ -1863,6 +1951,142 @@ in
         in
         map (c: c.scope) r.contributions;
       expected = [ "root" ];
+    };
+
+    # ── DIRECTION × MARKS: THE MARK BOUNDS THE AUTHORED GRAPH, THEN THE CONVERSE IS TAKEN ──
+    # ★ THE DISCRIMINATING PAIR. `mid`'s mark refuses the authored edge `mid -parent-> root`, so the
+    # inbound walk from `root` reaches nothing past itself. Transposing FIRST would let the mark
+    # classify `mid`'s edges in Gᵀ instead — crossing the refused edge, and withholding
+    # `mid -parent-> leaf`, an edge G does not contain.
+    test-inbound-marks-bound-the-authored-graph = {
+      expr = (chainRun "root" "inbound" chain midMark).value;
+      expected = [ "root" ];
+    };
+
+    # The diagnostic enumerates every node, so it cannot depend on the root; a mark that is a
+    # property of G's edges reports the same withheld edge, by the mark's name, either way round.
+    test-inbound-withheld-is-direction-invariant = {
+      expr = {
+        inbound = (chainRun "root" "inbound" chain midMark).withheld;
+        outbound = (chainRun "leaf" "outbound" chain midMark).withheld;
+      };
+      expected =
+        let
+          w = [
+            {
+              scope = "mid";
+              label = "parent";
+              target = "root";
+              marks = [ "mid-refuses-parent" ];
+            }
+          ];
+        in
+        {
+          inbound = w;
+          outbound = w;
+        };
+    };
+
+    # ★ THE CONTROL: the outbound arm under the same mark is untouched by the step order, which is
+    # what confines the change to inbound.
+    test-control-outbound-marked-is-unchanged = {
+      expr = (chainRun "leaf" "outbound" chain midMark).value;
+      expected = [
+        "leaf"
+        "mid"
+      ];
+    };
+
+    # `direction` is derived: inbound over G is outbound over a hand-written Gᵀ. Armed by the
+    # outbound read over G from the same root, which reaches something else.
+    test-direction-is-the-query-over-the-converse = {
+      expr = {
+        inboundOverG = (chainRun "root" "inbound" chain f.noMarks).value;
+        outboundOverConverse =
+          (chainRun "root" "outbound" (chainOf {
+            root = [ "mid" ];
+            mid = [ "leaf" ];
+          }) f.noMarks).value;
+        control = (chainRun "root" "outbound" chain f.noMarks).value;
+      };
+      expected = {
+        inboundOverG = [
+          "root"
+          "mid"
+          "leaf"
+        ];
+        outboundOverConverse = [
+          "root"
+          "mid"
+          "leaf"
+        ];
+        control = [ "root" ];
+      };
+    };
+
+    # marks ∩ admission is the calculus's own query over the subgraph `G|M`: the marked walk is the
+    # unmarked walk over G with the withheld edge cut by hand. Armed by the unmarked walk over G.
+    test-marks-are-the-query-over-the-subgraph = {
+      expr = {
+        marked = (chainRun "leaf" "outbound" chain midMark).value;
+        overSubgraph = (chainRun "leaf" "outbound" (chainOf { leaf = [ "mid" ]; }) f.noMarks).value;
+        control = (chainRun "leaf" "outbound" chain f.noMarks).value;
+      };
+      expected = {
+        marked = [
+          "leaf"
+          "mid"
+        ];
+        overSubgraph = [
+          "leaf"
+          "mid"
+        ];
+        control = [
+          "leaf"
+          "mid"
+          "root"
+        ];
+      };
+    };
+
+    # Only `edges(G)` transposes. An R edge's target is a datum, admitted by `scopeGraph` as inert,
+    # so an inbound read over a graph carrying one answers exactly what it answers without it.
+    test-inbound-transposes-only-the-l-edges = {
+      expr =
+        let
+          r = chainRun "root" "inbound" (chainWith {
+            import = id: if id == "leaf" then [ { x = 1; } ] else [ ];
+          } chainAdjacency) f.noMarks;
+        in
+        builtins.tryEval (builtins.deepSeq r.value r.value);
+      expected = {
+        success = true;
+        value = (chainRun "root" "inbound" chain f.noMarks).value;
+      };
+    };
+
+    # ── `refuse` IS THE SINGLETON VERDICT ON THE CALCULUS'S ANSWER SET ──
+    # On a one-survivor group it answers what `union` answers; on a tie, where `union` keeps the
+    # whole surviving set, it refuses.
+    test-refuse-is-a-cardinality-verdict-on-the-union-answer = {
+      expr =
+        let
+          at =
+            order: tieSet:
+            f.mkRelation {
+              definition = f.mkDefinition { inherit order tieSet; };
+            };
+        in
+        {
+          singleton = (at f.order v.tieSets.refuse).value == (at f.order v.tieSets.union).value;
+          tieSurvivors = builtins.length (at f.flatOrder v.tieSets.union).contributions;
+          tieRefuses = throws (at f.flatOrder v.tieSets.refuse).value;
+        };
+      expected = {
+        singleton = true;
+        tieSurvivors = 2;
+        tieRefuses = true;
+      };
     };
 
     # ── THE RESULT IS NAMED, AND THE NAME IS THE COMPETITION KEY'S OWN ──

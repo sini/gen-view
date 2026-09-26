@@ -6,13 +6,22 @@
 # inventing a third name for the arrow would be presenting an unacquired term as acquired.
 #
 # ── WHAT THE MATERIALIZATION DOES, IN ORDER ─────────────────────────────────────────────────
-#  1. direction — a LABELLED transpose for the inbound arm. Transpose reverses direction rather
-#     than erasing it; reaching the plain transpose through a label-forgetting projection would
-#     erase precisely the component the walk reads.
-#  2. effective E = NODE MARKS ∩ DECLARED ADMISSION. The marks are applied AT THE ACCESSOR, which
+#  1. effective E = NODE MARKS ∩ DECLARED ADMISSION. The marks are applied AT THE ACCESSOR, which
 #     is where the calculus puts them, so the construction only ever REMOVES edges: WIDENING IS
 #     NOT FORBIDDEN, IT IS UNSAYABLE — intersection has no inverse the author can reach, and there
 #     is no global dial to disagree with the derivation because the mark IS an input to it.
+#     ★ THIS IS THE CALCULUS'S OWN QUERY OVER A SUBGRAPH, NOT AN ADDITION TO IT. `G|M` — G less
+#     the edges the marks withhold — is itself a graph in van Antwerpen et al. 2018 Fig. 1's sense,
+#     and the effective paths are `L(WFL) ∩ Paths(G|M)`. That is why the mark composes by ∩ and why
+#     it cannot be folded into WFL: a node-indexed restriction is not a regular language over L.
+#  2. direction — the inbound arm is the query over the LABELLED CONVERSE of `edges(G|M)`, taken
+#     AFTER step 1: Mokhov 2017 §5.2's transpose, lifted pointwise per label, over Fig. 1's
+#     `Edges ::= s l s`, which is closed under the converse. `data(G)` does not transpose, and of
+#     the edges only L's do: an R edge's target is a datum. Bounding first is what makes a mark a
+#     property of the AUTHORED edge, never conditional on this query-time field (ADR-0026), and it
+#     is `neededBy`'s composition too, so one relation has one boundary semantics. Transpose
+#     reverses direction rather than erasing it; reaching the plain transpose through a
+#     label-forgetting projection would erase precisely the component the walk reads.
 #  3. the walk — a witness-carrying enumeration constrained by E, so `WFL ⊢ p ok` holds of every
 #     answer by construction.
 #  4. the projection — a MIN-FOLD OVER `distance` WITHIN EACH ⟨node, derivative-state⟩ CLASS.
@@ -55,6 +64,7 @@
 let
   inherit (prelude)
     concatMap
+    elem
     filter
     foldl'
     head
@@ -195,25 +205,39 @@ let
           def.admission.expression;
       name = def.channel.channel;
 
-      # 1 — direction.
       labeled = labeledOf "viewRelation" "graph." g.carrier g.scopes g.edges;
-      directed = if def.direction == "inbound" then graph.labeledTranspose labeled else labeled;
 
-      # 2 — effective E. `boundedBy` removes edges AT THE ACCESSOR and reports what it removed;
+      # 1 — effective E. `boundedBy` removes edges AT THE ACCESSOR and reports what it removed;
       # the companion diagnostic is never empty where it fires, so silence and a boundary are
       # never the same reading.
       #
       # The accessor's RESULT is checked where gen-graph consumes it, by the one statement of the
       # marks contract this library carries (`refusal.nix`, `marksContract`), shared with
       # `referenceResolution` and `neededBy`.
-      bounded = graph.boundedBy directed (marksOf.at a.marks);
+      bounded = graph.boundedBy labeled (marksOf.at a.marks);
+
+      # 2 — direction: the converse of `edges(G|M)`, taken AFTER the bound. The mark classifies the
+      # edges leaving its node in the AUTHORED graph whichever way the query walks, so which edge
+      # it withholds is never conditional on a query-time field (ADR-0026). Only L edges transpose:
+      # an R edge's target is a datum, and `Edges ::= s l s` is what is closed under the converse,
+      # not `Data`.
+      directed =
+        if def.direction == "inbound" then
+          graph.labeledTranspose (
+            bounded
+            // {
+              labeledEdges = id: filter (e: elem e.label g.carrier.labels.letters) (bounded.labeledEdges id);
+            }
+          )
+        else
+          bounded;
 
       # 3 — the walk. WFD does NOT run here: under (NR-Rel) the path is constrained by WFL and the
       # DATUM by WFD, and collapsing the two would filter scopes by a predicate written for data
       # terms. The walk's own predicate is therefore total.
       answers = graph.query {
         mode = "paths";
-        graph = bounded;
+        graph = directed;
         from = def.root;
         follow = expr;
       };

@@ -202,16 +202,25 @@ let
   # is where specificity hands off to the merge that follows it, and a coarser order grows that
   # merge's domain. The boundary holds only when the disposition is named.
   #
-  # ★ EXACTLY THREE ARMS, AND TWO OF THEM STILL OWE THEIR ARGUMENTS. The scope-graph papers make
-  # visibility a PREDICATE YIELDING A SET, so only `union` is theirs: no primary has a
-  # per-contribution outcome beyond set membership. `refuse` and `orderedFold` are this
-  # ecosystem's own, carried unchanged because they are ruled into the declaration — and
-  # `orderedFold`'s debt is the larger one, because it asserts a DECLARATION-ORDER AUTHORITY
-  # STRONGER THAN a primary that CONSIDERED the question and declined it: "the operator does not
-  # have to be commutative, [but] the order … is not specifiable in Silver and thus this order
-  # must not matter." An argument for `orderedFold` has to beat a refusal, which is a higher bar
-  # than filling a gap. The debt is recorded here so a later retirement has something to land
-  # against; it is not discharged here and nothing in this file may be read as discharging it.
+  # ★ EXACTLY THREE ARMS, EACH WITH ITS ARGUMENT. The scope-graph papers make visibility a
+  # PREDICATE YIELDING A SET (Néron, Tolmach, Visser & Wachsmuth 2015 §2.2: the calculus
+  # identifies ALL the resolutions), so `union` is theirs directly: the surviving set IS the answer.
+  #
+  # `refuse` is not a per-contribution outcome, which no primary has; it is a VERDICT ON THE SIZE
+  # of the calculus's answer set, and the primaries state that verdict, outside the calculus:
+  # van Antwerpen et al. 2018, printed 114:9 (a field reference "resolves to a single
+  # declaration") and 114:20 ("the result of resolution must be a single declaration-type pair");
+  # van Antwerpen et al. 2016 §3.4 (a reference resolvable two ways "is ambiguous and can be
+  # flagged as an error"). So `refuse` is `union` plus that singleton verdict: equal to it on a
+  # one-survivor group, a refusal on a tie.
+  #
+  # `orderedFold` is a fold of the survivors in the FORM of Van Wyk et al. 2010 §2.2, printed 12,
+  # `vᵢ ⊕ v₁ ⊕ … ⊕ vₙ` with ⊕ associative and not required to be commutative. Its ORDER is not
+  # Silver's: Silver declined to make it specifiable ("the order … is not specifiable in Silver
+  # and thus this order must not matter"). The authority for a DECLARED order is ADR-0029's
+  # positional-authority ruling, as amended by ADR-0024 ruling 5, and stated as that ruling, not
+  # as a primary: it stands while ADR-0029 does, and ADR-0029 is open to reconsideration. Its
+  # precondition — an order invariant under presentation order — is met by construction below.
   tieSets = {
     # The papers' own: the surviving-maximal set IS the answer.
     union = {
@@ -308,9 +317,14 @@ let
   ];
 
   # ── DIRECTIONS ──────────────────────────────────────────────────────────────────────────────
-  # ★ `direction` HAS NO COUNTERPART IN THE CALCULUS AND STILL OWES ITS ARGUMENT. It is carried
-  # unchanged because it is ruled into the declaration, and a spec that quietly dropped a ruled
-  # field would be the silent-drop class. Recorded here, not discharged here.
+  # ★ `direction` IS DERIVED, NOT ADDED. The inbound arm is the calculus's own query over the
+  # LABELLED CONVERSE of `edges(G|M)` — the graph after its boundary marks — and `data(G)` does not
+  # transpose. van Antwerpen et al. 2018 Fig. 1's `Edges ::= s l s` is closed under the converse,
+  # so the converse is a scope graph and the query over it is the calculus's query; Mokhov 2017
+  # §5.2 (Graph Transpose) is the graph operation, lifted pointwise per label. ADR-0010 §1 names
+  # the same dual: "the inverse read is the same edge set queried from the other end". So the field
+  # is kept and defined AS that derivation, and the marks bound G before the converse is taken
+  # (`relation.nix`, steps 1 and 2).
   #
   # The mechanism is a labelled transpose, which reverses direction rather than erasing it: a
   # label is carried BY an edge, so flipping the edge relation moves the label with it. Reaching
