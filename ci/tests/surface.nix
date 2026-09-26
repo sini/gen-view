@@ -155,6 +155,7 @@ in
           "name"
           "wellFormed"
           "project"
+          "marks"
           "localShadowsImport"
           "importShadowsParent"
           "transitiveImports"
@@ -171,8 +172,8 @@ in
     # that it is two names, each with its own enumeration beside it, is the design being checked.
     #
     # ★ THE ENUMERATIONS ARE DISTINCT AND BOTH ARE ASSERTED, which is what the sweeps in
-    # `refusals.nix` and `tests-error.nix` quantify over: they share four field names and differ in
-    # the fifth, so one list standing for both would make each sweep a claim about the other
+    # `refusals.nix` and `tests-error.nix` quantify over: they share five field names and differ in
+    # the sixth, so one list standing for both would make each sweep a claim about the other
     # construct.
     test-neededby-is-a-published-constructor-with-its-enumeration = {
       expr = {
@@ -189,6 +190,7 @@ in
           "name"
           "wellFormed"
           "project"
+          "marks"
           "transitive"
         ];
         notACarrierElement = false;

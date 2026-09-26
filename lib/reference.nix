@@ -50,6 +50,13 @@
 # implementations of one mechanism. A later author who "optimizes" a shadowing decision into this
 # file has built a second resolution implementation, and the delegation oracle is what fails then.
 #
+# ★★ THE ONE THING THIS FILE DOES HOLD IS THE ACCESSOR BOUND — ADR-0026's boundary mark, the
+# fail-closed floor "compiled into every query's effective reachability policy". The record the
+# authority walks is narrowed first: each edge the delegate asks for is classified by
+# `graph.boundedBy` at the node it leaves, one step at a time, when asked, and what a mark refuses
+# is absent. The bound walks nothing, orders nothing and shadows nothing — it only removes edges,
+# so widening is unsayable — and it is `viewRelation`'s mechanism, not a second one.
+#
 # ★★ THE REFUSAL OF A MULTI-CANDIDATE IMPORT SET IS THE DELEGATE'S TOO — POINTED AT, NEVER
 # RESTATED HERE. D < I < P orders the three SORTS; nothing in Fig. 2 orders candidates AMONG the
 # imports, and nothing here or there supplies an order in its place. gen-scope's `query` REFUSES
@@ -82,6 +89,16 @@
 # result distinguishing it from a correct one. The relation is the delegate's, named at the
 # delegate, and this construct points at it.
 #
+# ★ THE BOUND DOES SPELL THE DELEGATE'S REACH, AND IS FAIL-CLOSED WHERE IT DOES. To classify an edge
+# the bound must present it, so it names the two channels the delegate reaches: `get <id> "imports"`
+# (the delegate's own binding for I) and the node record's `parent` (P, which has no term there).
+# The drift argument above is about a literal nobody checks; these are checked at every read. The
+# bounded record SERVES `node`, `get` and `allNodeIds` and REFUSES BY NAME every other member, `get`
+# refuses any relation but `imports`, and a record with no `parent` is refused — so a delegate that
+# starts reaching past this protocol through the record it is handed is refused rather than read
+# unbounded. That is the whole of the claim: it covers the record, not a channel the delegate holds
+# some other way.
+#
 # NO WALK PARAMETERS AND NO CARRIER ELEMENTS. A channel, a relation, an admission expression, a
 # label order, a distance rule, a competition key and its disposal are the parameters of a WALK
 # OVER A SCOPE GRAPH. This construct performs no walk of its own and holds no competition to
@@ -106,6 +123,11 @@
 # The membership authority is injected INTO THE CONSTRUCTOR, so this library acquires no evaluator,
 # no scope-graph engine, and no dependency edge onto one — the caller supplies the authority. A
 # value publishing no `query` is refused BY NAME at construction rather than at some later force.
+# ★ AND IT IS NARROWED BEFORE IT IS USED. `marks` is REQUIRED and undefaulted — "no marks" is
+# `_: [ ]` written down, because a boundary the query may omit fails open (ADR-0026's rejected
+# candidate (b)) — and the authority is handed the bounded record, never the evaluator itself.
+# `wellFormed` and `project` read the authority's own node record, re-read by id: a mark removes an
+# edge, and never changes a value at a node the query legitimately reached.
 # ★ Considered and not taken: making the authority a curried first argument
 # (`referenceResolution engine { … }`). One attrset keeps this construct uniform with every other
 # constructor here and lets the shipped two-sided field check cover the authority too.
@@ -116,6 +138,12 @@
 # The `project`ion of the datum at each node that IMPORTS an id, among those nodes whose datum
 # satisfies `wellFormed` — π_project ∘ σ_wellFormed over the INVERSE of the delegate's `imports`
 # relation, traversed one hop or to the reverse-import closure as `transitive` declares.
+#
+# ★★ UNDER MARKS IT IS THE INVERSE OF THE *BOUNDED* RELATION, and the bound is the forward one: an
+# importer's edge is withheld by the IMPORTER's marks, the node the edge leaves, so `t` is needed
+# by `o` exactly when `o` reads `t`. A boundary is an absent edge, absent in both directions;
+# classifying the reverse step at `t` instead would give one relation two boundary semantics, and
+# `neededBy` would stop being the stated inverse of what `referenceResolution` reads.
 #
 # ★★ THE INVERSE IS COMPUTED BY ENUMERATION, NEVER BY A TRANSPOSE, AND THE WORD MATTERS AT THIS
 # SEAM. The delegate reaches an id's importers by a FILTER OVER THE NODE SET, and it holds no
@@ -177,15 +205,22 @@
 #
 # A `codomain`, A `relation` AND A `root`, each declined for the forward half's own reason, one
 # relation over.
-{ prelude }:
+{ prelude, graph }:
 let
-  inherit (prelude) filter head;
+  inherit (prelude)
+    filter
+    head
+    optional
+    concatMap
+    ;
   refusal = import ./refusal.nix { inherit prelude; };
   inherit (refusal)
     refuse
     fields
     renderValue
     returned
+    quote
+    marksContract
     ;
 
   # σ's verdict, checked where it is read: the delegate reads it as a branch.
@@ -233,6 +268,125 @@ let
     else
       value;
 
+  # ── THE BOUND — ADR-0026's floor, compiled at the injected authority's accessor ────────────────
+  # The delegate reaches two edges and no others: the import relation through `get <id> "imports"`
+  # and the containment edge through the node record's `parent`. Both are presented to
+  # `graph.boundedBy` under those names at the node the edge LEAVES, and the delegate is handed a
+  # record whose `get` and `node` answer only what the marks admit. `boundedBy` only removes
+  # edges, so narrowing is structural and widening is unsayable. Nothing here walks: one step is
+  # classified at a time, when the delegate asks for it.
+  importsLabel = "imports";
+  parentLabel = "parent";
+  # The members the bound narrows or passes (`allNodeIds` is a node set, not an edge channel).
+  protocol = [
+    "allNodeIds"
+    "get"
+    "node"
+  ];
+
+  # The edges leaving `nid`, read from the UNBOUNDED record. A record with no `parent` is refused
+  # rather than read as a node with no containment edge, which would leave that edge unbounded.
+  edgesAt =
+    site: self: nid:
+    let
+      n = self.node nid;
+    in
+    if !(n ? parent) then
+      noParent site nid
+    else
+      map (t: {
+        label = importsLabel;
+        target = t;
+      }) (self.get nid importsLabel)
+      ++ optional (n.parent != null) {
+        label = parentLabel;
+        target = n.parent;
+      };
+
+  noParent =
+    site: nid:
+    refuse site "the injected authority's node record for ${builtins.toJSON nid} carries no 'parent'; the containment edge is read there, and a bound that cannot see it would leave it unbounded";
+
+  classified =
+    site: marks: self:
+    graph.boundedBy {
+      nodes = [ ];
+      labeledEdges = edgesAt site self;
+    } marks;
+
+  # ★★ A PROJECTION, NEVER A FILTERED VIEW OF THE EVALUATOR (gen-scope `eval.nix`, `spawnHandle`).
+  # Every member outside `protocol` is DENIED BY NAME, catchably, over whatever the evaluator
+  # publishes: `self // { get; node; }` would pass `allNodes` — a second path to `parent` — and
+  # every member a later evaluator adds, unbounded and with nothing saying so. So a delegate that
+  # starts reaching a new member, or a relation other than imports through `get`, is refused rather
+  # than read unbounded. The claim is exactly that wide and no wider: it covers what the delegate
+  # reads through this record.
+  bound =
+    site: marks: self:
+    let
+      admittedAt = (classified site marks self).labeledEdges;
+    in
+    builtins.mapAttrs (
+      k: _:
+      refuse site "the injected authority read '${k}' through the bounded accessor, which serves ${quote protocol}; a member the bound does not narrow is refused rather than read unbounded"
+    ) self
+    // {
+      get =
+        nid: attr:
+        if attr == importsLabel then
+          map (e: e.target) (filter (e: e.label == importsLabel) (admittedAt nid))
+        else
+          refuse site "the injected authority read the relation ${builtins.toJSON attr} through the bounded accessor, which knows ${quote [ importsLabel ]}; a relation the bound does not know is refused rather than read unbounded";
+      node =
+        nid:
+        let
+          n = self.node nid;
+        in
+        n
+        // {
+          parent =
+            if !(n ? parent) then
+              noParent site nid
+            else if n.parent == null then
+              null
+            else if builtins.any (e: e.label == parentLabel) (admittedAt nid) then
+              n.parent
+            else
+              null;
+        };
+      inherit (self) allNodeIds;
+    };
+
+  # ★★ σ AND π READ THE AUTHORITY'S OWN RECORD, re-read by its id from the UNBOUNDED evaluator. The
+  # bound rewrites `parent` for the delegate's P-step; a caller's predicate reading `parent` must
+  # see the node the authority produced, or a mark would change a VALUE at a node the query
+  # legitimately reached — and a mark is a node attribute, never interpreted edge payload.
+  unbounded =
+    site: self: n:
+    if n ? id && builtins.isString n.id then
+      self.node n.id
+    else
+      refuse site "node ${nodeLabel n}: 'wellFormed' and 'project' read the authority's own node record, re-read by its id so the bound's narrowed 'parent' never reaches them, and a record with no id cannot be re-read";
+
+  filterOver =
+    site: a: self: n:
+    let
+      u = unbounded site self n;
+    in
+    if admitted site a.name u (a.wellFormed u) then
+      requireNonNull site a.name u (a.project u)
+    else
+      null;
+
+  # The `marks` field, checked at construction and handed on as the checked per-node accessor —
+  # the one statement of the contract `viewRelation` also reads, at this construct's site.
+  marksAt =
+    site: marks:
+    let
+      c = marksContract site "node";
+    in
+    builtins.seq (c.checked marks) (c.at marks);
+
   # The three discipline flags, in their checked order. A list rather than three hand-written
   # branches, so the refusal names WHICH flag without three near-copies of one message.
   flagFields = [
@@ -251,6 +405,10 @@ let
     "wellFormed"
     # π — the projection half: what the view carries from the resolved node.
     "project"
+    # The boundary marks at each node (ADR-0026), `nodeId → [ { name; admits; } ]`, compiled into
+    # the authority's accessor. REQUIRED, and "no marks" is `_: [ ]` written down: a defaulted
+    # accessor is the query-property boundary ADR-0026 rejects, where silence becomes access.
+    "marks"
   ]
   ++ flagFields;
 
@@ -260,6 +418,7 @@ let
       a = fields "referenceResolution" required args;
 
       badFlags = filter (f: !(builtins.isBool a.${f})) flagFields;
+      marks = marksAt "referenceResolution" a.marks;
     in
     if !(builtins.isAttrs a.engine) || !(a.engine ? query) || !(builtins.isFunction a.engine.query) then
       refuse "referenceResolution" "field 'engine' must be a query authority publishing a 'query'; it is the injected membership authority, and this construct performs no resolution of its own"
@@ -272,12 +431,13 @@ let
     else if badFlags != [ ] then
       refuse "referenceResolution" "field '${head badFlags}' is ${renderValue a.${head badFlags}}, which is not a boolean; the shadowing discipline and the import closure are DECLARED here rather than left to the authority's defaults"
     else
-      {
+      builtins.seq marks {
         __element = "referenceResolution";
         inherit (a)
           name
           wellFormed
           project
+          marks
           localShadowsImport
           importShadowsParent
           transitiveImports
@@ -285,16 +445,18 @@ let
 
         # ★★★ THE COMPUTE IS DELEGATION AND NOTHING ELSE. Every parameter the authority would
         # otherwise default is passed from the declaration, so the declaration determines its own
-        # defining query rather than inheriting a discipline nobody wrote down.
-        compute = a.engine.query {
-          dataFilter =
-            n:
-            if admitted "referenceResolution" a.name n (a.wellFormed n) then
-              requireNonNull "referenceResolution" a.name n (a.project n)
-            else
-              null;
-          inherit (a) localShadowsImport importShadowsParent transitiveImports;
-        };
+        # defining query rather than inheriting a discipline nobody wrote down. The authority is
+        # handed the BOUNDED record; σ and π read the unbounded one.
+        compute =
+          self:
+          a.engine.query {
+            dataFilter = filterOver "referenceResolution" a self;
+            inherit (a) localShadowsImport importShadowsParent transitiveImports;
+          } (bound "referenceResolution" marks self);
+
+        # ADR-0026's diagnostic: the edges the marks withheld at a node, each naming its marks —
+        # `boundedBy`'s own `withheld`, over the same edges the bound presents.
+        withheld = self: (classified "referenceResolution" marks self).withheld;
       };
 
   reverseRequired = [
@@ -309,6 +471,8 @@ let
     "wellFormed"
     # π — the projection half: what the view carries from each contributing node.
     "project"
+    # The boundary marks at each node, on the forward half's terms: REQUIRED, `_: [ ]` for none.
+    "marks"
     # Direct importers, or the reverse-import closure. Named for the DELEGATE'S formal so that
     # `inherit (a) transitive` passes it and a disagreement between two written-down literals is
     # inexpressible rather than merely unlikely.
@@ -319,6 +483,7 @@ let
     args:
     let
       a = fields "neededBy" reverseRequired args;
+      marks = marksAt "neededBy" a.marks;
     in
     if
       !(builtins.isAttrs a.engine)
@@ -335,12 +500,13 @@ let
     else if !(builtins.isBool a.transitive) then
       refuse "neededBy" "field 'transitive' is ${renderValue a.transitive}, which is not a boolean; the reverse-import closure is DECLARED here rather than left to the authority's default"
     else
-      {
+      builtins.seq marks {
         __element = "neededBy";
         inherit (a)
           name
           wellFormed
           project
+          marks
           transitive
           ;
 
@@ -348,15 +514,35 @@ let
         # relation over. Every parameter the authority would otherwise default is passed from the
         # declaration, so the declaration determines its own defining query rather than inheriting
         # a closure discipline nobody wrote down.
-        compute = a.engine.queryReverse {
-          dataFilter =
-            n:
-            if admitted "neededBy" a.name n (a.wellFormed n) then
-              requireNonNull "neededBy" a.name n (a.project n)
-            else
-              null;
-          inherit (a) transitive;
-        };
+        #
+        # ★★ THE BOUND IS THE FORWARD BOUND, NOT A SECOND ONE. An importer `o`'s edge `o → t` is
+        # withheld by `o`'s marks, exactly as `referenceResolution` at `o` reads it, so `neededBy` is
+        # the inverse of the BOUNDED imports relation: `t` is needed by `o` iff `o` reads `t`.
+        compute =
+          self:
+          a.engine.queryReverse {
+            dataFilter = filterOver "neededBy" a self;
+            inherit (a) transitive;
+          } (bound "neededBy" marks self);
+
+        # The diagnostic at `t`: each DIRECT importer `o` whose edge to `t` its own marks withheld,
+        # `from = o` beside `boundedBy`'s entry, naming `o`'s marks. The importer set is the
+        # DELEGATE'S OWN over the unbounded record — asked, never restated here.
+        withheld =
+          self: t:
+          concatMap
+            (
+              o:
+              map (w: w // { from = o; }) (
+                filter (w: w.label == importsLabel && w.target == t) ((classified "neededBy" marks self).withheld o)
+              )
+            )
+            (
+              a.engine.queryReverse {
+                dataFilter = n: n.id or null;
+                transitive = false;
+              } self t
+            );
       };
 in
 {

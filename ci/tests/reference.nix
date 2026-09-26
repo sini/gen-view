@@ -317,5 +317,307 @@ in
         ];
       };
     };
+
+    # ══ ADR-0026 — THE BOUNDARY MARK IS THE FAIL-CLOSED FLOOR, COMPILED AT THE ACCESSOR ══
+    #
+    # ★★★ THE WITNESS. Before `marks` existed the consumer's declaration read THROUGH a boundary
+    # the calculus draws: `req`'s own mark refuses `imports`, and the answer was the provider's
+    # tags. Bounded, the edge is absent and the answer is the delegate's "no binding". The three
+    # controls are what stop a bound that withheld everything from passing: no marks, a mark at
+    # another node, and a mark at `req` refusing a different label all leave the answer whole.
+    test-a-mark-at-the-requirer-withholds-the-import = {
+      expr = {
+        sealed = f.boundarySelf.get "req" "sealed";
+        unmarked = f.boundarySelf.get "req" "unmarked";
+        markedElsewhere = f.boundarySelf.get "req" "markedElsewhere";
+        otherLabel = f.boundarySelf.get "req" "otherLabel";
+      };
+      expected = {
+        sealed = null;
+        unmarked = [
+          "read"
+          "write"
+        ];
+        markedElsewhere = [
+          "read"
+          "write"
+        ];
+        otherLabel = [
+          "read"
+          "write"
+        ];
+      };
+    };
+
+    # ★ THE INHERITED CANDIDATE IS BOUNDED TOO — the P-edge is the node record's `parent`, and a
+    # mark at `child` refusing `parent` withholds it. A mark refusing `imports` there leaves it.
+    test-a-mark-on-parent-withholds-the-inherited-candidate = {
+      expr = {
+        unmarked = (f.v.referenceResolution f.referenceArgs).compute f.parentRecord "child";
+        sealed =
+          (f.v.referenceResolution (f.referenceArgs // { marks = f.sealAt "child" "parent"; })).compute
+            f.parentRecord
+            "child";
+        importsSealed =
+          (f.v.referenceResolution (f.referenceArgs // { marks = f.sealAt "child" "imports"; })).compute
+            f.parentRecord
+            "child";
+      };
+      expected = {
+        unmarked = [ "ambient" ];
+        sealed = null;
+        importsSealed = [ "ambient" ];
+      };
+    };
+
+    # ★★★ `neededBy` IS THE INVERSE OF WHAT `referenceResolution` READS, UNDER THE SAME MARKS. The
+    # owner-ruled definition is "the stated inverse of `includes`", and a boundary is an ABSENT
+    # edge, absent in both directions. So a mark classifies the edge at the IMPORTER, the node it
+    # leaves: sealed at `req`, `req` reads nothing and nothing is needed by it; sealed at `prov`,
+    # `req` still reads `prov` and `prov` is still needed by `req`. Classifying at the target
+    # instead answers `[ "r" ]` / `[ ]` on those two rows, and `[ "m" ]` on the two-hop one.
+    test-neededby-is-the-inverse-of-what-referenceresolution-reads = {
+      expr = {
+        none = {
+          reads = (f.dual f.noMarks).get "req" "reads";
+          neededBy = (f.dual f.noMarks).get "prov" "neededBy";
+        };
+        sealedAtImporter = {
+          reads = (f.dual (f.sealAt "req" "imports")).get "req" "reads";
+          neededBy = (f.dual (f.sealAt "req" "imports")).get "prov" "neededBy";
+        };
+        sealedAtTarget = {
+          reads = (f.dual (f.sealAt "prov" "imports")).get "req" "reads";
+          neededBy = (f.dual (f.sealAt "prov" "imports")).get "prov" "neededBy";
+        };
+        twoHopNone = {
+          reads = (f.twoHop f.noMarks).get "app" "reads";
+          neededBy = (f.twoHop f.noMarks).get "lib" "neededBy";
+        };
+        twoHopSealedAtMiddle = {
+          reads = (f.twoHop (f.sealAt "mid" "imports")).get "app" "reads";
+          neededBy = (f.twoHop (f.sealAt "mid" "imports")).get "lib" "neededBy";
+        };
+      };
+      expected = {
+        none = {
+          reads = [ "secret" ];
+          neededBy = [ "r" ];
+        };
+        sealedAtImporter = {
+          reads = null;
+          neededBy = [ ];
+        };
+        sealedAtTarget = {
+          reads = [ "secret" ];
+          neededBy = [ "r" ];
+        };
+        twoHopNone = {
+          reads = [ "L" ];
+          neededBy = [
+            "m"
+            "a"
+          ];
+        };
+        twoHopSealedAtMiddle = {
+          reads = null;
+          neededBy = [ ];
+        };
+      };
+    };
+
+    # ★ THE GATHER UNDER MARKS: `lib`'s mark governs `lib`'s own imports and not its importers', so
+    # a seal there leaves the gather whole; a seal at `web1` removes exactly `web1`.
+    test-a-mark-governs-the-edges-leaving-its-node-in-the-reverse-gather = {
+      expr = {
+        unmarked = (f.libGatherSelf f.noMarks).get "lib" "gathered";
+        sealedAtLib = (f.libGatherSelf (f.sealAt "lib" "imports")).get "lib" "gathered";
+        sealedAtWeb1 = (f.libGatherSelf (f.sealAt "web1" "imports")).get "lib" "gathered";
+      };
+      expected = {
+        unmarked = [
+          "w1"
+          "w2"
+        ];
+        sealedAtLib = [
+          "w1"
+          "w2"
+        ];
+        sealedAtWeb1 = [ "w2" ];
+      };
+    };
+
+    # ★★ ADR-0026'S DIAGNOSTIC: A REFUSAL AT A BOUNDARY NAMES THE MARK THAT CAUSED IT. Forward, at
+    # the sealed node, for each channel; reverse, at the gathered node, naming the IMPORTER whose
+    # mark withheld its edge — and empty where the importers' edges stand.
+    test-withheld-names-the-mark-that-withheld-the-edge = {
+      expr = {
+        imports =
+          (f.v.referenceResolution (f.referenceArgs // { marks = f.sealAt "req" "imports"; })).withheld
+            f.boundarySelf
+            "req";
+        parent =
+          (f.v.referenceResolution (f.referenceArgs // { marks = f.sealAt "child" "parent"; })).withheld
+            f.parentRecord
+            "child";
+        reverse =
+          (f.v.neededBy (f.reverseArgs // { marks = f.sealAt "web1" "imports"; })).withheld
+            (f.libGatherSelf f.noMarks)
+            "lib";
+        reverseSealedAtTarget =
+          (f.v.neededBy (f.reverseArgs // { marks = f.sealAt "lib" "imports"; })).withheld
+            (f.libGatherSelf f.noMarks)
+            "lib";
+      };
+      expected = {
+        imports = [
+          {
+            label = "imports";
+            target = "prov";
+            marks = [ "isolationBoundary" ];
+          }
+        ];
+        parent = [
+          {
+            label = "parent";
+            target = "outer";
+            marks = [ "isolationBoundary" ];
+          }
+        ];
+        reverse = [
+          {
+            from = "web1";
+            label = "imports";
+            target = "lib";
+            marks = [ "isolationBoundary" ];
+          }
+        ];
+        reverseSealedAtTarget = [ ];
+      };
+    };
+
+    # ★ NARROWING NEVER WIDENS. Over an authority already behind a bound, the construct's own bound
+    # intersects: the same seal twice is one seal, and neither layer re-admits what the other
+    # withheld. No case is written for an already-bounded authority, and this is why none is owed.
+    test-narrowing-an-already-bounded-authority-never-widens = {
+      expr = {
+        sameTwice = f.compiledSelf.get "req" "sameTwice";
+        innerOnly = f.compiledSelf.get "req" "innerOnly";
+        outerOnly = f.compiledSelf.get "req" "outerOnly";
+        neither = f.compiledSelf.get "req" "neither";
+      };
+      expected = {
+        sameTwice = null;
+        innerOnly = null;
+        outerOnly = null;
+        neither = [
+          "read"
+          "write"
+        ];
+      };
+    };
+
+    # ★★ σ AND π SEE THE AUTHORITY'S OWN RECORD. A π reading `parent` at a node whose own datum
+    # decides answers the real parent under a `parent` seal; only the delegate's P-STEP sees the
+    # narrowed one, which the inherited-candidate cell above pins.
+    test-wellformed-and-project-read-the-unbounded-record = {
+      expr = {
+        sealed =
+          (f.v.referenceResolution (
+            f.referenceArgs
+            // {
+              marks = f.sealAt "child" "parent";
+              project = x: [ x.parent ];
+            }
+          )).compute
+            f.localParentRecord
+            "child";
+        unmarked =
+          (f.v.referenceResolution (f.referenceArgs // { project = x: [ x.parent ]; })).compute
+            f.localParentRecord
+            "child";
+      };
+      expected = {
+        sealed = [ "outer" ];
+        unmarked = [ "outer" ];
+      };
+    };
+
+    # ★★ THE BOUND IS A PROJECTION, NOT A FILTERED VIEW. An authority reading P through `node` is
+    # bounded; one reading it through `allNodes` — a member the bound does not narrow — is REFUSED
+    # rather than handed an unbounded second path. So are a relation other than `imports` and a
+    # record with no `parent`; the in-protocol read over the same stub answers.
+    test-a-read-outside-the-bound-is-refused = {
+      expr = {
+        viaNodeSealed =
+          (f.v.referenceResolution (
+            f.referenceArgs
+            // {
+              engine = f.viaNode;
+              marks = f.sealAt "child" "parent";
+            }
+          )).compute
+            f.allNodesRecord
+            "child";
+        viaNodeUnmarked =
+          (f.v.referenceResolution (f.referenceArgs // { engine = f.viaNode; })).compute f.allNodesRecord
+            "child";
+        viaAllNodes = refuses (
+          (f.v.referenceResolution (
+            f.referenceArgs
+            // {
+              engine = f.viaAllNodes;
+              marks = f.sealAt "child" "parent";
+            }
+          )).compute
+            f.allNodesRecord
+            "child"
+        );
+        unknownRelation = refuses (
+          (f.v.referenceResolution (f.referenceArgs // { engine = f.viaIncludes; })).compute
+            (f.stubRecord true)
+            "x"
+        );
+        noParent = refuses (
+          (f.v.referenceResolution (f.referenceArgs // { engine = f.viaImports; })).compute
+            (f.stubRecord false)
+            "x"
+        );
+        inProtocol =
+          (f.v.referenceResolution (f.referenceArgs // { engine = f.viaImports; })).compute
+            (f.stubRecord true)
+            "x";
+      };
+      expected = {
+        viaNodeSealed = null;
+        viaNodeUnmarked = "outer";
+        viaAllNodes = true;
+        unknownRelation = true;
+        noParent = true;
+        inProtocol = [ "y" ];
+      };
+    };
+
+    # ── THE `marks` FIELD: REQUIRED, UNDEFAULTED, AND OF ONE SHAPE ──
+    # Omission is swept per field in `refusals.nix`; here the shape, on both constructs, beside the
+    # complete declaration constructing.
+    test-a-marks-field-of-the-wrong-shape-refuses = {
+      expr = {
+        forwardList = refuses (f.v.referenceResolution (f.referenceArgs // { marks = [ ]; }));
+        forwardFormals = refuses (f.v.referenceResolution (f.referenceArgs // { marks = { id }: [ ]; }));
+        reverseList = refuses (f.v.neededBy (f.reverseArgs // { marks = [ ]; }));
+        forwardMissing = refuses (f.v.referenceResolution (removeAttrs f.referenceArgs [ "marks" ]));
+        reverseMissing = refuses (f.v.neededBy (removeAttrs f.reverseArgs [ "marks" ]));
+        control = refuses (f.v.referenceResolution f.referenceArgs);
+      };
+      expected = {
+        forwardList = true;
+        forwardFormals = true;
+        reverseList = true;
+        forwardMissing = true;
+        reverseMissing = true;
+        control = false;
+      };
+    };
   };
 }

@@ -149,7 +149,7 @@ that this construct does not implement — no productions, one declared graph, c
 **Families beside the declaration**: `placement` · `transform`.
 
 **Reference resolution**: `referenceResolution`, with `referenceResolutionFields` as the checkable
-enumeration of its seven. A **defining query** whose compute is **TOTAL DELEGATION** to an injected
+enumeration of its eight. A **defining query** whose compute is **TOTAL DELEGATION** to an injected
 query authority. The term is the primary's own — Néron et al. 2015 names *"reference resolution"* as
 a **rule of the resolution calculus** (Fig. 3 rule (X), and rule (X′) of Fig. 19). It is **not**
 `referenceAttribute`: Hedin 2000's reference attribute takes *"the (unique) identity of the denoted
@@ -181,8 +181,8 @@ twice. And **`wellFormed` and `project` are two fields because the defining quer
 operators**; fusing them back into one predicate makes `null` mean both *"not a binding here"* and
 *"the value"*, which is the defect `requireNonNull` refuses.
 
-**The reverse view**: `neededBy`, with `neededByFields` as the checkable enumeration of its **five**
-— `engine` `name` `wellFormed` `project` `transitive`. Same file, same injected authority, other
+**The reverse view**: `neededBy`, with `neededByFields` as the checkable enumeration of its **six**
+— `engine` `name` `wellFormed` `project` `marks` `transitive`. Same file, same injected authority, other
 direction: **the projection of the datum at each node that IMPORTS an id, among those the predicate
 admits**, one hop or to the reverse-import closure as `transitive` declares. The name is the
 owner's, ruled as the stated inverse of `includes`. It is **not a base relation** — it is a
@@ -221,11 +221,19 @@ delegate owns — fails it.
 importers. This is why the refusal sweep needs a **populated** positive control: without one it
 cannot tell a refusal from a node that legitimately gathered nothing.
 
-★★ **THERE IS NO `marks` FIELD, AND ITS ABSENCE IS AN OPEN QUESTION RATHER THAN A DECISION.**
-`viewRelation` **requires** `marks`; both constructs in `lib/reference.nix` take none, because their
-reachability is entirely the injected authority's. Whether ADR-0026 reaches injected-authority
-constructs is **one owner ruling about BOTH of them**, not a thing to settle from either side. Do
-not add one here alone.
+★★ **`marks` IS REQUIRED ON BOTH, AND IT COMPILES AT THE AUTHORITY'S ACCESSOR** (owner-ruled
+2026-09-25, `den-hoag-wneo0`: ADR-0026's floor reaches injected-authority constructs). "No marks" is
+`_: [ ]` written down. The authority is handed a **bounded record**: `get <id> "imports"` and the node
+record's `parent` are presented to `graph.boundedBy` at the node the edge leaves, and a withheld
+edge is absent. The bounded record serves `node`, `get` and `allNodeIds` and **refuses by name**
+every other member, any relation but `imports`, and a record with no `parent`, so a delegate that
+reaches past that protocol through it is refused rather than read unbounded. `neededBy` uses **the
+same forward bound** — an edge is withheld by the **importer's** marks — so it stays the inverse of
+what `referenceResolution` reads; `reference.test-neededby-is-the-inverse-of-what-referenceresolution-reads`
+pins the target-side reading red. σ and π read the **unbounded** record, re-read by id. The contract
+checks are `refusal.nix`'s `marksContract`, one statement shared with `viewRelation`; `withheld` is
+a record accessor (`self → id → [ … ]`), not inside `compute`'s value, because the consumer reads
+that value as its datum.
 
 ★ **`nodeLabel` AND `requireNonNull` ARE AT MODULE SCOPE AND SHARED.** The null-projection guard
 states **one** fact about **one** authority — that it reads `null` as NO BINDING HERE, true of both

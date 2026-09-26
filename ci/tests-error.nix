@@ -154,9 +154,9 @@ in
       };
 
     # ── REFERENCE RESOLUTION: EVERY OMITTED FIELD IS NAMED, ONE CELL PER FIELD ──
-    # Generated from the construct's own field enumeration, so an eighth field cannot arrive
+    # Generated from the construct's own field enumeration, so a ninth field cannot arrive
     # without a message cell arriving with it. What makes these cells worth their length is the
-    # thing they replace: the wrapper this construct succeeds left FOUR of these seven to silent
+    # thing they replace: the wrapper this construct succeeds left FOUR of its seven to silent
     # defaults, and a default is a decision nobody made and nobody can see.
     flake.testsError.reference-refusals =
       builtins.listToAttrs (
@@ -249,11 +249,87 @@ in
           expr = r.projectionSelf.get "lonely" "nullArm";
           expected = null;
         };
+
+        # ── `marks` (ADR-0026): THE FIELD'S SHAPE, IN `viewRelation`'S WORDS OFF ONE CONTRACT ──
+        test-a-non-function-marks-is-named = {
+          expr = builtins.deepSeq (v.referenceResolution (r.referenceArgs // { marks = [ ]; })) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.referenceResolution: field 'marks' is .*; it must be a function from a node id to the list of boundary marks at it$";
+          };
+        };
+        test-a-marks-pattern-formal-is-named = {
+          expr = builtins.deepSeq (v.referenceResolution (r.referenceArgs // { marks = { id }: [ ]; })) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.referenceResolution: field 'marks' destructures an attrset \\(formals: id\\); it is applied to a node id, a string, so it can never be applied$";
+          };
+        };
+        test-a-marks-result-that-is-not-a-list-is-named-at-the-node = {
+          expr = (v.referenceResolution (r.referenceArgs // { marks = _: 42; })).compute r.providesSelf "req";
+          expectedError = {
+            type = "ThrownError";
+            msg = ".*gen-view\\.referenceResolution: field 'marks' at node 'req' returned 42; it must return the list of boundary marks .*";
+          };
+        };
+
+        # ── THE BOUND REFUSES WHAT IT DOES NOT NARROW, BY NAME ──
+        # A relation other than `imports`, a node record with no `parent`, and an evaluator member
+        # outside the bound's protocol: each would otherwise be read UNBOUNDED with nothing saying so.
+        test-a-relation-the-bound-does-not-know-is-named = {
+          expr =
+            (v.referenceResolution (r.referenceArgs // { engine = r.viaIncludes; })).compute (r.stubRecord true)
+              "x";
+          expectedError = {
+            type = "ThrownError";
+            msg = ".*gen-view\\.referenceResolution: the injected authority read the relation \"includes\" through the bounded accessor, which knows imports; a relation the bound does not know is refused rather than read unbounded.*";
+          };
+        };
+        test-a-node-record-with-no-parent-is-named = {
+          expr =
+            (v.referenceResolution (r.referenceArgs // { engine = r.viaImports; })).compute (r.stubRecord false)
+              "x";
+          expectedError = {
+            type = "ThrownError";
+            msg = ".*gen-view\\.referenceResolution: the injected authority's node record for \"x\" carries no 'parent'.*";
+          };
+        };
+        test-a-member-outside-the-bound-is-named = {
+          expr =
+            (v.referenceResolution (
+              r.referenceArgs
+              // {
+                engine = r.viaAllNodes;
+                marks = r.sealAt "child" "parent";
+              }
+            )).compute
+              r.allNodesRecord
+              "child";
+          expectedError = {
+            type = "ThrownError";
+            msg = ".*gen-view\\.referenceResolution: the injected authority read 'allNodes' through the bounded accessor, which serves allNodeIds, get, node; a member the bound does not narrow is refused rather than read unbounded.*";
+          };
+        };
+        # σ and π are re-read by id from the unbounded record, so a record with no id is named.
+        test-a-node-record-with-no-id-is-named = {
+          expr = (v.referenceResolution r.referenceArgs).compute {
+            node = _: {
+              parent = null;
+              decls.provided = [ "x" ];
+            };
+            get = _: _: [ ];
+            allNodeIds = [ ];
+          } "x";
+          expectedError = {
+            type = "ThrownError";
+            msg = ".*gen-view\\.referenceResolution: node \\(the engine's node record carries no 'id'\\): 'wellFormed' and 'project' read the authority's own node record.*";
+          };
+        };
       };
 
     # ── `neededBy`: EVERY OMITTED FIELD IS NAMED, ONE CELL PER FIELD ──
     # Generated from the REVERSE construct's own field enumeration — a third generator rather than a
-    # widened one, because the two constructs share four field names and differ in the fifth, and a
+    # widened one, because the two constructs share five field names and differ in the sixth, and a
     # sweep quantified over the wrong enumeration would look complete while omitting exactly the
     # field that distinguishes them.
     flake.testsError.neededby-refusals =
@@ -1615,6 +1691,7 @@ in
               name = "r";
               wellFormed = _: true;
               project = n: n;
+              marks = _: [ ];
               localShadowsImport = true;
               importShadowsParent = fn;
               transitiveImports = true;
@@ -1625,6 +1702,7 @@ in
           name = "r";
           wellFormed = _: true;
           project = n: n;
+          marks = _: [ ];
           transitive = fn;
         }) "^gen-view\\.neededBy: field 'transitive' is <a lambda>, which is not a boolean.*$";
         test-forged-tieSet-arm-renders-a-lambda =

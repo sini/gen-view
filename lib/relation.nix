@@ -72,6 +72,7 @@ let
     decided
     returned
     formalsOf
+    marksContract
     attrKey
     quote
     renderSubject
@@ -79,6 +80,9 @@ let
     sortNames
     ;
   inherit (carrierLib) elementOf labeledOf;
+
+  # The marks contract, stated once in `refusal.nix` and read here at this construct's site.
+  marksOf = marksContract "viewRelation" "scope";
 
   indexOf =
     xs: x:
@@ -199,45 +203,10 @@ let
       # the companion diagnostic is never empty where it fires, so silence and a boundary are
       # never the same reading.
       #
-      # The accessor's RESULT is checked where gen-graph consumes it: a list, of marks carrying a
-      # `name` and a callable `admits`, and each `admits` verdict a bool. Only that shape is forced;
-      # a mark's `name` is carried unforced into `withheld`.
-      bounded = graph.boundedBy directed marksAt;
-      marksAt =
-        s:
-        map (markAt s) (
-          returned "viewRelation" "field 'marks' at scope ${renderSubject s}"
-            "it must return the list of boundary marks `{ name; admits; }` at that scope"
-            builtins.isList
-            (a.marks s)
-        );
-      callable =
-        v:
-        builtins.isFunction v || (builtins.isAttrs v && v ? __functor && builtins.isFunction v.__functor);
-      markAt =
-        s: m:
-        if !(builtins.isAttrs m && m ? name && m ? admits) then
-          refuse "viewRelation" "field 'marks' at scope ${renderSubject s} returned a mark that is ${renderValue m}${
-            if builtins.isAttrs m then " (fields: ${quote (builtins.attrNames m)})" else ""
-          }; a mark is `{ name; admits; }`, and `withheld` reports it by its name"
-        else if !(callable m.admits) || formalsOf m.admits != [ ] then
-          refuse "viewRelation" "field 'marks' at scope ${renderSubject s} returned a mark whose 'admits' is ${renderValue m.admits}${
-            if formalsOf m.admits != [ ] then
-              " destructuring an attrset (formals: ${quote (formalsOf m.admits)})"
-            else
-              ""
-          }; it is applied to a label, a string, so it must be a predicate taking one"
-        else
-          m
-          // {
-            admits =
-              l:
-              returned "viewRelation"
-                "a mark's 'admits' at scope ${renderSubject s} for the label ${renderSubject l}"
-                "it is a predicate on labels and must return a bool"
-                builtins.isBool
-                (m.admits l);
-          };
+      # The accessor's RESULT is checked where gen-graph consumes it, by the one statement of the
+      # marks contract this library carries (`refusal.nix`, `marksContract`), shared with
+      # `referenceResolution` and `neededBy`.
+      bounded = graph.boundedBy directed (marksOf.at a.marks);
 
       # 3 — the walk. WFD does NOT run here: under (NR-Rel) the path is constrained by WFL and the
       # DATUM by WFD, and collapsing the two would filter scopes by a predicate written for data
@@ -835,11 +804,7 @@ let
         }) (bounded.withheld scope)
       ) labeled.nodes;
     in
-    if !(builtins.isFunction a.marks) then
-      refuse "viewRelation" "field 'marks' is ${renderValue a.marks}; it must be a function from a scope id to the list of boundary marks at it"
-    else if formalsOf a.marks != [ ] then
-      refuse "viewRelation" "field 'marks' destructures an attrset (formals: ${quote (formalsOf a.marks)}); it is applied to a scope id, a string, so it can never be applied"
-    else
+    builtins.seq (marksOf.checked a.marks) (
       decided [ def g markOrder ] {
         __element = "viewRelation";
         name = name;
@@ -848,7 +813,8 @@ let
         inherit value shadowed withheld;
         contributions = deduped.kept;
         inherit (deduped) dropped;
-      };
+      }
+    );
 in
 {
   inherit viewRelation groupsInWalkOrder indexOf;

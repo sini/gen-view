@@ -48,8 +48,8 @@ let
   );
 
   # And a THIRD sweep for the reverse construct, over ITS OWN published enumeration — for the same
-  # reason again. `neededBy` shares four field NAMES with the construct above and differs in the
-  # fifth, so a sweep that quantified over the forward enumeration would silently omit `transitive`
+  # reason again. `neededBy` shares five field NAMES with the construct above and differs in the
+  # sixth, so a sweep that quantified over the forward enumeration would silently omit `transitive`
   # while looking complete, and would omit the three shadowing flags in the other direction.
   neededByOmissionCells = builtins.listToAttrs (
     map (field: {
@@ -320,6 +320,7 @@ in
           "name"
           "wellFormed"
           "project"
+          "marks"
           "localShadowsImport"
           "importShadowsParent"
           "transitiveImports"
@@ -455,7 +456,7 @@ in
       #
       # ★ THE ENUMERATION IS THE SWEEP'S QUANTIFIER, pinned here for the same reason both others
       # are: emptied, the sweep above goes VACUOUS and every omission cell vanishes with nothing
-      # going red. Five fields, and the fifth is the one the forward enumeration does not carry.
+      # going red. Six fields, and the sixth is the one the forward enumeration does not carry.
       test-control-the-neededby-field-enumeration-is-complete-and-non-trivial = {
         expr = v.neededByFields;
         expected = [
@@ -463,6 +464,7 @@ in
           "name"
           "wellFormed"
           "project"
+          "marks"
           "transitive"
         ];
       };

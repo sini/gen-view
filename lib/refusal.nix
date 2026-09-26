@@ -89,6 +89,62 @@ let
   # functor, so a functor whose `__functor` destructures passes; those are pinned as falsifier cells.
   formalsOf = v: if builtins.isFunction v then builtins.attrNames (builtins.functionArgs v) else [ ];
 
+  # `marksContract site unit` — THE BOUNDARY-MARKS ACCESSOR'S CONTRACT (ADR-0026), stated ONCE for
+  # every construct that takes one, so two constructs carrying one contract cannot drift into two.
+  # `unit` names what the accessor is applied to ("scope", "node"); `checked marks` is the
+  # construction-time door on the field itself, `at marks id` the accessor's RESULT at one id,
+  # checked where gen-graph's `boundedBy` consumes it: a list, of marks carrying a `name` and a
+  # callable `admits`, and each `admits` verdict a bool. Only that shape is forced; a mark's `name`
+  # is carried unforced into `withheld`.
+  marksContract =
+    site: unit:
+    let
+      callable =
+        v:
+        builtins.isFunction v || (builtins.isAttrs v && v ? __functor && builtins.isFunction v.__functor);
+      markAt =
+        s: m:
+        if !(builtins.isAttrs m && m ? name && m ? admits) then
+          refuse site "field 'marks' at ${unit} ${renderSubject s} returned a mark that is ${renderValue m}${
+            if builtins.isAttrs m then " (fields: ${quote (builtins.attrNames m)})" else ""
+          }; a mark is `{ name; admits; }`, and `withheld` reports it by its name"
+        else if !(callable m.admits) || formalsOf m.admits != [ ] then
+          refuse site "field 'marks' at ${unit} ${renderSubject s} returned a mark whose 'admits' is ${renderValue m.admits}${
+            if formalsOf m.admits != [ ] then
+              " destructuring an attrset (formals: ${quote (formalsOf m.admits)})"
+            else
+              ""
+          }; it is applied to a label, a string, so it must be a predicate taking one"
+        else
+          m
+          // {
+            admits =
+              l:
+              returned site "a mark's 'admits' at ${unit} ${renderSubject s} for the label ${renderSubject l}"
+                "it is a predicate on labels and must return a bool"
+                builtins.isBool
+                (m.admits l);
+          };
+    in
+    {
+      checked =
+        marks:
+        if !(builtins.isFunction marks) then
+          refuse site "field 'marks' is ${renderValue marks}; it must be a function from a ${unit} id to the list of boundary marks at it"
+        else if formalsOf marks != [ ] then
+          refuse site "field 'marks' destructures an attrset (formals: ${quote (formalsOf marks)}); it is applied to a ${unit} id, a string, so it can never be applied"
+        else
+          marks;
+      at =
+        marks: s:
+        map (markAt s) (
+          returned site "field 'marks' at ${unit} ${renderSubject s}"
+            "it must return the list of boundary marks `{ name; admits; }` at that ${unit}"
+            builtins.isList
+            (marks s)
+        );
+    };
+
   # `fields site required args` — `required` present in `args`, and nothing else present at all.
   # Returns `args` on success so the check is a pass-through and cannot be written and not called.
   fields =
@@ -194,6 +250,7 @@ in
     decided
     returned
     formalsOf
+    marksContract
     choice
     strings
     attrKey

@@ -109,7 +109,7 @@ let
   orderingLib = import ./ordering.nix { inherit prelude graph; };
   placementLib = import ./placement.nix { inherit prelude; };
   transformLib = import ./transform.nix { inherit prelude; };
-  referenceLib = import ./reference.nix { inherit prelude; };
+  referenceLib = import ./reference.nix { inherit prelude graph; };
   traceLib = import ./trace.nix { inherit prelude; };
   compositionLib = import ./compositions.nix { inherit prelude graph; };
 in

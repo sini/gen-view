@@ -229,6 +229,7 @@ referenceResolution {
   engine;                # the authority — must publish `query`
   name; wellFormed;      # the result name, and σ
   project;               # π
+  marks;                 # required: node id → [ { name; admits; } ]; `_: [ ]` for none
   localShadowsImport; importShadowsParent; transitiveImports;
 }                        # ⇒ ONE datum, or the authority's refusal
 
@@ -236,6 +237,7 @@ neededBy {
   engine;                # the authority — must publish `queryReverse`
   name; wellFormed;      # the result name, and σ
   project;               # π
+  marks;                 # required, as above
   transitive;            # direct importers, or the reverse-import closure
 }                        # ⇒ the LIST of contributions from the nodes that import the id
 ```
@@ -256,6 +258,12 @@ its two arms share shape and share discipline.
 **held graph** from a **declared root** and holds a walk, a competition, a tie-set and a dedup; this
 one reaches the **evaluator's live node set** through the injected authority, from the id handed
 `compute` at force time.
+
+**The boundary marks (ADR-0026) compile at the authority's accessor.** The authority walks a bounded
+record in which `graph.boundedBy` has classified each `imports` edge and each `parent` edge at the
+node it leaves; what a mark refuses is absent, and `withheld self id` names the marks that withheld
+it. `neededBy` reads the same forward bound, so a mark at the importer removes it from the gather
+and a mark at the gathered node does not.
 
 An **empty gather is the ordinary case, never a refusal** — most nodes have no importers. The one
 refusal that fires at materialization is `requireNonNull`: a node the predicate **admits** whose

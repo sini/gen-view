@@ -242,6 +242,7 @@ in
       "lib/definition.nix"
       "lib/elements.nix"
       "lib/ordering.nix"
+      "lib/reference.nix"
       "lib/relation.nix"
       "flake.nix"
       "default.nix"

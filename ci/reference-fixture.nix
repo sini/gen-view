@@ -58,6 +58,18 @@ let
 
   computeOf = args: (v.referenceResolution args).compute;
 
+  # ── BOUNDARY MARKS (ADR-0026) ──
+  # "No marks" written down, and a mark at one node refusing one label: marks are per node AND per
+  # label, so each seal names both.
+  noMarks = _: [ ];
+  seal = label: {
+    name = "isolationBoundary";
+    admits = l: l != label;
+  };
+  sealAt =
+    who: label: id:
+    if id == who then [ (seal label) ] else [ ];
+
   # ── THE CONSUMER'S OWN SHAPE ──
   # `req` includes `prov`; the provider carries capability tags and the requirer carries none, so
   # the local candidate is not a binding and resolution walks the include edge. This is the live
@@ -90,6 +102,7 @@ let
     name = "resolvedProvides";
     wellFormed = n: (n.decls.provided or [ ]) != [ ];
     project = n: n.decls.provided;
+    marks = noMarks;
     localShadowsImport = true;
     importShadowsParent = true;
     transitiveImports = false;
@@ -236,6 +249,7 @@ let
     name = "candidate-${field}";
     wellFormed = n: n.decls ? ${field};
     project = n: n.decls.${field};
+    marks = noMarks;
     localShadowsImport = true;
     importShadowsParent = true;
     transitiveImports = false;
@@ -307,6 +321,7 @@ let
     name = "consumers";
     wellFormed = admitsTagged;
     project = tagOf;
+    marks = noMarks;
     transitive = false;
   };
 
@@ -388,12 +403,252 @@ let
   # ★ THE CONTROL, same fixture and same declaration, differing ONLY in that one datum. It is what
   # shows the fixture genuinely builds the subject: the node is reached, admitted and projected.
   reverseNonNullSelf = mkReverseNullSelf "NN";
+
+  # ══ THE BOUNDARY — `marks` COMPILED AT THE AUTHORITY'S ACCESSOR ════════════════════════════════
+  #
+  # ── THE WITNESS, THE CONSUMER'S SHAPE ──
+  # `providesSelf`'s declaration under four marks accessors, in one evaluator: sealed at the
+  # requirer (the witness), none, a mark at the provider, and a mark at the requirer refusing only
+  # `parent`. The three controls are what stop a bound that withheld everything from passing.
+  boundarySelf = mkSelf {
+    edges = providesEdges;
+    decls = providesDecls;
+    attributes = {
+      sealed = computeOf (referenceArgs // { marks = sealAt "req" "imports"; });
+      unmarked = computeOf referenceArgs;
+      markedElsewhere = computeOf (referenceArgs // { marks = sealAt "prov" "imports"; });
+      otherLabel = computeOf (referenceArgs // { marks = sealAt "req" "parent"; });
+    };
+  };
+
+  # ── THE CONTAINMENT (P) EDGE ──
+  # A hand evaluator record in gen-scope's shape (`node` → `{ id; parent; decls; }`, `get`,
+  # `allNodeIds`), because the consumer's evaluator builds no P-edge; the OPERATORS are still the
+  # real delegate's. `child` provides nothing, so it inherits `outer`'s datum.
+  mkRecord =
+    {
+      nodes,
+      imports,
+    }:
+    {
+      node = id: nodes.${id};
+      get =
+        id: attr:
+        if attr == "imports" then imports.${id} or [ ] else throw "fixture record: no attribute ${attr}";
+      allNodeIds = builtins.attrNames nodes;
+    };
+  node = id: parent: provided: {
+    inherit id parent;
+    decls.provided = provided;
+  };
+  parentRecord = mkRecord {
+    nodes = {
+      outer = node "outer" null [ "ambient" ];
+      child = node "child" "outer" [ ];
+    };
+    imports = { };
+  };
+  # The same containment, with `child` carrying its own datum: σ and π decide there, and a π that
+  # reads `parent` is what shows the bound never rewrites the record they see.
+  localParentRecord = mkRecord {
+    nodes = {
+      outer = node "outer" null [ "ambient" ];
+      child = node "child" "outer" [ "c" ];
+    };
+    imports = { };
+  };
+  # `localParentRecord` with its node set ALSO published as `allNodes` — a second path to `parent`
+  # among the evaluator members the bound does not narrow.
+  allNodesRecord = localParentRecord // {
+    allNodes = {
+      outer = node "outer" null [ "ambient" ];
+      child = node "child" "outer" [ "c" ];
+    };
+  };
+
+  # ── THE DUALITY: `neededBy` IS THE INVERSE OF WHAT `referenceResolution` READS ──
+  # `req` imports `prov`; `prov` provides, `req` is tagged. Forward reads `prov` from `req`, reverse
+  # gathers `req` at `prov`, both under ONE marks accessor.
+  dualEdges = [
+    {
+      from = "req";
+      to = "prov";
+    }
+  ];
+  dualDecls = {
+    req = {
+      tag = "r";
+    };
+    prov = {
+      provided = [ "secret" ];
+    };
+  };
+  # `app → mid → lib`, transitive: only `lib` provides, `app` and `mid` are tagged.
+  twoHopEdges = [
+    {
+      from = "app";
+      to = "mid";
+    }
+    {
+      from = "mid";
+      to = "lib";
+    }
+  ];
+  twoHopDecls = {
+    app = {
+      tag = "a";
+    };
+    mid = {
+      tag = "m";
+    };
+    lib = {
+      provided = [ "L" ];
+    };
+  };
+  dualSelf =
+    {
+      edges,
+      decls,
+      transitive,
+    }:
+    marks:
+    mkSelf {
+      inherit edges decls;
+      attributes = {
+        reads = computeOf (
+          referenceArgs
+          // {
+            inherit marks;
+            transitiveImports = transitive;
+          }
+        );
+        neededBy = reverseComputeOf (reverseArgs // { inherit marks transitive; });
+      };
+    };
+  dual = dualSelf {
+    edges = dualEdges;
+    decls = dualDecls;
+    transitive = false;
+  };
+  twoHop = dualSelf {
+    edges = twoHopEdges;
+    decls = twoHopDecls;
+    transitive = true;
+  };
+
+  # ── THE REVERSE GATHER UNDER MARKS ──
+  # `web1` and `web2` both import `lib`. A mark governs the edges LEAVING its node, so a seal at
+  # `lib` leaves both importers and a seal at `web1` removes exactly `web1`.
+  libGatherSelf =
+    marks:
+    mkSelf {
+      edges = [
+        {
+          from = "web1";
+          to = "lib";
+        }
+        {
+          from = "web2";
+          to = "lib";
+        }
+      ];
+      decls = {
+        lib = { };
+        web1 = {
+          tag = "w1";
+        };
+        web2 = {
+          tag = "w2";
+        };
+      };
+      attributes.gathered = reverseComputeOf (reverseArgs // { inherit marks; });
+    };
+
+  # ── AN AUTHORITY THAT IS ALREADY MARKS-COMPILED ──
+  # The bounded record a construct hands its authority, captured by an authority that answers with
+  # it; gen-scope's `query` behind that record is a marks-compiled authority built from the
+  # published surface alone.
+  boundedRecord =
+    marks: self:
+    (v.referenceResolution (
+      referenceArgs
+      // {
+        inherit marks;
+        engine.query =
+          _: bself: _:
+          bself;
+      }
+    )).compute
+      self
+      null;
+  compiledEngine = inner: {
+    query = qa: self: s.query qa (boundedRecord inner self);
+  };
+  compiledSelf = mkSelf {
+    edges = providesEdges;
+    decls = providesDecls;
+    attributes = {
+      sameTwice = computeOf (
+        referenceArgs
+        // {
+          engine = compiledEngine (sealAt "req" "imports");
+          marks = sealAt "req" "imports";
+        }
+      );
+      innerOnly = computeOf (referenceArgs // { engine = compiledEngine (sealAt "req" "imports"); });
+      outerOnly = computeOf (
+        referenceArgs
+        // {
+          engine = compiledEngine noMarks;
+          marks = sealAt "req" "imports";
+        }
+      );
+      neither = computeOf (referenceArgs // { engine = compiledEngine noMarks; });
+    };
+  };
+
+  # ── AUTHORITIES READING PAST THE BOUND'S PROTOCOL ──
+  # Each reads one channel and answers what it found. `viaNode` reads P through the bounded `node`;
+  # `viaAllNodes` reads it through `allNodes`, a member the bound does not narrow; `viaIncludes`
+  # reads a relation the bound does not know; `viaImports` is the in-protocol control.
+  viaNode.query =
+    _: self: id:
+    (self.node id).parent;
+  viaAllNodes.query =
+    _: self: id:
+    (builtins.getAttr id self.allNodes).parent;
+  viaIncludes.query =
+    _: self: id:
+    self.get id "includes";
+  viaImports.query =
+    _: self: id:
+    self.get id "imports";
+  stubRecord = withParent: {
+    get = _: _: [ "y" ];
+    node = id: { inherit id; } // (if withParent then { parent = null; } else { });
+  };
 in
 {
   inherit
     v
     s
     mkSelf
+    noMarks
+    seal
+    sealAt
+    boundarySelf
+    parentRecord
+    localParentRecord
+    allNodesRecord
+    dual
+    twoHop
+    libGatherSelf
+    compiledSelf
+    viaNode
+    viaAllNodes
+    viaIncludes
+    viaImports
+    stubRecord
     computeOf
     referenceArgs
     sentinel
