@@ -257,6 +257,14 @@ resolves.
 
 **Compositions**: `compositions.{ movement, channel, registry, topology, role }`.
 
+**`__` keys crossing the boundary** (R12 stated contracts; the census that reads these lines takes the
+first line of each):
+
+- `__element` — writer the carrier constructors (`lib/carrier.nix` and its sibling element modules), reader `elementOf` (`lib/elements.nix`); also written by gen-bind for its own `peerRelation` kind (`lib/crossing-adapter-set.nix`):
+  the carrier element's kind tag. A tag is a claim, not a proof: `elementOf` re-checks a shaped
+  kind's structural fields; an unshaped kind is tag-tested only, and its fields are the owning
+  library's to shape.
+
 ## Rules that will bite you
 
 - **Nothing is defaulted.** Every field of a view definition is required, and so are `marks` and
