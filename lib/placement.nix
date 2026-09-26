@@ -137,6 +137,15 @@ let
         # `merge` joins the bucket AT the path; both nesting arms place the result UNDER its own
         # name. That is the whole observable difference between the two families, and it is one
         # expression rather than three.
+        #
+        # ★ AN INTENTIONAL DIVERGENCE FROM den v1, RECORDED RATHER THAN LEFT TACIT. Both nesting arms
+        # write `path ++ [ name ]`; the predecessor's placement wrote exactly `path`, with no name
+        # segment appended, for every arm it had. This is the designed semantics for this construct
+        # family, not an unresolved gap: distinct named contributions stay distinct under one path,
+        # which the ADR-0010 edge grammar's mode component (`M` of `(S,T,P,M)`) exists to select
+        # between. The predecessor's exact-at-P shape is still expressible here — it is the `merge`
+        # arm above — and a caller migrating a v1-shaped tree maps onto it through the adapter/lens
+        # ADR-0027 assigns that role, not through a fourth mode here.
         placed =
           if mode == "merge" then
             setAttrByPath (map attrKey path) a.value

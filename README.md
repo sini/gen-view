@@ -204,6 +204,14 @@ A root target's `scope` and `channel` are non-empty strings. `placement.targets.
 other value by name where the target is built, and `targetKey` and `writesOf` refuse a hand-built
 `target` record the same way, because an element tag is a claim rather than a proof.
 
+**Both nesting modes place a result under its own name — `path ++ [ name ]`, not `path` — and this
+is an intentional divergence from den v1, not an open gap.** v1's placement wrote exactly `path`
+for every arm; here, `nest` and `nest-verbatim` append the name so that distinct named
+contributions stay distinct under one path, while `merge` still lands exactly at `path` and is
+where v1's exact-at-P shape stays expressible. The mode is the `M` of the `(S,T,P,M)` edge grammar
+ADR-0010 released; ADR-0027's adapter/lens is where a v1-shaped tree gets mapped onto this
+placement, not a fourth mode here.
+
 The same holds at **every** intake that admits an element by its tag. Each one re-checks the
 element's structural fields by type, all the way down its nested elements, and refuses a forged one
 by name (`elementOf`, `lib/elements.nix`). It never forces content: a view relation's `value`,
