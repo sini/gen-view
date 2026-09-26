@@ -259,7 +259,7 @@ its two arms share shape and share discipline.
 one reaches the **evaluator's live node set** through the injected authority, from the id handed
 `compute` at force time.
 
-**The boundary marks (ADR-0026) compile at the authority's accessor.** The authority walks a bounded
+**The boundary marks compile at the authority's accessor, as the fail-closed floor of every query's reachability.** The authority walks a bounded
 record in which `graph.boundedBy` has classified each `imports` edge and each `parent` edge at the
 node it leaves; what a mark refuses is absent, and `withheld self id` names the marks that withheld
 it. `neededBy` reads the same forward bound, so a mark at the importer removes it from the gather
