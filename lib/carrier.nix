@@ -157,10 +157,10 @@ let
   # ★★ AND THE INERTNESS IS STRUCTURAL, NOT PROMISED. A `Λ` label can appear in no path expression,
   # because `labelWellFormedness` refuses every literal outside `L` and `Λ ∩ L = ∅`. So the
   # Brzozowski derivative of ANY admission expression with respect to a role label is the empty
-  # state, its canonical key is `"0"`, and the walk prunes there: **`Λ`-labelled edges are HELD AND
+  # state, whose key is the empty state's key, and the walk prunes there: **`Λ`-labelled edges are HELD AND
   # NOT WALKED** — present in the graph, invisible to WFL, read as datums by nothing. That is why
   # this population carries no lexical constraint of its own: a role label never enters an
-  # expression, so it never renders into a derivative state key.
+  # expression, so it never enters a derivative state.
   #
   # ★ AN EMPTY `Λ` IS LAWFUL, WHERE AN EMPTY `R` IS NOT, AND THE ASYMMETRY IS NOT AN OVERSIGHT. R
   # empty means no datum is reachable at all, since (NR-Rel) is the only rule by which a view
@@ -215,16 +215,36 @@ let
       }
     );
 
+  # The labels an expression names, once each. The parsed expression is a DAG — `plus r` holds one
+  # `r` twice — so a fold over its TREE is exponential in `(…)+` nesting (2^30 entries at 30
+  # levels); a closure keyed by gen-graph's canonical key visits each distinct subterm once.
   literalsOf =
     r:
-    if r.t == "lit" then
-      [ r.l ]
-    else if r.t == "star" then
-      literalsOf r.r
-    else if r.t == "seq" || r.t == "alt" then
-      concatMap literalsOf r.rs
-    else
-      [ ];
+    let
+      children =
+        n:
+        if n.t == "star" then
+          [ n.r ]
+        else if n.t == "seq" || n.t == "alt" then
+          n.rs
+        else
+          [ ];
+      reached = builtins.genericClosure {
+        startSet = [
+          {
+            key = graph.regex.stateKey r;
+            n = r;
+          }
+        ];
+        operator =
+          x:
+          map (c: {
+            key = graph.regex.stateKey c;
+            n = c;
+          }) (children x.n);
+      };
+    in
+    map (x: x.n.l) (filter (x: x.n.t == "lit") reached);
 
   # `exprOf site at alphabet expression` — the parsed admission expression, under the
   # constructor's own law. The constructor and every reader run THIS, never an `expr` an element

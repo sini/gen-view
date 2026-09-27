@@ -6,6 +6,8 @@
 { genView, graph, ... }:
 let
   f = import ../fixture.nix { inherit genView; };
+  # the canonical key of a residual admission expression, as the walk records it
+  admissionKey = e: graph.regex.stateKey (graph.regex.parse e);
   v = genView;
 
   scopesOf = r: map (c: c.scope) r.contributions;
@@ -1139,8 +1141,8 @@ in
           2
         ];
         states = [
-          "'parent*"
-          "'parent*"
+          (admissionKey "parent*")
+          (admissionKey "parent*")
         ];
       };
     };
@@ -2303,7 +2305,7 @@ in
         };
         value = [ "X" ];
         shadowed = 0;
-        survivorAdmission = "'parent*";
+        survivorAdmission = admissionKey "parent*";
         controlN = 1;
         controlValue = [ "X" ];
       };
@@ -2333,9 +2335,9 @@ in
         };
       expected = {
         witnesses = 2;
-        states = [
-          "'include*"
-          "'parent*"
+        states = builtins.sort builtins.lessThan [
+          (admissionKey "include*")
+          (admissionKey "parent*")
         ];
       };
     };

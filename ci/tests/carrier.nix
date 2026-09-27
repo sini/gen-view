@@ -15,7 +15,7 @@
 # RECORDED: den's four binding kinds must be EXPRESSIBLE OVER THE PUBLISHED CARRIER as RELATIONS,
 # with `include` available as a structural letter and no fifth structural symbol added to carry
 # containment.
-{ genView, ... }:
+{ genView, graph, ... }:
 let
   f = import ../fixture.nix { inherit genView; };
   v = genView;
@@ -467,7 +467,7 @@ in
         # every other edge is.
         present = builtins.any (e: e.label == "relatum-target") (roleGraph.labeled.labeledEdges "leaf");
         # (ii) NOT WALKED — structurally, not by a filter: the derivative of the admission
-        # expression with respect to a role label is the EMPTY state, whose canonical key is "0",
+        # expression with respect to a role label is the EMPTY state, keyed as `regex.empty` is,
         # so the walk prunes at that edge. That is the whole inertness argument, executed.
         derivativeIsEmpty = f.admission.stateKey (f.admission.step "relatum-target" f.admission.expr);
         # …and the scope on the far side of it is never reached.
@@ -481,7 +481,7 @@ in
       };
       expected = {
         present = true;
-        derivativeIsEmpty = "0";
+        derivativeIsEmpty = graph.regex.stateKey graph.regex.empty;
         bindingReached = false;
         sameValue = true;
         sameScopes = true;

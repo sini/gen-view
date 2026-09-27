@@ -85,9 +85,8 @@ let
   # definition is what makes the intake exactly as strict as the constructor and never stricter —
   # `rootNames` in placement.nix is the same arrangement for a root target's names.
   #
-  # A label is a word in gen-graph's parse alphabet. This is not decoration: `regex.stateKey`
-  # renders a composite with `* | . ( )`, so a label carrying one of those can collide with a
-  # composite's canonical rendering and two dissimilar derivative states can share a seen-key.
+  # A label is a word in gen-graph's parse alphabet: a label the parser cannot read could never be
+  # named in an admission expression.
   isLabelChar =
     c:
     (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9") || c == "_" || c == "-";

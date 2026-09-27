@@ -949,7 +949,7 @@ in
               true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.viewRelation: channel 'settings' declares a competition key that SPLITS one element: the datum authored at scope 'top' \\(data entry 0\\) survives under 2 competition keys \\(\"'include\\*\", \"'parent\\*\"\\), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived$";
+            msg = "^gen-view\\.viewRelation: channel 'settings' declares a competition key that SPLITS one element: the datum authored at scope 'top' \\(data entry 0\\) survives under 2 competition keys \\(\"[0-9a-f]{64}\", \"[0-9a-f]{64}\"\\), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived$";
           };
         };
 
@@ -989,7 +989,7 @@ in
               true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.viewRelation: channel 'settings' declares tieSet 'refuse' and the competition key \"'include\\*\" survives with 2 contributions, from scopes rival, top; the declaration asked for exactly one$";
+            msg = "^gen-view\\.viewRelation: channel 'settings' declares tieSet 'refuse' and the competition key \"[0-9a-f]{64}\" survives with 2 contributions, from scopes rival, top; the declaration asked for exactly one$";
           };
         };
 
@@ -1011,7 +1011,7 @@ in
               true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.viewRelation: channel 'settings' declares a competition key that SPLITS one element: the datum authored at scope 'top' \\(data entry 0\\) survives under 2 competition keys \\(\"'include\\*\", \"'parent\\*\"\\), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived$";
+            msg = "^gen-view\\.viewRelation: channel 'settings' declares a competition key that SPLITS one element: the datum authored at scope 'top' \\(data entry 0\\) survives under 2 competition keys \\(\"[0-9a-f]{64}\", \"[0-9a-f]{64}\"\\), so one authored declaration would contribute once per key; a competition key must be constant over an element's arrivals, and the three contribution fields that can differ across them — admission, distance, path — are path-derived$";
           };
         };
       };
