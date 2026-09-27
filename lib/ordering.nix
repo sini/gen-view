@@ -422,12 +422,15 @@ let
   # `isFunction v || (isAttrs v && v ? __functor)`. THIS DOOR IS DELIBERATELY NARROWER, lambda-only:
   # the contracted shape here is `isRegistered`'s, a plain lambda, and a `__functor` callable is
   # refused BY NAME rather than admitted. ★ THE EXEMPLAR IS `isRegistered`, NOT `mkNodeRef`, AND
-  # THE DIFFERENCE IS MEASURED: at gen-graph `896433b` — the rev both `flake.lock` and
-  # `ci/flake.lock` pin — `builtins.functionArgs graph.mkNodeRef` is `{ isRegistered = false; }`.
-  # `mkNodeRef` is ITSELF A PATTERN FORMAL, of shape `{ isRegistered } -> id -> <nodeRef>`, whose
-  # ultimate codomain is a SET and not a bool; it satisfies `isFunction`, and its named formal is
-  # what the `formalsOf` door refuses by name. Naming it as the `id -> bool` exemplar named a value
-  # this construct can never apply.
+  # THE DIFFERENCE IS MEASURED: at gen-graph `978f618` — the rev both `flake.lock` and
+  # `ci/flake.lock` pin — `mkNodeRef` is a RECORD door (`args:` under gen-prelude's
+  # `checkRequired`), so `builtins.functionArgs graph.mkNodeRef` is `{ }` and the `formalsOf` door
+  # cannot see it. Its shape is still `{ isRegistered } -> id -> <nodeRef>`, whose ultimate codomain
+  # is a SET and not a bool; it satisfies `isFunction`, and applied to a node identifier by
+  # `illTypedAdmissions` it is refused catchably by gen-graph's own door (`gen-graph.mkNodeRef: the
+  # argument must be an attrset, not a string (required: 'isRegistered') (in
+  # prelude.checkRequired)`). Naming it as the `id -> bool` exemplar named a value this construct can
+  # never apply.
   #
   # ★★ THE APPLIED-RESULT CHECK IS TOTAL OVER `nodes`, BY CONSTRUCTION AND NOT BY THE CYCLE TEST'S
   # GOOD BEHAVIOUR. `illTypedAdmissions` below forces `a.admitsCycle n` for EVERY member of `nodes`
