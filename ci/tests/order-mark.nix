@@ -292,6 +292,81 @@ let
       label = l;
       target = l;
     }) ls;
+
+  # ── THE ATTRIBUTION's PROJECTION — `project`'s whole answer, plus what every shadowed member
+  # names under `orders`, plus whether ANY visible member carries the field. Read through `inherit`,
+  # so a build without the field refuses LOUDLY (`attribute 'orders' missing`) rather than reading
+  # as an empty list, and the survival half is asserted beside it so a build that moved survival
+  # while adding the field reds here too.
+  attribution =
+    r:
+    project r
+    // {
+      orders = map (c: { inherit (c) scope orders; }) r.shadowed;
+      visibleCarryOrders = builtins.any (c: c ? orders) r.contributions;
+    };
+  attributionOf = querySpec: markSpec: attribution (relationOn graph "H" querySpec markSpec);
+
+  # A relation over a carrier of its own, rooted at `R` with a datum at every other scope — the
+  # fixtures whose words are long enough, or whose alphabet wide enough, to hold TWO witnesses.
+  attributionOver =
+    {
+      letters,
+      expression,
+      query,
+      mark,
+      scopes,
+      edges,
+    }:
+    let
+      ls = v.edgeLabels { inherit letters; };
+      adm = v.labelWellFormedness {
+        alphabet = ls;
+        inherit expression;
+      };
+      ord =
+        spec:
+        v.labelOrder {
+          alphabet = ls;
+          inherit (spec) layers endOfPath;
+        };
+    in
+    attribution (
+      v.viewRelation {
+        definition = v.compositions.movement {
+          channel = "settings";
+          relation = "import";
+          root = "R";
+          direction = "outbound";
+          admission = adm;
+          order = ord query;
+          wellFormed = _: true;
+          tieSet = v.tieSets.union;
+          empty = [ ];
+          combine = v.combines.listAppend;
+          dedup = v.dedups.none;
+        };
+        graph = v.scopeGraph {
+          carrier = v.carrier {
+            labels = ls;
+            inherit relations;
+            relatumLabels = roles;
+            labelWellFormedness = adm;
+            labelOrder = ord query;
+            dataOrder = key;
+          };
+          scopes = [ "R" ] ++ scopes;
+          inherit edges;
+          data = map (s: {
+            scope = s;
+            relation = "import";
+            datum = [ "from-${s}" ];
+          }) scopes;
+        };
+        marks = _: [ ];
+        orderMark = ord mark;
+      }
+    );
 in
 {
   flake.tests.order-mark = {
@@ -652,7 +727,7 @@ in
     # LOSS carried in GREEN, `from-MANDATE` the converse. A build that emitted `shadowed` without
     # the datum, or that carried the WINNER's datum onto the losing record, reds here and nowhere
     # else — no cell above projects this field.
-    # ★ Attribution — WHICH mark shadowed it — is a separate surface and is not asserted here.
+    # ★ Attribution — WHICH order shadowed it — is a separate surface, asserted by the A cells below.
     test-o5-the-losing-datum-is-readable-off-shadowed-in-both-readings = {
       expr = {
         redTargetDeclines = shadowedDatums hostileQuery identityMark;
@@ -679,6 +754,251 @@ in
             datum = [ "from-DEFAULT" ];
           }
         ];
+      };
+    };
+
+    # ══ A — EVERY LOSS NAMES THE ORDER THAT SHADOWED IT ══════════════════════════════════════
+    # `shadowed[].orders` lists every component of `<ₑ` holding a pair that shadows the member:
+    # `"orderMark"` iff `rankₘ` separates the two symbols at their first divergence, `"order"` iff the
+    # mark ties them and `rank_q` separates them. EVERY witness is named — the list is the image of
+    # the witness set, never a pick — so A4 and A5, the two-witness fixtures, are the only cells that
+    # red a build which names one component per member. A cell asserting only that the field is
+    # PRESENT would pass a build whose field is constant. Every cell also asserts that no visible
+    # member carries the field, and restates the whole survival answer: the field is additive.
+
+    # A1 — the O8 GREEN reading: both losses are the MARK's, including `D`, whom the hostile query
+    # would also have ranked last. A query-counterfactual attribution reds here.
+    test-a1-under-the-mandate-mark-every-loss-names-the-mark = {
+      expr = attributionOf hostileQuery mandateMark;
+      expected = {
+        contributions = [ "M" ];
+        value = [ "from-MANDATE" ];
+        shadowed = [
+          {
+            scope = "H";
+            path = [ ];
+          }
+          {
+            scope = "D";
+            path = [ "default" ];
+          }
+        ];
+        orders = [
+          {
+            scope = "H";
+            orders = [ "orderMark" ];
+          }
+          {
+            scope = "D";
+            orders = [ "orderMark" ];
+          }
+        ];
+        visibleCarryOrders = false;
+      };
+    };
+
+    # A2 — BOTH NAMES IN ONE RELATION. Under the tie mark `H` loses to the mark's `$` pair and `M`
+    # loses inside the mark's tie, to the query.
+    test-a2-the-tie-mark-names-the-mark-for-one-loss-and-the-query-for-the-other = {
+      expr = attributionOf hostileQuery tieMark;
+      expected = {
+        contributions = [ "D" ];
+        value = [ "from-DEFAULT" ];
+        shadowed = [
+          {
+            scope = "H";
+            path = [ ];
+          }
+          {
+            scope = "M";
+            path = [ "mandate" ];
+          }
+        ];
+        orders = [
+          {
+            scope = "H";
+            orders = [ "orderMark" ];
+          }
+          {
+            scope = "M";
+            orders = [ "order" ];
+          }
+        ];
+        visibleCarryOrders = false;
+      };
+    };
+
+    # A3 — CONTROL. The identity mark ties every symbol, so it holds no pair and can never be
+    # named: the attribution degenerates to "the query did it", as the order does.
+    test-a3-control-the-identity-mark-is-never-named = {
+      expr = attributionOf hostileQuery identityMark;
+      expected = {
+        contributions = [ "H" ];
+        value = [ "from-HOST-own" ];
+        shadowed = [
+          {
+            scope = "D";
+            path = [ "default" ];
+          }
+          {
+            scope = "M";
+            path = [ "mandate" ];
+          }
+        ];
+        orders = [
+          {
+            scope = "D";
+            orders = [ "order" ];
+          }
+          {
+            scope = "M";
+            orders = [ "order" ];
+          }
+        ];
+        visibleCarryOrders = false;
+      };
+    };
+
+    # A4 — A WITNESS AT EVERY NODE. Mark `b ≃ $ ≺ a`, query `$ ≺ a ≺ b`. `Q` at `[a b]` loses at `[]`
+    # to `Y`'s `b` on a MARK pair and at `[a]` to `X`'s `$` on a QUERY pair, so it names both.
+    test-a4-a-loss-witnessed-at-two-nodes-names-both-components = {
+      expr = attributionOver {
+        letters = [
+          "a"
+          "b"
+        ];
+        expression = "(a|b)*";
+        query = {
+          layers = [
+            [ "a" ]
+            [ "b" ]
+          ];
+          endOfPath = -1;
+        };
+        mark = {
+          layers = [
+            [ "b" ]
+            [ "a" ]
+          ];
+          endOfPath = 0;
+        };
+        scopes = [
+          "X"
+          "Y"
+          "Q"
+        ];
+        edges = {
+          a = id: if id == "R" then [ "X" ] else [ ];
+          b =
+            id:
+            if id == "R" then
+              [ "Y" ]
+            else if id == "X" then
+              [ "Q" ]
+            else
+              [ ];
+        };
+      };
+      expected = {
+        contributions = [ "Y" ];
+        value = [ "from-Y" ];
+        shadowed = [
+          {
+            scope = "X";
+            path = [ "a" ];
+          }
+          {
+            scope = "Q";
+            path = [
+              "a"
+              "b"
+            ];
+          }
+        ];
+        orders = [
+          {
+            scope = "X";
+            orders = [ "orderMark" ];
+          }
+          {
+            scope = "Q";
+            orders = [
+              "orderMark"
+              "order"
+            ];
+          }
+        ];
+        visibleCarryOrders = false;
+      };
+    };
+
+    # A5 — EVERY WITNESS AT ONE NODE. Mark `a ≺ b ≃ c`, query `b ≺ c ≺ a`. `C` is beaten at `[]` by
+    # `a` on a MARK pair and by `b` on a QUERY pair; the node minimum is `a`, so a build naming only
+    # the pair against the minimum drops the query witness and reds here alone.
+    test-a5-two-witnesses-at-one-node-are-both-named = {
+      expr = attributionOver {
+        letters = [
+          "a"
+          "b"
+          "c"
+        ];
+        expression = "(a|b|c)";
+        query = {
+          layers = [
+            [ "b" ]
+            [ "c" ]
+            [ "a" ]
+          ];
+          endOfPath = 0;
+        };
+        mark = {
+          layers = [
+            [ "a" ]
+            [
+              "b"
+              "c"
+            ]
+          ];
+          endOfPath = 0;
+        };
+        scopes = [
+          "A"
+          "B"
+          "C"
+        ];
+        edges = {
+          a = id: if id == "R" then [ "A" ] else [ ];
+          b = id: if id == "R" then [ "B" ] else [ ];
+          c = id: if id == "R" then [ "C" ] else [ ];
+        };
+      };
+      expected = {
+        contributions = [ "A" ];
+        value = [ "from-A" ];
+        shadowed = [
+          {
+            scope = "B";
+            path = [ "b" ];
+          }
+          {
+            scope = "C";
+            path = [ "c" ];
+          }
+        ];
+        orders = [
+          {
+            scope = "B";
+            orders = [ "orderMark" ];
+          }
+          {
+            scope = "C";
+            orders = [
+              "orderMark"
+              "order"
+            ];
+          }
+        ];
+        visibleCarryOrders = false;
       };
     };
   };

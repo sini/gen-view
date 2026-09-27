@@ -381,17 +381,20 @@ let
       # under ∩ — and it is the FAIL-OPEN direction here, because the composition rule is
       # minimality and removing pairs ENLARGES the antichain. A mark composed by ∩ would be
       # powerless rather than binding.
+      # Both ranks are restated from the checked layers under `labelOrder`'s own law, never read
+      # off the element (den-hoag-6vsvx), so a forged `rankOf` is inert and every rank is an int
+      # by construction. `rankOf` answers for `$` as well as for every letter, so ONE function
+      # covers L̂. Bound here, not inside `effectiveOrder`, because step 6's attribution reads them.
+      markRank =
+        carrierLib.orderLaw "viewRelation" "orderMark." markOrder.alphabet markOrder.layers
+          markOrder.endOfPath;
+      qRank =
+        carrierLib.orderLaw "viewRelation" "definition.order." def.order.alphabet def.order.layers
+          def.order.endOfPath;
+
       effectiveOrder =
         let
           q = def.order;
-          # Both ranks are restated from the checked layers under `labelOrder`'s own law, never read
-          # off the element (den-hoag-6vsvx), so a forged `rankOf` is inert and every rank is an int
-          # by construction. `rankOf` answers for `$` as well as for every letter, so ONE function
-          # covers L̂.
-          markRank =
-            carrierLib.orderLaw "viewRelation" "orderMark." markOrder.alphabet markOrder.layers
-              markOrder.endOfPath;
-          qRank = carrierLib.orderLaw "viewRelation" "definition.order." q.alphabet q.layers q.endOfPath;
           keyOf = l: [
             (markRank l)
             (qRank l)
@@ -526,11 +529,53 @@ let
                 _: bs: foldl' (m: b: if b.rank < m then b.rank else m) (head bs).rank bs
               ) (builtins.groupBy (b: b.node) (concatMap branchesOf grp.members));
               survives = c: builtins.all (b: b.rank == minRank.${b.node}) (branchesOf c);
+              # The attribution: which component of `<ₑ` holds a pair that shadows `c`. A `d <ₑ c`
+              # diverges from `c` at a node `u`, and its pair is the MARK's iff `rankₘ` already
+              # separates the two symbols there, the QUERY's iff the mark ties them and `rank_q`
+              # separates them. Every such pair's component is named in `orders`, as `withheld`'s
+              # `marks` names every mark, so the list is never empty for a shadowed member. Built per
+              # group, and only when read.
+              pairsOf =
+                c:
+                let
+                  s = map (step: step.label) c.path ++ [ "$" ];
+                in
+                builtins.genList (
+                  i:
+                  let
+                    l = builtins.elemAt s i;
+                  in
+                  {
+                    node = builtins.toJSON (builtins.genList (j: builtins.elemAt s j) i);
+                    m = markRank l;
+                    q = qRank l;
+                  }
+                ) (length s);
+              pairs = concatMap pairsOf grp.members;
+              tiedAt =
+                b:
+                builtins.toJSON [
+                  b.node
+                  b.m
+                ];
+              minM = builtins.mapAttrs (_: bs: foldl' (m: b: if b.m < m then b.m else m) (head bs).m bs) (
+                builtins.groupBy (b: b.node) pairs
+              );
+              minQ = builtins.mapAttrs (_: bs: foldl' (m: b: if b.q < m then b.q else m) (head bs).q bs) (
+                builtins.groupBy tiedAt pairs
+              );
+              ordersOf =
+                c:
+                let
+                  bs = pairsOf c;
+                in
+                (if builtins.any (b: minM.${b.node} < b.m) bs then [ "orderMark" ] else [ ])
+                ++ (if builtins.any (b: minQ.${tiedAt b} < b.q) bs then [ "order" ] else [ ]);
             in
             {
               inherit (grp) key;
               visible = filter survives grp.members;
-              shadowed = filter (c: !(survives c)) grp.members;
+              shadowed = map (c: c // { orders = ordersOf c; }) (filter (c: !(survives c)) grp.members);
             }
           )
           (

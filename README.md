@@ -120,7 +120,9 @@ view.viewRelation {
 
 The result carries `name`, `value`, `contributions`, `shadowed`, `withheld` and `dropped` — the
 discarded set, the boundary diagnostic and every dedup drop, **inside** the result rather than
-beside it.
+beside it. Each `shadowed` record is the losing contribution plus `orders`: every component of the
+effective order that holds a pair shadowing it, `"orderMark"`, `"order"` or both, never empty — as
+`withheld`'s `marks` names every mark. A visible contribution carries no such field.
 
 ## What is required and what is refused
 
