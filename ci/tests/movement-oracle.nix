@@ -11,8 +11,15 @@
 #     across it (kind vs relation, placement arity): the edge record's library retired (ADR-0010 §3)
 #     and §9.5 ruled both questions (kind = relation ratified; the single-placement bound accepted).
 #   · Arm (d) on a TWO-survivor base under `union`: with a non-commutative combine its value is walk
-#     order, and whether that construction answers or refuses is an open ruling. Arm (d) is read on
-#     the one-survivor base only, where no disposition can reorder anything.
+#     order, and whether that construction answers or refuses is `den-hoag-nq9p`'s open ruling (Q1).
+#     Arm (d)'s ONE-survivor reading stays below (`test-o2-d-different-tieSet-does-NOT-move-the-hash`),
+#     where no disposition can reorder anything. The two-survivor axis IS read below too, but by
+#     comparing `orderedFold` against `orderedFold` — never against `union` — which carries no
+#     dependency on Q1's verdict (`reports/den-hoag-ff2uo-wtac7-recover-v0.md`). LEFT OUT: the third
+#     cell of that triad, which read `orderedFold` declared in the WALK's own order AGAINST `union`'s
+#     baseline, to isolate "declaring a different order" from "naming a tie-set at all" — that
+#     isolation is stated only in terms of `union`'s own two-survivor value, so it has no Q1-free
+#     re-expression and re-enters once Q1 is read.
 #
 # ★ EVERY CONTROL CELL IS NAMED `test-control-*`. NO CELL ASSERTS A THROW BY LETTING `expr` THROW:
 # expected refusals are measured through `builtins.tryEval`, so `expr` is always a forcible value.
@@ -57,6 +64,25 @@ in
       expected = false;
     };
 
+    # ── ARM (d), THE TWO-SURVIVOR AXIS, Q1-INDEPENDENT ──────────────────────────────────────────
+    # Two `orderedFold` DECLARATIONS, never `orderedFold` against `union`: the flat-order base's
+    # two-member surviving group is disposed by a declared order that names the scopes in the
+    # WALK's own order, and again by one that reverses the first two. `trace` is a function of the
+    # entry SET (as above), so the disposition still cannot move the fingerprint; `combine`
+    # (`listAppend`) is order-sensitive, so it still moves the answer.
+    test-o2-d-mechanism-orderedFold-order-moves-the-answer-not-the-hash = {
+      expr = {
+        answersDiffer =
+          o2.tieSetRerun.flat_orderedFold_walkOrder.answer != o2.tieSetRerun.flat_orderedFold_reversed.answer;
+        hashesEqual =
+          o2.tieSetRerun.flat_orderedFold_walkOrder.hash == o2.tieSetRerun.flat_orderedFold_reversed.hash;
+      };
+      expected = {
+        answersDiffer = true;
+        hashesEqual = true;
+      };
+    };
+
     test-control-o2-a-pure-permutation-leaves-the-hash-byte-equal = {
       expr = o2.control.byteEqual;
       expected = true;
@@ -97,6 +123,20 @@ in
     test-o2-value-half-d-is-byte-equal-on-the-base = {
       expr = o2.valueVerdict.d_different_tieSet;
       expected = "byte-equal";
+    };
+
+    # The value half of the Q1-independent re-run: the SAME `orderedFold`-vs-`orderedFold` pair the
+    # mechanism cell above reads, showing the value half catches the axis the hash half is blind to.
+    test-o2-value-half-catches-the-orderedFold-order-axis-the-hash-cannot = {
+      expr = {
+        value = o2.tieSetRerunValues.orderedFoldWalkOrder_vs_reversed;
+        hashEqual =
+          o2.tieSetRerun.flat_orderedFold_walkOrder.hash == o2.tieSetRerun.flat_orderedFold_reversed.hash;
+      };
+      expected = {
+        value = "differs";
+        hashEqual = true;
+      };
     };
 
     # ★ ALL THREE OUTCOMES OF THE VALUE COMPARISON MUST BE LIVE, or the column is two-valued in

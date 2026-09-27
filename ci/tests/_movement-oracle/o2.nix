@@ -86,6 +86,45 @@ let
 
   armE_mark = f.mkRelation { marks = f.includeMark; };
 
+  # ── ARM (d), Q1-INDEPENDENT RE-EXPRESSION ──────────────────────────────────────────────────────
+  # `union` on a TWO-survivor group folds a non-commutative `combine` in WALK order, an implicit
+  # tie-break the papers never sanction; whether that construction answers or refuses is
+  # `den-hoag-nq9p`'s open ruling (Q1), so no cell here may compare against `union`'s own two-survivor
+  # value. `orderedFold`'s order is instead a DECLARED total order, already shipped and exercised on
+  # the one-survivor base by `armD_tieSet` above — comparing two `orderedFold` DECLARATIONS against
+  # EACH OTHER, never against `union`, exercises the same "a disposition can move the answer without
+  # moving the hash" property with no dependency on Q1's verdict.
+  #
+  # Both declarations sit on the FLAT-ORDER base, whose surviving group has TWO members (so a
+  # disposition has something to reorder), and both use `orderedFold`, differing only in the
+  # declared order: one names the scopes in the WALK's own order, the other reverses the first two.
+  flatOrderedFoldWalkOrder = f.mkRelation {
+    definition = f.mkDefinition {
+      order = f.flatOrder;
+      tieSet = v.tieSets.orderedFold {
+        order = [
+          "inc"
+          "mid"
+          "leaf"
+          "root"
+        ];
+      };
+    };
+  };
+  flatOrderedFoldReversed = f.mkRelation {
+    definition = f.mkDefinition {
+      order = f.flatOrder;
+      tieSet = v.tieSets.orderedFold {
+        order = [
+          "mid"
+          "inc"
+          "leaf"
+          "root"
+        ];
+      };
+    };
+  };
+
   # ── THE PERMUTATION CONTROL ─────────────────────────────────────────────────────────────────
   # A PURE PERMUTATION OF DECLARATION ORDER must leave `hashTrace` BYTE-EQUAL. Three presentation
   # axes are permuted at once, none of them semantic:
@@ -179,6 +218,12 @@ let
     e_boundary_mark_added = shapeOf armE_mark;
   };
 
+  # The Q1-independent re-run: two `orderedFold` declarations, never a `union` declaration.
+  tieSetRerun = {
+    flat_orderedFold_walkOrder = shapeOf flatOrderedFoldWalkOrder;
+    flat_orderedFold_reversed = shapeOf flatOrderedFoldReversed;
+  };
+
   control = {
     baseHash = hashOf base;
     permutedHash = hashOf permuted;
@@ -205,13 +250,21 @@ let
     knownRefusing = valueCompare base.value flatRefuse.value;
   };
 
+  # The Q1-independent re-run's value half — the pair's two halves read on the SAME two-arm
+  # comparison the hash half above uses, never against `union`'s two-survivor value.
+  tieSetRerunValues = {
+    orderedFoldWalkOrder_vs_reversed = valueCompare flatOrderedFoldWalkOrder.value flatOrderedFoldReversed.value;
+  };
+
 in
 {
   inherit
     arms
+    tieSetRerun
     control
     valueVerdict
     valueControls
+    tieSetRerunValues
     ;
   verdict = builtins.mapAttrs (_: a: {
     inherit (a) hash answer;
