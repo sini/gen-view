@@ -420,7 +420,10 @@ let
       badFlags = filter (f: !(builtins.isBool a.${f})) flagFields;
       marks = marksAt "referenceResolution" a.marks;
     in
-    if !(builtins.isAttrs a.engine) || !(a.engine ? query) || !(builtins.isFunction a.engine.query) then
+    # The authority's operators are gen-scope DOORS (functors, den-hoag-7gp66 P2), so the reader is
+    # the prelude's functor-aware one: `builtins.isFunction` reads a door as `false` and would refuse
+    # the real authority.
+    if !(builtins.isAttrs a.engine) || !(a.engine ? query) || !(prelude.isFunction a.engine.query) then
       refuse "referenceResolution" "field 'engine' must be a query authority publishing a 'query'; it is the injected membership authority, and this construct performs no resolution of its own"
     else if !(builtins.isString a.name) || a.name == "" then
       refuse "referenceResolution" "field 'name' must be the non-empty name of the result, which is the attribute the evaluator binds it under"
@@ -449,10 +452,10 @@ let
         # handed the BOUNDED record; σ and π read the unbounded one.
         compute =
           self:
+          # The authority's shape: options first, then the data filter, then the protocol tail.
           a.engine.query {
-            dataFilter = filterOver "referenceResolution" a self;
             inherit (a) localShadowsImport importShadowsParent transitiveImports;
-          } (bound "referenceResolution" marks self);
+          } (filterOver "referenceResolution" a self) (bound "referenceResolution" marks self);
 
         # ADR-0026's diagnostic: the edges the marks withheld at a node, each naming its marks —
         # `boundedBy`'s own `withheld`, over the same edges the bound presents.
@@ -488,7 +491,7 @@ let
     if
       !(builtins.isAttrs a.engine)
       || !(a.engine ? queryReverse)
-      || !(builtins.isFunction a.engine.queryReverse)
+      || !(prelude.isFunction a.engine.queryReverse)
     then
       refuse "neededBy" "field 'engine' must be a query authority publishing a 'queryReverse'; it is the injected membership authority, and this construct performs no traversal of its own — an authority publishing only the forward 'query' cannot answer the reverse direction"
     else if !(builtins.isString a.name) || a.name == "" then
@@ -521,9 +524,8 @@ let
         compute =
           self:
           a.engine.queryReverse {
-            dataFilter = filterOver "neededBy" a self;
             inherit (a) transitive;
-          } (bound "neededBy" marks self);
+          } (filterOver "neededBy" a self) (bound "neededBy" marks self);
 
         # The diagnostic at `t`: each DIRECT importer `o` whose edge to `t` its own marks withheld,
         # `from = o` beside `boundedBy`'s entry, naming `o`'s marks. The importer set is the
@@ -539,9 +541,8 @@ let
             )
             (
               a.engine.queryReverse {
-                dataFilter = n: n.id or null;
                 transitive = false;
-              } self t
+              } (n: n.id or null) self t
             );
       };
 in

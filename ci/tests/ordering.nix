@@ -64,8 +64,11 @@ let
   # O7's evaluator witness — `gen-scope`'s OWN roster and fold over the SAME declared relation, so
   # the gate's refusal and the evaluator's success are two answers about one substrate, not two.
   wdsRoots = genScope.buildRoots {
-    kinds = genScope.mkKinds [ (genScope.mkKind { name = "host"; }) ];
-    parentGraph = genScope.edge "child" "parent";
+    kinds = genScope.mkKinds [ (genScope.mkKind { } "host") ];
+    parentGraph = genScope.edge {
+      from = "child";
+      to = "parent";
+    };
     decls = {
       parent = {
         v = 10;
@@ -112,7 +115,7 @@ let
   };
   wdsEvaluatorOn =
     equations: declared:
-    (genScope.foldEquations {
+    (genScope.foldEquations { } {
       scope = wdsRoots;
       schedule = {
         inherit equations;

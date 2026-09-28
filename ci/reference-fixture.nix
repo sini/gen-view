@@ -43,18 +43,31 @@ let
         acc: e: acc // { ${e.from} = (acc.${e.from} or [ ]) ++ [ e.to ]; }
       ) { } edges;
     in
-    s.eval {
-      scope = s.buildRoots {
-        importGraph = s.overlays (map (e: s.edge e.from e.to) edges);
-        inherit decls;
-      };
-      attributes = {
-        children = _self: _id: { };
-        imports = _self: id: importIndex.${id} or [ ];
+    s.eval
+      {
+        parseParent = _id: null;
       }
-      // attributes;
-      parseParent = _id: null;
-    };
+      (
+        {
+          children = _self: _id: { };
+          imports = _self: id: importIndex.${id} or [ ];
+        }
+        // attributes
+      )
+      (
+        s.buildRoots {
+          importGraph = s.overlays (
+            map (
+              e:
+              s.edge {
+                from = e.from;
+                to = e.to;
+              }
+            ) edges
+          );
+          inherit decls;
+        }
+      );
 
   computeOf = args: (v.referenceResolution args).compute;
 
@@ -114,7 +127,7 @@ let
   sentinel = "the-stub-authority-answered";
   stubEngine = {
     query =
-      _args: _self: _id:
+      _options: _dataFilter: _self: _id:
       sentinel;
   };
 
@@ -175,11 +188,10 @@ let
   unguardedQuery =
     args:
     s.query {
-      dataFilter = unguarded args;
       localShadowsImport = true;
       importShadowsParent = true;
       transitiveImports = false;
-    };
+    } (unguarded args);
 
   projectionSelf = mkSelf {
     edges = projectionEdges;
@@ -333,7 +345,7 @@ let
   reverseSentinel = "the-reverse-stub-authority-answered";
   reverseStubEngine = {
     queryReverse =
-      _args: _self: _id:
+      _options: _dataFilter: _self: _id:
       reverseSentinel;
   };
 
@@ -389,12 +401,10 @@ let
         # ★ THE VACUITY ARM — the same π ∘ σ composition with the guard removed and nothing else
         # changed, reached through the delegate directly. Written from the shared `unguarded`
         # binding above so the guarded and unguarded readings differ in EXACTLY the guard.
-        unguarded = s.queryReverse {
-          dataFilter = unguarded {
-            wellFormed = admitsTagged;
-            project = tagOf;
-          };
-        };
+        unguarded = s.queryReverse { } (unguarded {
+          wellFormed = admitsTagged;
+          project = tagOf;
+        });
       };
     };
 
@@ -575,14 +585,16 @@ let
       // {
         inherit marks;
         engine.query =
-          _: bself: _:
+          _: _: bself: _:
           bself;
       }
     )).compute
       self
       null;
   compiledEngine = inner: {
-    query = qa: self: s.query qa (boundedRecord inner self);
+    query =
+      o: dataFilter: self:
+      s.query o dataFilter (boundedRecord inner self);
   };
   compiledSelf = mkSelf {
     edges = providesEdges;
@@ -612,16 +624,16 @@ let
   # `viaAllNodes` reads it through `allNodes`, a member the bound does not narrow; `viaIncludes`
   # reads a relation the bound does not know; `viaImports` is the in-protocol control.
   viaNode.query =
-    _: self: id:
+    _: _: self: id:
     (self.node id).parent;
   viaAllNodes.query =
-    _: self: id:
+    _: _: self: id:
     (builtins.getAttr id self.allNodes).parent;
   viaIncludes.query =
-    _: self: id:
+    _: _: self: id:
     self.get id "includes";
   viaImports.query =
-    _: self: id:
+    _: _: self: id:
     self.get id "imports";
   stubRecord = withParent: {
     get = _: _: [ "y" ];
