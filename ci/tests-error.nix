@@ -2923,6 +2923,29 @@ in
               f = { x }: _: [ ];
             }).value
             "expected a set but found a list";
+        # S13 — the step is binary, so its result on the accumulator alone is applied again: a unary
+        # step is refused by name at every contribution, the first and a later one (den-hoag-khmwt)
+        test-a-unary-scan-step-is-named =
+          cell
+            (v.transform.scan {
+              relation = f.relation;
+              name = "s";
+              empty = [ ];
+              f = _: 42;
+            }).value
+            "^gen-view\\.scan: the step, on the accumulator before contribution 0, returned 42; .*$";
+        # `f.relation` competes on one key and keeps ONE contribution; keyed per scope it keeps three
+        test-a-scan-step-unary-at-a-later-contribution-is-named =
+          cell
+            (v.transform.scan {
+              relation = f.mkRelation {
+                definition = v.viewDefinition (f.definitionArgs // { channel = f.perScopeKey; });
+              };
+              name = "s";
+              empty = [ ];
+              f = acc: if acc == [ ] then c: acc ++ c.datum else 42;
+            }).value
+            "^gen-view\\.scan: the step, on the accumulator before contribution 1, returned 42; .*$";
         test-an-admits-ellipsis-formal-aborts = residue "TypeError" (read (
           marked (_: [
             {

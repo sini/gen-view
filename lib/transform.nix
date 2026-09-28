@@ -34,6 +34,7 @@ let
     fields
     decided
     renderValue
+    returned
     formalsOf
     quote
     ;
@@ -99,8 +100,15 @@ let
       r = viewIn "scan" a.relation;
       name = named "scan" a.name;
       cs = elements.contributionsOf "scan" r;
+      # The step is binary, so what it returns on the accumulator alone is applied again; checked
+      # there, at every contribution, or a unary `f` aborts past `tryEval` calling its result.
       states = builtins.genList (
-        i: a.f (if i == 0 then a.empty else builtins.elemAt states (i - 1)) (builtins.elemAt cs i)
+        i:
+        returned "scan" "the step, on the accumulator before contribution ${toString i},"
+          "it is a binary step `accumulator → contribution → accumulator`, so it must return a function"
+          builtins.isFunction
+          (a.f (if i == 0 then a.empty else builtins.elemAt states (i - 1)))
+          (builtins.elemAt cs i)
       ) (length cs);
       stepped = builtins.genList (i: builtins.elemAt cs i // { datum = builtins.elemAt states i; }) (
         length cs
