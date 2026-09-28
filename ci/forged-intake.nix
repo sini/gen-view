@@ -49,14 +49,13 @@ let
   vd = over: v.viewDefinition (f.definitionArgs // over);
 
   # gen-graph's declared-edges marker, carried by hand-built values (P3 / Q3).
-  ref = graph.mkNodeRef {
-    isRegistered =
-      n:
-      builtins.elem n [
-        "a"
-        "b"
-      ];
-  };
+  ref = graph.mkNodeRef (
+    n:
+    builtins.elem n [
+      "a"
+      "b"
+    ]
+  );
   genuineEdges = graph.mkDeclaredEdges [
     {
       from = ref "a";

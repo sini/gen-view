@@ -31,14 +31,13 @@ let
   v = genView;
 
   # ══ W1 FIXTURE — boundedWellDefinedSchedule, ORACLE O2 and O5a ══
-  wdsRef = graph.mkNodeRef {
-    isRegistered =
-      id:
-      builtins.elem id [
-        "child"
-        "parent"
-      ];
-  };
+  wdsRef = graph.mkNodeRef (
+    id:
+    builtins.elem id [
+      "child"
+      "parent"
+    ]
+  );
   wdsContracted = rel: graph.mkDeclaredEdges (builtins.mapAttrs (_: ids: map wdsRef ids) rel);
   wdsDeclaredCyclic = wdsContracted {
     child = [ "parent" ];

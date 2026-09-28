@@ -1112,12 +1112,16 @@ in
     test-control-two-witnesses-reach-the-node-beneath-the-projection = {
       expr =
         let
-          answers = graph.query {
-            mode = "paths";
-            graph = diamond.labeled;
-            from = "d";
-            follow = dAdmission.expr;
-          };
+          answers =
+            graph.query
+              {
+                mode = "paths";
+              }
+              {
+                graph = diamond.labeled;
+                from = "d";
+                follow = dAdmission.expr;
+              };
           atA = builtins.filter (ans: ans.node == "a") answers;
         in
         {
@@ -2316,12 +2320,16 @@ in
     test-control-o1-diamond-has-two-distinguishable-arrivals-before-collapse = {
       expr =
         let
-          answers = graph.query {
-            mode = "paths";
-            graph = diamondGraph.labeled;
-            from = "leaf";
-            follow = diamondAdmission.expr;
-          };
+          answers =
+            graph.query
+              {
+                mode = "paths";
+              }
+              {
+                graph = diamondGraph.labeled;
+                from = "leaf";
+                follow = diamondAdmission.expr;
+              };
           atTop = builtins.filter (ans: ans.node == "top") answers;
           stateOf =
             ans:

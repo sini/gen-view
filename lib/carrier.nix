@@ -607,29 +607,26 @@ let
       ) edgeLabelNames;
       patterned = sortNames (filter (l: formalsOf edges.${l} != [ ]) edgeLabelNames);
       nonAccessor = sort builtins.lessThan (filter (l: !(builtins.isFunction edges.${l})) edgeLabelNames);
-      labeled = graph.labeledFrom {
-        perLabel = builtins.mapAttrs (
-          l: acc: s:
-          let
-            out =
-              returned "scopeGraph" "the edge accessor ${renderSubject l} at scope ${renderSubject s}"
-                "each label's value is the accessor scope → [ scope ]"
-                builtins.isList
-                (acc s);
-          in
-          if !(elem l c.labels.letters) then
-            out
-          else
-            map (
-              t:
-              if builtins.isString t && scopeIndex ? ${builtins.unsafeDiscardStringContext t} then
-                t
-              else
-                refuse "scopeGraph" "the edge accessor ${renderSubject l} at scope ${renderSubject s} returned the target ${renderValue t}, which is not a scope of this graph (${quote scopes}); an L edge is `s —l→ s′` between scopes of the graph"
-            ) out
-        ) edges;
-        nodes = scopes;
-      };
+      labeled = graph.labeledFrom (builtins.mapAttrs (
+        l: acc: s:
+        let
+          out =
+            returned "scopeGraph" "the edge accessor ${renderSubject l} at scope ${renderSubject s}"
+              "each label's value is the accessor scope → [ scope ]"
+              builtins.isList
+              (acc s);
+        in
+        if !(elem l c.labels.letters) then
+          out
+        else
+          map (
+            t:
+            if builtins.isString t && scopeIndex ? ${builtins.unsafeDiscardStringContext t} then
+              t
+            else
+              refuse "scopeGraph" "the edge accessor ${renderSubject l} at scope ${renderSubject s} returned the target ${renderValue t}, which is not a scope of this graph (${quote scopes}); an L edge is `s —l→ s′` between scopes of the graph"
+          ) out
+      ) edges) scopes;
     in
     if !(builtins.isAttrs edges) then
       refuse site "${fieldName "edges"} must be an attrset of label → (scope → [ scope ]); it is the per-label accessor the walk steps"

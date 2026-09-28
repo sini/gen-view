@@ -214,7 +214,7 @@ let
       # The accessor's RESULT is checked where gen-graph consumes it, by the one statement of the
       # marks contract this library carries (`refusal.nix`, `marksContract`), shared with
       # `referenceResolution` and `neededBy`.
-      bounded = graph.boundedBy labeled (marksOf.at a.marks);
+      bounded = graph.boundedBy (marksOf.at a.marks) labeled;
 
       # 2 — direction: the converse of `edges(G|M)`, taken AFTER the bound. The mark classifies the
       # edges leaving its node in the AUTHORED graph whichever way the query walks, so which edge
@@ -235,12 +235,16 @@ let
       # 3 — the walk. WFD does NOT run here: under (NR-Rel) the path is constrained by WFL and the
       # DATUM by WFD, and collapsing the two would filter scopes by a predicate written for data
       # terms. The walk's own predicate is therefore total.
-      answers = graph.query {
-        mode = "paths";
-        graph = directed;
-        from = def.root;
-        follow = expr;
-      };
+      answers =
+        graph.query
+          {
+            mode = "paths";
+          }
+          {
+            graph = directed;
+            from = def.root;
+            follow = expr;
+          };
 
       # The distance rule's declared contract is `{ distance; from; label; to; } → int`
       # (`viewDefinition`), and step 4's `<`, `trace`'s order and `hashTrace` all read what it

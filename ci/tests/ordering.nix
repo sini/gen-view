@@ -32,14 +32,13 @@ let
   # A two-node declared relation, `child -> parent`, minted the ONLY way `graph.isDeclaredEdges`
   # admits: through `graph.mkDeclaredEdges`. The SAME two nodes back a `gen-scope` root pair so O7
   # can hand the evaluator the identical declared relation the gate refuses or admits.
-  wdsRef = graph.mkNodeRef {
-    isRegistered =
-      id:
-      builtins.elem id [
-        "child"
-        "parent"
-      ];
-  };
+  wdsRef = graph.mkNodeRef (
+    id:
+    builtins.elem id [
+      "child"
+      "parent"
+    ]
+  );
   wdsContracted = rel: graph.mkDeclaredEdges (builtins.mapAttrs (_: ids: map wdsRef ids) rel);
   wdsDeclaredCyclic = wdsContracted {
     child = [ "parent" ];

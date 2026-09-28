@@ -309,10 +309,10 @@ let
 
   classified =
     site: marks: self:
-    graph.boundedBy {
+    graph.boundedBy marks {
       nodes = [ ];
       labeledEdges = edgesAt site self;
-    } marks;
+    };
 
   # ★★ A PROJECTION, NEVER A FILTERED VIEW OF THE EVALUATOR (gen-scope `eval.nix`, `spawnHandle`).
   # Every member outside `protocol` is DENIED BY NAME, catchably, over whatever the evaluator
