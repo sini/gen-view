@@ -168,15 +168,15 @@ collapses its elements under `==` too, and a STRING element carries its twins' c
 
 ### Dedup and string context: the stated boundaries
 
-Three collapses drop a twin's store dependencies silently. Each is a declared exception to ADR-0025
-item 1 ("a value or a named refusal"), and each retires when `den-hoag-gkrtw` lands (store
-dependencies as graph edges, where dedup is a quotient that keeps every datum's edges).
+Three collapses drop a twin's store dependencies silently. Each is a declared exception to the rule that
+a result is "a value or a named refusal", and each retires once store dependencies become graph
+edges, where dedup is a quotient that keeps every datum's edges.
 
 **Under `byKey`, a collapse of `==`-equal NON-string data drops the collapsed twin's store
 dependencies silently.** `byKey` addresses the key and never walks the datum. The union reaches a string kept
 datum only, and a non-string datum's twins are never forced. Carrying the loss would need a walk of
 datum content, and a walk bounded so that it refuses past its bound would refuse deep valid input.
-ADR-0032 does not allow a bound invented to limit cost. Pinned by
+gen admits no bound invented to limit cost. Pinned by
 `…-drops-the-twins-edge-the-stated-boundary`.
 
 **In `combines.setUnion`, a collapse of `==`-equal NON-string elements drops the collapsed twin's
@@ -185,7 +185,7 @@ union adds no walk to `unique`'s own `==`: it hands each non-string element on a
 it, so where `==` meets the same value it takes its pointer-identity shortcut, and a pointer-shared
 cyclic element or one with a lazily-throwing attribute contributed twice is a value. An edge walk
 would overflow on the first and force the second. (`==` between elements that are not the same value
-still compares them structurally, as it did before the rule.) A bounded walk is excluded on the same ground (ADR-0032). This boundary
+still compares them structurally, as it did before the rule.) A bounded walk is excluded on the same ground. This boundary
 is pending an owner reading. Pinned by `…-set-union-non-string-collapse-drops-the-twins-edge-the-stated-boundary`.
 
 **A context held beside a derivation's `outPath` (`drv // { extra = <store path>; }`) is dropped
