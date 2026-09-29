@@ -157,10 +157,25 @@ query walks.
 A dedup collapse keeps every dependency edge. `==` is blind to string context, so data equal
 under it may carry different store paths; the kept datum then carries the union of its twins'
 contexts when it is a string, and under `byDatum` a non-string that would lose an edge is refused
-by name (`ci/tests/dedup-context.nix`; the refusal is a known boundary, to be retired). Under `byKey` the
-union reaches a string datum only, so a non-string collapse stays silent, as it was before. The
-walk stops at a coercion, at `__toString`, else `outPath`: a context held beside one is not read,
-and its collapse stays silent.
+by name (`ci/tests/dedup-context.nix`; the refusal is a known boundary, to be retired). The
+walk stops at a coercion, at `__toString`, else `outPath`, so a context held beside one is an edge
+it cannot read: under `byDatum` a collapse holding a coercible set that is not a derivation and has
+attributes besides its coercion is refused by name, whatever those attributes carry. The check
+reads shape, never a sibling's value. `combines.setUnion` collapses its elements under `==` too, and
+keeps their edges by the same rule, with one difference: the fold re-brackets its op, so a
+non-string union collapse is refused unless every collapsed element carries the same edges. A
+containment test would give a verdict that depends on which twins meet first.
+
+### Dedup and string context: the stated boundary
+
+**Under `byKey`, a collapse of `==`-equal NON-string data drops the collapsed twin's store
+dependencies silently.** This is a declared exception to ADR-0025 item 1 ("a value or a named
+refusal"). `byKey` addresses the key and never walks the datum. The union reaches a string kept
+datum only, and a non-string datum's twins are never forced. Carrying the loss would need a walk of
+datum content, and a walk bounded so that it refuses past its bound would refuse deep valid input.
+ADR-0032 does not allow a bound invented to limit cost. The exception retires when `den-hoag-gkrtw`
+lands (store dependencies as graph edges, where dedup is a quotient that keeps every datum's edges),
+and the cell pinning it, `…-drops-the-twins-edge-the-stated-boundary`, flips then.
 
 ## The data component, boundaries and ordering
 

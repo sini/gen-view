@@ -158,27 +158,6 @@ let
     in
     builtins.toJSON (tag x);
 
-  # `edgesOf v` — the dependency edges of `v`, as one empty string carrying their union. It stops
-  # at a coercion, where `bucketAddress`'s `toJSON` stops, and in `toJSON`'s priority: a
-  # `__toString` set is read through its string, else a set with `outPath` through it (so a
-  # derivation, which refers to itself, is never walked). Functions, paths, numbers, bools and null
-  # carry no context.
-  edgesOf =
-    v:
-    if builtins.isString v then
-      builtins.substring 0 0 v
-    else if builtins.isList v then
-      builtins.concatStringsSep "" (map edgesOf v)
-    else if builtins.isAttrs v then
-      if v ? __toString then
-        builtins.substring 0 0 (toString v)
-      else if v ? outPath then
-        edgesOf v.outPath
-      else
-        builtins.concatStringsSep "" (map (n: edgesOf v.${n}) (builtins.attrNames v))
-    else
-      "";
-
   viewRelation =
     args:
     let
@@ -781,15 +760,19 @@ let
           # cannot carry context), and the kept datum carries the union of its `==`-equal twins'
           # edges — a string by its context, which is Nix's own concatenation. A non-string datum
           # cannot carry the union, so under `byDatum` a collapse that would lose an edge is refused
-          # by name. Under `byKey` the address walks the key, never the datum, so the union reaches
-          # a STRING kept datum only, and only its `==` twins: a collapse of unequal data drops the
-          # whole datum, as declared, and a non-string datum's twins are never forced or walked, so
-          # its collapse is silent exactly as before the rule. Nor is the KEPT datum forced by the
-          # collapse: under `byKey` the union is the kept record's `datum` field, computed when the
-          # datum is read, so a record read without its datum reads as it did before the rule.
-          # `edgesOf` stops where `bucketAddress` stops, at `__toString`, else `outPath`, so a
-          # context held beside a coercion is not read and its collapse is still silent.
-          # den-hoag-gkrtw replaces this with the general quotient.
+          # by name. The edge walk stops where `bucketAddress` stops, at `__toString`, else
+          # `outPath`, so a context held BESIDE a coercion is an edge it cannot read: under `byDatum`
+          # any collapse holding a non-derivation coercible set with such siblings is refused by
+          # name, whatever it carries. Under `byKey` the address walks the key, never the datum, so
+          # the union reaches a STRING kept datum only, and only its `==` twins: a collapse of
+          # unequal data drops the whole datum, as declared, and a non-string datum's twins are
+          # never forced or walked, so its collapse is silent exactly as before the rule — the
+          # declared boundary (ADR-0025 item 1 exception, README "Dedup and string context") that
+          # den-hoag-gkrtw retires. Nor is the KEPT datum forced by the collapse: under `byKey` the
+          # union is the kept record's `datum` field, computed when the datum is read, so a record
+          # read without its datum reads as it did before the rule. The rule itself is
+          # `enums.absorb`, shared with the set union's `==`-collapse. den-hoag-gkrtw replaces it
+          # with the general quotient.
           #
           # ★ ADMISSION OF A NON-STRING COLLAPSE DEPENDS ON WALK ORDER, by construction: the
           # walk-first datum is the one kept, and the collapse is refused iff it lacks an edge of a
@@ -824,27 +807,18 @@ let
                     absorbed.${toString t.i} or [ ]
                   )
                 );
-                lost = builtins.concatStringsSep "" (map edgesOf twins);
+                d = enums.absorb {
+                  fn = "viewRelation";
+                  subject = "channel ${renderSubject name}";
+                  at = " at scope ${renderSubject t.c.scope}";
+                } datum twins;
               in
               if def.dedup.arm == "byKey" then
-                if absorbed ? ${toString t.i} then
-                  t.c
-                  // {
-                    datum =
-                      if builtins.isString datum then builtins.appendContext datum (builtins.getContext lost) else datum;
-                  }
-                else
-                  t.c
+                if absorbed ? ${toString t.i} then t.c // { datum = d; } else t.c
               else if twins == [ ] then
                 t.c
-              else if !(builtins.hasContext lost) then
-                t.c
-              else if builtins.isString datum then
-                t.c // { datum = builtins.appendContext datum (builtins.getContext lost); }
-              else if builtins.getContext (edgesOf datum + lost) == builtins.getContext (edgesOf datum) then
-                t.c
               else
-                refuse "viewRelation" "channel ${renderSubject name} collapses a non-string datum at scope ${renderSubject t.c.scope} with ${toString (builtins.length twins)} `==`-equal twin(s) whose store dependencies it does not carry (${quote (builtins.attrNames (removeAttrs (builtins.getContext lost) (builtins.attrNames (builtins.getContext (edgesOf datum)))))}); a dedup collapse keeps every dependency edge, and only a string can carry the union (den-hoag-gkrtw retires this refusal)";
+                builtins.seq d (t.c // { datum = d; });
             quotients = builtins.listToAttrs (
               map (t: {
                 name = toString t.i;

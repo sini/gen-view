@@ -2191,6 +2191,7 @@ in
       let
         a = builtins.toFile "kunjm-ctx-a" "a";
         bareA = builtins.unsafeDiscardStringContext a;
+        w3 = "^gen-view\\.viewRelation: channel 'settings' collapses a datum at scope 'inc' holding a coercible set that is not a derivation and has attributes besides its coercion; .*den-hoag-gkrtw.*$";
         byDatum =
           datums:
           (v.viewRelation {
@@ -2228,9 +2229,30 @@ in
             msg = "^gen-view\\.viewRelation: channel 'settings' collapses a non-string datum at scope 'inc' with 1 `==`-equal twin\\(s\\) whose store dependencies it does not carry \\(.*-kunjm-ctx-a\\); .*den-hoag-gkrtw.*$";
           };
         };
-        # A set carrying BOTH coercions is read through `__toString`, as `toJSON` reads it: the
-        # twin's context lives in the string it renders, not in `outPath`.
-        test-a-set-with-both-coercions-that-would-drop-its-twins-edge-is-refused-by-name = {
+        # A set carrying BOTH coercions is read through `__toString`, as `toJSON` reads it, so its
+        # `outPath` is a sibling the walk cannot read: a context there is refused by shape, never
+        # dropped. (With a shared `__toString`, the only way two such sets are `==`.)
+        test-a-set-with-both-coercions-whose-outpath-carries-the-context-is-refused-by-shape = {
+          expr =
+            let
+              toStr = _: "s";
+              both = o: {
+                outPath = o;
+                __toString = toStr;
+              };
+            in
+            builtins.deepSeq (byDatum [
+              [ (both bareA) ]
+              [ (both a) ]
+            ]) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = w3;
+          };
+        };
+        # The same both-coercion set rendering through a SIBLING (`s`) is W3's shape: refused
+        # before any edge is read.
+        test-a-set-with-both-coercions-and-a-sibling-is-refused-by-shape = {
           expr =
             let
               toStr = self: self.s;
@@ -2246,7 +2268,84 @@ in
             ]) true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.viewRelation: channel 'settings' collapses a non-string datum at scope 'inc' with 1 `==`-equal twin\\(s\\) whose store dependencies it does not carry \\(.*-kunjm-ctx-a\\); .*den-hoag-gkrtw.*$";
+            msg = w3;
+          };
+        };
+        # F2 = (i) under β: a non-string union collapse whose kept element's edges strictly contain
+        # its twin's loses nothing, and is refused, because a containment verdict would depend on
+        # the fold's bracketing.
+        test-the-set-union-refuses-a-dominated-non-string-collapse-by-name = {
+          expr = builtins.deepSeq ((v.combines.setUnion { acc = true; }).op
+            [
+              [ (builtins.appendContext bareA (builtins.getContext (a + builtins.toFile "kunjm-ctx-b" "b"))) ]
+            ]
+            [ [ a ] ]
+          ) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.combines\\.setUnion: the set union collapses a non-string datum with 1 `==`-equal twin\\(s\\) whose store dependencies differ from its own; .*den-hoag-gkrtw.*$";
+          };
+        };
+        # ★ F1 = W3 (den-hoag-kunjm, owner-ruled): a context held BESIDE a coercion is an edge the
+        # walk cannot read (it stops at `outPath`, as the bucket address does), so a collapse holding
+        # a non-derivation coercible set with siblings is refused by name. This was the pin of the
+        # silent drop, `…-hidden-sibling-context-dropped-pending-F1`.
+        test-a-collapse-holding-a-coercible-set-with-a-context-sibling-is-refused-by-name = {
+          expr = builtins.deepSeq (byDatum [
+            [
+              {
+                outPath = "x";
+                extra = bareA;
+              }
+            ]
+            [
+              {
+                outPath = "x";
+                extra = a;
+              }
+            ]
+          ]) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = w3;
+          };
+        };
+        # A SHAPE check: the refusal does not read the sibling, so a context-free one is refused too.
+        test-a-collapse-holding-a-coercible-set-with-a-context-free-sibling-is-refused-by-name = {
+          expr = builtins.deepSeq (byDatum [
+            {
+              outPath = "x";
+              extra = 1;
+            }
+            {
+              outPath = "x";
+              extra = 1;
+            }
+          ]) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = w3;
+          };
+        };
+        # F2: the set union's `==`-collapse is the same quotient, refused from its own site.
+        test-the-set-union-refuses-a-coercible-set-with-siblings-by-name = {
+          expr = builtins.deepSeq ((v.combines.setUnion { acc = true; }).op
+            [
+              {
+                outPath = "x";
+                extra = 1;
+              }
+            ]
+            [
+              {
+                outPath = "x";
+                extra = 1;
+              }
+            ]
+          ) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.combines\\.setUnion: the set union collapses a datum holding a coercible set that is not a derivation and has attributes besides its coercion; .*den-hoag-gkrtw.*$";
           };
         };
       };
