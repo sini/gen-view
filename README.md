@@ -154,28 +154,40 @@ condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, 
 L edges after its boundary marks, so a mark withholds the same authored edge whichever way the
 query walks.
 
-A dedup collapse keeps every dependency edge. `==` is blind to string context, so data equal
+A dedup collapse keeps its twins' dependency edges wherever it can read them. `==` is blind to string context, so data equal
 under it may carry different store paths; the kept datum then carries the union of its twins'
 contexts when it is a string, and under `byDatum` a non-string that would lose an edge is refused
 by name (`ci/tests/dedup-context.nix`; the refusal is a known boundary, to be retired). The
 walk stops at a coercion, at `__toString`, else `outPath`, so a context held beside one is an edge
 it cannot read: under `byDatum` a collapse holding a coercible set that is not a derivation and has
 attributes besides its coercion is refused by name, whatever those attributes carry. The check
-reads shape, never a sibling's value. `combines.setUnion` collapses its elements under `==` too, and
-keeps their edges by the same rule, with one difference: the fold re-brackets its op, so a
-non-string union collapse is refused unless every collapsed element carries the same edges. A
-containment test would give a verdict that depends on which twins meet first.
+reads shape, never a sibling's value, and follows an `outPath` that is itself a set. A set typed
+`"derivation"` with an `outPath` is exempt: it is compared by its `outPath`. `combines.setUnion`
+collapses its elements under `==` too, and a STRING element carries its twins' contexts.
 
-### Dedup and string context: the stated boundary
+### Dedup and string context: the stated boundaries
+
+Three collapses drop a twin's store dependencies silently. Each is a declared exception to ADR-0025
+item 1 ("a value or a named refusal"), and each retires when `den-hoag-gkrtw` lands (store
+dependencies as graph edges, where dedup is a quotient that keeps every datum's edges).
 
 **Under `byKey`, a collapse of `==`-equal NON-string data drops the collapsed twin's store
-dependencies silently.** This is a declared exception to ADR-0025 item 1 ("a value or a named
-refusal"). `byKey` addresses the key and never walks the datum. The union reaches a string kept
+dependencies silently.** `byKey` addresses the key and never walks the datum. The union reaches a string kept
 datum only, and a non-string datum's twins are never forced. Carrying the loss would need a walk of
 datum content, and a walk bounded so that it refuses past its bound would refuse deep valid input.
-ADR-0032 does not allow a bound invented to limit cost. The exception retires when `den-hoag-gkrtw`
-lands (store dependencies as graph edges, where dedup is a quotient that keeps every datum's edges),
-and the cell pinning it, `…-drops-the-twins-edge-the-stated-boundary`, flips then.
+ADR-0032 does not allow a bound invented to limit cost. Pinned by
+`…-drops-the-twins-edge-the-stated-boundary`.
+
+**In `combines.setUnion`, a collapse of `==`-equal NON-string elements drops the collapsed twin's
+store dependencies silently.** Reading a non-string element's edges is a walk of its content, which
+the union otherwise never does: `unique`'s `==` shortcuts on pointer identity, so a pointer-shared
+cyclic element or one with a lazily-throwing attribute is a value, and a walk would overflow on the
+first and force the second. A bounded walk is excluded on the same ground (ADR-0032). This boundary
+is pending an owner reading. Pinned by `…-set-union-non-string-collapse-drops-the-twins-edge-the-stated-boundary`.
+
+**A context held beside a derivation's `outPath` (`drv // { extra = <store path>; }`) is dropped
+silently** under `byDatum` and in the union. Nix `==` compares a derivation by its `outPath`, so the
+collapse is licensed, and W3's refusal exempts derivations so that ordinary packages stay admitted.
 
 ## The data component, boundaries and ordering
 
