@@ -139,9 +139,17 @@ let
   # ★ A NON-STRING UNION COLLAPSE IS A STATED BOUNDARY, NOT A CHECK: it keeps the walk-first
   # element as it stood and drops a twin's context silently, as before the rule. Reading a
   # non-string element's edges is a walk of datum content, which is not total here (a pointer-shared
-  # cyclic element overflows the stack uncatchably, a lazily-throwing attribute is forced, where
-  # `unique`'s `==` shortcuts on pointer identity and forces neither), and a bound on that walk would
-  # refuse deep valid input (ADR-0032). Pending an owner reading; den-hoag-gkrtw retires it.
+  # cyclic element overflows the stack uncatchably, a lazily-throwing attribute is forced), and a
+  # bound on that walk would refuse deep valid input (ADR-0032). Pending an owner reading;
+  # den-hoag-gkrtw retires it.
+  #
+  # ★ A NON-STRING ELEMENT IS EMITTED AS THE VALUE `unique` RETURNED, NEVER REBUILT. Nix `==` takes
+  # its pointer-identity shortcut only on the same value: a `map` that rebuilds every element hands
+  # the next op a fresh thunk, whose `==` against the shared original then compares structurally and
+  # forces its attributes (a lazily-throwing attribute throws, an `abort` aborts uncatchably), where
+  # the base union was a value. `concatMap` over singleton lists keeps the element itself. Lix
+  # shortcuts before forcing either way, so only upstream Nix and Determinate show the difference.
+  # `unique`'s `==` still compares non-identical elements structurally, as it did at base.
   setUnionOf =
     acc:
     mkCombine {
@@ -153,11 +161,14 @@ let
           byText = builtins.groupBy builtins.unsafeDiscardStringContext (
             builtins.filter builtins.isString xs
           );
-          twinsOf =
-            r:
-            if builtins.isString r then builtins.tail byText.${builtins.unsafeDiscardStringContext r} else [ ];
+          twinsOf = r: builtins.tail byText.${builtins.unsafeDiscardStringContext r};
         in
-        if builtins.length xs < 2 then xs else map (r: absorb unionSite r (twinsOf r)) (unique xs);
+        if builtins.length xs < 2 then
+          xs
+        else
+          builtins.concatMap (
+            r: if builtins.isString r then [ (absorb unionSite r (twinsOf r)) ] else [ r ]
+          ) (unique xs);
       unit = [ ];
       associative = true;
       setSemilattice = true;
@@ -210,13 +221,14 @@ let
   # `outPath` is dropped silently, a stated boundary. Reading a sibling instead is not total (a
   # flake input recurses, a pointer-shared cyclic set overflows, both uncatchably). ★ A SHAPE
   # CHECK, run only at step 8 `byDatum`, whose bucket address has already walked the datum: it
-  # reads attribute NAMES and a set's `type` and forces no sibling's value.
+  # reads attribute NAMES, and `type` only of a set with an `outPath` (the read Nix `==` makes to
+  # decide a derivation); it forces no other sibling's value.
   uncertified =
     v:
     if builtins.isList v then
       builtins.any uncertified v
     else if builtins.isAttrs v then
-      if (v.type or null) == "derivation" && v ? outPath then
+      if v ? outPath && (v.type or null) == "derivation" then
         false
       else if v ? __toString then
         builtins.attrNames (removeAttrs v [ "__toString" ]) != [ ]

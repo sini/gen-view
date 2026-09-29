@@ -161,7 +161,8 @@ by name (`ci/tests/dedup-context.nix`; the refusal is a known boundary, to be re
 walk stops at a coercion, at `__toString`, else `outPath`, so a context held beside one is an edge
 it cannot read: under `byDatum` a collapse holding a coercible set that is not a derivation and has
 attributes besides its coercion is refused by name, whatever those attributes carry. The check
-reads shape, never a sibling's value, and follows an `outPath` that is itself a set. A set typed
+reads attribute names, and `type` only of a set with an `outPath`; it forces no other sibling's
+value, and it follows an `outPath` that is itself a set. A set typed
 `"derivation"` with an `outPath` is exempt: it is compared by its `outPath`. `combines.setUnion`
 collapses its elements under `==` too, and a STRING element carries its twins' contexts.
 
@@ -179,10 +180,12 @@ ADR-0032 does not allow a bound invented to limit cost. Pinned by
 `…-drops-the-twins-edge-the-stated-boundary`.
 
 **In `combines.setUnion`, a collapse of `==`-equal NON-string elements drops the collapsed twin's
-store dependencies silently.** Reading a non-string element's edges is a walk of its content, which
-the union otherwise never does: `unique`'s `==` shortcuts on pointer identity, so a pointer-shared
-cyclic element or one with a lazily-throwing attribute is a value, and a walk would overflow on the
-first and force the second. A bounded walk is excluded on the same ground (ADR-0032). This boundary
+store dependencies silently.** Reading a non-string element's edges is a walk of its content. The
+union adds no walk to `unique`'s own `==`: it hands each non-string element on as `unique` returned
+it, so where `==` meets the same value it takes its pointer-identity shortcut, and a pointer-shared
+cyclic element or one with a lazily-throwing attribute contributed twice is a value. An edge walk
+would overflow on the first and force the second. (`==` between elements that are not the same value
+still compares them structurally, as it did before the rule.) A bounded walk is excluded on the same ground (ADR-0032). This boundary
 is pending an owner reading. Pinned by `…-set-union-non-string-collapse-drops-the-twins-edge-the-stated-boundary`.
 
 **A context held beside a derivation's `outPath` (`drv // { extra = <store path>; }`) is dropped

@@ -345,6 +345,48 @@ in
         builtins.all builtins.isAttrs r;
       expected = true;
     };
+    # The union emits a non-string element as the value `unique` returned. Through step 9 with
+    # contributions `[ el other ]` then `[ el ]`, the second op's `==` meets `el` itself and takes
+    # the pointer shortcut; an op that rebuilt its elements (`map`) would hand it a fresh thunk and
+    # force `el.a`. ★ THIS CELL DISCRIMINATES ONLY UNDER UPSTREAM NIX (and Determinate): Lix takes
+    # the shortcut before forcing either way, so under Lix a rebuilt element is also a value.
+    test-the-set-union-keeps-a-shared-element-unforced-through-the-fold = {
+      expr =
+        let
+          el = {
+            a = throw "shared element forced";
+          };
+          r =
+            (v.viewRelation {
+              definition = f.mkDefinition {
+                order = f.flatOrder;
+                combine = v.combines.setUnion { acc = true; };
+              };
+              graph = v.scopeGraph {
+                inherit (f) carrier scopes edges;
+                data = [
+                  {
+                    scope = "inc";
+                    relation = "import";
+                    datum = [
+                      el
+                      { b = 1; }
+                    ];
+                  }
+                  {
+                    scope = "mid";
+                    relation = "import";
+                    datum = [ el ];
+                  }
+                ];
+              };
+              marks = f.noMarks;
+              orderMark = f.identityMark;
+            }).value;
+        in
+        builtins.length r;
+      expected = 2;
+    };
     test-control-a-context-free-string-collapse-is-unchanged = {
       expr = byDatum [
         "s"
