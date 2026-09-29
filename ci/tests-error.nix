@@ -2437,6 +2437,25 @@ in
             msg = w3;
           };
         };
+        # W3 reads `type` only of a set with an `outPath`: a `__toString` set with a throwing `type`
+        # is refused by shape, and its `type` is never forced (gate v1 K2).
+        test-a-tostring-set-with-a-throwing-type-is-refused-without-reading-type = {
+          expr =
+            let
+              ts = {
+                __toString = _: "x";
+                type = throw "type forced";
+              };
+            in
+            builtins.deepSeq (byDatum [
+              [ ts ]
+              [ ts ]
+            ]) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = w3;
+          };
+        };
         # ★ F1 = W3 (den-hoag-kunjm, owner-ruled): a context held BESIDE a coercion is an edge the
         # walk cannot read (it stops at `outPath`, as the bucket address does), so a collapse holding
         # a non-derivation coercible set with siblings is refused by name. This was the pin of the
