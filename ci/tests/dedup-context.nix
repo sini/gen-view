@@ -206,11 +206,12 @@ in
         read = [ "inc" ];
       };
     };
-    # ★ PIN of today's SILENT drop: a `byKey` collapse of `==`-equal NON-string data whose contexts
-    # differ keeps the walk-first datum and loses `a`, exactly as before the rule, where `byKey`
-    # addressed the key only. A landing that reaches non-string data under `byKey` (den-hoag-kunjm's
-    # S1) flips this cell.
-    test-a-bykey-nonstring-collapse-of-equal-data-context-dropped-pending-S1 = {
+    # ★ THE STATED BOUNDARY (den-hoag-kunjm S1, a declared ADR-0025 item 1 exception; README
+    # "Dedup and string context"): a `byKey` collapse of `==`-equal NON-string data whose contexts
+    # differ keeps the walk-first datum and loses `a`. `byKey` addresses the key and never walks the
+    # datum, and a walk bounded to refuse deep input would refuse valid input (ADR-0032). This cell
+    # flips when den-hoag-gkrtw carries every datum's edges.
+    test-a-bykey-nonstring-collapse-of-equal-data-drops-the-twins-edge-the-stated-boundary = {
       expr = byKey (_: "K") [
         [ bareA ]
         [ a ]
@@ -261,38 +262,80 @@ in
         edges = pathsOf a;
       };
     };
-    # ★ PIN of today's SILENT drop: a context held in a SIBLING of a coercible set is not an edge
-    # the walk reads (it stops at the coercion, as the bucket address does), so the collapse keeps
-    # the walk-first set and loses `a`. A landing that refuses this shape (den-hoag-kunjm's F1)
-    # flips this cell; den-hoag-gkrtw's construct is where the sibling is read.
-    test-a-coercible-sets-hidden-sibling-context-dropped-pending-F1 = {
+    # W3's refusal reaches NON-derivation coercible sets only: a derivation is read through its
+    # `outPath`, as Nix `==` and the bucket address read it, so its siblings are not edges at stake.
+    test-a-derivation-with-siblings-collapses-and-keeps-its-edge = {
       expr =
         let
-          r = run (movement v.dedups.byDatum) [
-            [
-              {
-                outPath = "x";
-                extra = bareA;
-              }
-            ]
-            [
-              {
-                outPath = "x";
-                extra = a;
-              }
-            ]
-          ];
+          drv = {
+            type = "derivation";
+            name = "kunjm-drv";
+            outPath = a;
+          };
         in
-        {
-          kept = builtins.length r.contributions;
-          dropped = builtins.length r.dropped;
-          # read the sibling itself: the address and `edgesOf` both stop at `outPath`
-          edges = pathsOf (builtins.head (builtins.head r.contributions).datum).extra;
-        };
+        byDatum [
+          [ drv ]
+          [ drv ]
+        ];
       expected = {
         kept = 1;
         dropped = 1;
-        edges = [ ];
+        edges = [ (pathsOf a) ];
+      };
+    };
+    # ── THE SET UNION: its `==`-collapse is the same quotient (den-hoag-kunjm F2) ──
+    # ★ The walk-first element is the context-FREE one, so prelude `unique` keeps no edge.
+    test-the-set-union-collapses-a-string-into-its-bare-twin-and-keeps-the-twins-edge = {
+      expr =
+        let
+          r =
+            run
+              (f.mkDefinition {
+                order = f.flatOrder;
+                combine = v.combines.setUnion { acc = true; };
+              })
+              [
+                [ bareA ]
+                [ a ]
+              ];
+        in
+        map pathsOf r.value;
+      expected = [ (pathsOf a) ];
+    };
+    # ★ The union's op is re-bracketed by the fold, so its verdict on a non-string collapse must
+    # not depend on which twins meet first: `[s{p,q}]`, `[s{p}]`, `[s{q}]` is refused under both
+    # bracketings. A containment test (refuse iff a twin has an edge the kept lacks) admits the
+    # left and refuses the right.
+    test-the-set-union-verdict-is-the-same-under-both-bracketings = {
+      expr =
+        let
+          op = (v.combines.setUnion { acc = true; }).op;
+          x = [ (builtins.appendContext bareA (builtins.getContext (a + b))) ];
+          y = [ a ];
+          z = [ aWithB ];
+          admits = r: (builtins.tryEval (builtins.deepSeq r true)).success;
+        in
+        {
+          left = admits (op (op [ x ] [ y ]) [ z ]);
+          right = admits (op [ x ] (op [ y ] [ z ]));
+        };
+      expected = {
+        left = false;
+        right = false;
+      };
+    };
+    test-the-set-union-admits-a-non-string-collapse-of-equal-edge-sets = {
+      expr =
+        let
+          r = (v.combines.setUnion { acc = true; }).op [ [ a ] ] [ [ (bareA + builtins.substring 0 0 a) ] ];
+        in
+        {
+          length = builtins.length r;
+          edges = pathsOf (builtins.head (builtins.head r));
+        };
+      expected = {
+        length = 1;
+        edges = pathsOf a;
       };
     };
     test-control-a-context-free-string-collapse-is-unchanged = {

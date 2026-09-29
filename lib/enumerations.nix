@@ -22,6 +22,7 @@ let
     decided
     strings
     renderSubject
+    quote
     ;
 
   # ── COMBINES ────────────────────────────────────────────────────────────────────────────────
@@ -128,16 +129,141 @@ let
         setUnionOf a.acc;
   };
 
+  # ★ THE UNION IS A `==`-COLLAPSE, SO IT KEEPS EVERY DEPENDENCY EDGE (den-hoag-kunjm, the quotient
+  # rule, as step 8's dedup does): each kept element absorbs its `==`-equal twins through `absorb`,
+  # a string by its context and a non-string by a named refusal when it would lose one. Strings go
+  # by a text-keyed table, linear as `unique`'s own string path; any other list pays one `==` scan
+  # per kept element, the order of `unique`'s fold.
   setUnionOf =
     acc:
     mkCombine {
       arm = "setUnion";
-      op = a': b': unique (a' ++ b');
+      op =
+        a': b':
+        let
+          xs = a' ++ b';
+          byText = builtins.groupBy builtins.unsafeDiscardStringContext (
+            builtins.filter builtins.isString xs
+          );
+          twinsOf =
+            r:
+            let
+              m =
+                if builtins.isString r then
+                  byText.${builtins.unsafeDiscardStringContext r}
+                else
+                  builtins.filter (x: x == r) xs;
+            in
+            if m == [ ] then [ ] else builtins.tail m;
+        in
+        if builtins.length xs < 2 then xs else map (r: absorb unionSite r (twinsOf r)) (unique xs);
       unit = [ ];
       associative = true;
       setSemilattice = true;
       inherit acc;
     };
+
+  unionSite = {
+    fn = "combines.setUnion";
+    subject = "the set union";
+    at = "";
+    exact = true;
+  };
+
+  # ── THE QUOTIENT RULE (den-hoag-kunjm) ──────────────────────────────────────────────────────
+  # A collapse of data equal under `==` but differing in string context identifies nodes, and a
+  # quotient keeps every incident edge: the kept datum carries the UNION of its twins' dependency
+  # edges. Both `==`-collapsing sites, step 8's dedup and the set union above, route through
+  # `absorb`. den-hoag-gkrtw replaces it with the general quotient, and its refusals retire.
+
+  # `edgesOf v` — the dependency edges of `v`, as one empty string carrying their union. It stops
+  # at a coercion, where step 8's bucket address (`toJSON`) stops, and in `toJSON`'s priority: a
+  # `__toString` set is read through its string, else a set with `outPath` through it (so a
+  # derivation, which refers to itself, is never walked). Functions, paths, numbers, bools and null
+  # carry no context.
+  edgesOf =
+    v:
+    if builtins.isString v then
+      builtins.substring 0 0 v
+    else if builtins.isList v then
+      builtins.concatStringsSep "" (map edgesOf v)
+    else if builtins.isAttrs v then
+      if v ? __toString then
+        builtins.substring 0 0 (toString v)
+      else if v ? outPath then
+        edgesOf v.outPath
+      else
+        builtins.concatStringsSep "" (map (n: edgesOf v.${n}) (builtins.attrNames v))
+    else
+      "";
+
+  # `uncertified v` — whether `v` holds a coercible set that is not a derivation and has attributes
+  # besides its coercion. `edgesOf` stops at the coercion, so a context in such a sibling is an edge
+  # it cannot read. The coercion is the one `edgesOf` reads, in `toJSON`'s priority, so the
+  # `outPath` of a set that also has `__toString` is a sibling like any other, and no collapse of `v` can certify that it keeps every edge. Reading the
+  # sibling instead is not total (a flake input recurses, a pointer-shared cyclic set overflows,
+  # both uncatchably). ★ A SHAPE CHECK: it walks where `edgesOf` walks and reads attribute NAMES
+  # and a set's `type`, which is Nix `==`'s own derivation test; it forces no sibling's value.
+  uncertified =
+    v:
+    if builtins.isList v then
+      builtins.any uncertified v
+    else if builtins.isAttrs v then
+      if (v.type or null) == "derivation" then
+        false
+      else if v ? __toString then
+        builtins.attrNames (removeAttrs v [ "__toString" ]) != [ ]
+      else if v ? outPath then
+        builtins.attrNames (removeAttrs v [ "outPath" ]) != [ ]
+      else
+        builtins.any (n: uncertified v.${n}) (builtins.attrNames v)
+    else
+      false;
+
+  # `absorb site kept twins` — `kept` carrying its `==`-equal `twins`' edges, or a named refusal.
+  # A string carries the union by its context, which is Nix's own concatenation. A non-string
+  # cannot, so a collapse that would lose an edge is refused; so is any collapse holding a shape
+  # whose edges cannot be read (`uncertified`), whatever it carries.
+  #
+  # ★ `exact` IS THE SET UNION'S, BECAUSE ITS OP IS RE-BRACKETED. `foldCombine` re-brackets on the
+  # arm's declared associativity, so the op's verdict must not depend on which twins meet first.
+  # "Refuse iff a twin has an edge the kept datum lacks" does: `[s{p,q}]`, `[s{p}]`, `[s{q}]` is a
+  # value left-bracketed and refused when `[s{p}]` meets `[s{q}]` first. "Refuse iff the edge sets
+  # of a non-string collapse are not all equal" does not: a collapse never changes a non-string
+  # kept element, and one fold's comparisons span each `==`-class, so every bracketing sees a
+  # differing pair iff one exists (ADR-0022). It also refuses a collapse whose kept element's
+  # edges strictly contain a twin's, which loses nothing. Step 8 is not re-bracketed (its
+  # admission follows the declared walk order), so it keeps the containment test. Defaulted,
+  # reversible, for the owner's confirmation (den-hoag-kunjm F2).
+  absorb =
+    {
+      fn,
+      subject,
+      at,
+      exact ? false,
+    }:
+    kept: twins:
+    let
+      lost = builtins.concatStringsSep "" (map edgesOf twins);
+      own = builtins.getContext (edgesOf kept);
+    in
+    if twins == [ ] then
+      kept
+    else if uncertified kept then
+      refuse fn "${subject} collapses a datum${at} holding a coercible set that is not a derivation and has attributes besides its coercion; a store dependency there is an edge the collapse cannot read, so it cannot keep every dependency edge (den-hoag-gkrtw retires this refusal)"
+    else if exact && !(builtins.isString kept) then
+      if builtins.all (w: builtins.getContext (edgesOf w) == own) twins then
+        kept
+      else
+        refuse fn "${subject} collapses a non-string datum${at} with ${toString (builtins.length twins)} `==`-equal twin(s) whose store dependencies differ from its own; a union collapse keeps every dependency edge, only a string can carry the union, and a refusal that depended on which twins meet first would make the declared associativity false (den-hoag-gkrtw retires this refusal)"
+    else if !(builtins.hasContext lost) then
+      kept
+    else if builtins.isString kept then
+      builtins.appendContext kept (builtins.getContext lost)
+    else if builtins.getContext (edgesOf kept + lost) == own then
+      kept
+    else
+      refuse fn "${subject} collapses a non-string datum${at} with ${toString (builtins.length twins)} `==`-equal twin(s) whose store dependencies it does not carry (${quote (builtins.attrNames (removeAttrs (builtins.getContext lost) (builtins.attrNames (builtins.getContext (edgesOf kept)))))}); a dedup collapse keeps every dependency edge, and only a string can carry the union (den-hoag-gkrtw retires this refusal)";
 
   # `combineOf combine` — the combine record its checked `arm` decides, read from the whitelist
   # table. `op`, `unit`, `associative` and `setSemilattice` are the ARM's, so every reader runs
@@ -341,6 +467,7 @@ in
     combineOf
     combineArms
     foldCombine
+    absorb
     tieSets
     tieSetArms
     dedups
