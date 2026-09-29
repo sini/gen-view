@@ -755,7 +755,7 @@ let
           # as it was: a licensed collapse across encoding classes is still not made, and still not
           # recorded.
           #
-          # ★ A COLLAPSE KEEPS EVERY DEPENDENCY EDGE (den-hoag-kunjm, the quotient rule). `==` is
+          # ★ A COLLAPSE KEEPS ITS TWINS' DEPENDENCY EDGES (den-hoag-kunjm, the quotient rule). `==` is
           # blind to string context, so `idx` is addressed by text (`attrKey`: an attribute name
           # cannot carry context), and the kept datum carries the union of its `==`-equal twins'
           # edges — a string by its context, which is Nix's own concatenation. A non-string datum
@@ -763,7 +763,8 @@ let
           # by name. The edge walk stops where `bucketAddress` stops, at `__toString`, else
           # `outPath`, so a context held BESIDE a coercion is an edge it cannot read: under `byDatum`
           # any collapse holding a non-derivation coercible set with such siblings is refused by
-          # name, whatever it carries. Under `byKey` the address walks the key, never the datum, so
+          # name, whatever it carries, while a context beside a DERIVATION's `outPath` is dropped
+          # silently (a stated boundary). Under `byKey` the address walks the key, never the datum, so
           # the union reaches a STRING kept datum only, and only its `==` twins: a collapse of
           # unequal data drops the whole datum, as declared, and a non-string datum's twins are
           # never forced or walked, so its collapse is silent exactly as before the rule — the
@@ -771,8 +772,8 @@ let
           # den-hoag-gkrtw retires. Nor is the KEPT datum forced by the collapse: under `byKey` the
           # union is the kept record's `datum` field, computed when the datum is read, so a record
           # read without its datum reads as it did before the rule. The rule itself is
-          # `enums.absorb`, shared with the set union's `==`-collapse. den-hoag-gkrtw replaces it
-          # with the general quotient.
+          # `enums.absorb`, which the set union reaches with string twins only. den-hoag-gkrtw
+          # replaces it with the general quotient.
           #
           # ★ ADMISSION OF A NON-STRING COLLAPSE DEPENDS ON WALK ORDER, by construction: the
           # walk-first datum is the one kept, and the collapse is refused iff it lacks an edge of a

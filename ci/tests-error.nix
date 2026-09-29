@@ -2271,19 +2271,47 @@ in
             msg = w3;
           };
         };
-        # F2 = (i) under β: a non-string union collapse whose kept element's edges strictly contain
-        # its twin's loses nothing, and is refused, because a containment verdict would depend on
-        # the fold's bracketing.
-        test-the-set-union-refuses-a-dominated-non-string-collapse-by-name = {
-          expr = builtins.deepSeq ((v.combines.setUnion { acc = true; }).op
-            [
-              [ (builtins.appendContext bareA (builtins.getContext (a + builtins.toFile "kunjm-ctx-b" "b"))) ]
-            ]
-            [ [ a ] ]
-          ) true;
+        # W3 follows an `outPath` that is itself a set, as the edge walk does: the inner set's own
+        # sibling is an edge the walk cannot read, so the collapse is refused (gate C2).
+        test-a-coercible-set-with-a-sibling-nested-under-outpath-is-refused-by-shape = {
+          expr =
+            let
+              nest = s: {
+                outPath = {
+                  outPath = "x";
+                  sib = s;
+                };
+              };
+            in
+            builtins.deepSeq (byDatum [
+              [ (nest bareA) ]
+              [ (nest a) ]
+            ]) true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.combines\\.setUnion: the set union collapses a non-string datum with 1 `==`-equal twin\\(s\\) whose store dependencies differ from its own; .*den-hoag-gkrtw.*$";
+            msg = w3;
+          };
+        };
+        # A set typed "derivation" WITHOUT an `outPath` is not a derivation to `==` (it compares
+        # structurally), so W3 walks into it and refuses the coercible set with a sibling it holds.
+        test-a-derivation-typed-set-without-outpath-is-not-exempt = {
+          expr =
+            let
+              fakeDrv = s: {
+                type = "derivation";
+                x = {
+                  outPath = "y";
+                  sib = s;
+                };
+              };
+            in
+            builtins.deepSeq (byDatum [
+              [ (fakeDrv bareA) ]
+              [ (fakeDrv a) ]
+            ]) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = w3;
           };
         };
         # ★ F1 = W3 (den-hoag-kunjm, owner-ruled): a context held BESIDE a coercion is an edge the
@@ -2325,27 +2353,6 @@ in
           expectedError = {
             type = "ThrownError";
             msg = w3;
-          };
-        };
-        # F2: the set union's `==`-collapse is the same quotient, refused from its own site.
-        test-the-set-union-refuses-a-coercible-set-with-siblings-by-name = {
-          expr = builtins.deepSeq ((v.combines.setUnion { acc = true; }).op
-            [
-              {
-                outPath = "x";
-                extra = 1;
-              }
-            ]
-            [
-              {
-                outPath = "x";
-                extra = 1;
-              }
-            ]
-          ) true;
-          expectedError = {
-            type = "ThrownError";
-            msg = "^gen-view\\.combines\\.setUnion: the set union collapses a datum holding a coercible set that is not a derivation and has attributes besides its coercion; .*den-hoag-gkrtw.*$";
           };
         };
       };

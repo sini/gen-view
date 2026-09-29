@@ -1,6 +1,6 @@
 # A datum or key carrying Nix string CONTEXT — a store path, the ordinary delivered case — is
-# addressed by its text and DECIDED by `==`, and a dedup collapse keeps every dependency edge: the
-# kept datum carries the union of its collapsed twins' contexts (den-hoag-kunjm, the quotient
+# addressed by its text and DECIDED by `==`, and a dedup collapse keeps its twins' dependency edges
+# where it can read them: the kept datum carries the union of its collapsed twins' contexts (den-hoag-kunjm, the quotient
 # rule). Each cell reads the edges off the result; the context-free cells in `relation.nix` are
 # the control. The error half is `../tests-error.nix`, `flake.testsError.dedup-context`.
 { genView, ... }:
@@ -302,32 +302,13 @@ in
         map pathsOf r.value;
       expected = [ (pathsOf a) ];
     };
-    # ★ The union's op is re-bracketed by the fold, so its verdict on a non-string collapse must
-    # not depend on which twins meet first: `[s{p,q}]`, `[s{p}]`, `[s{q}]` is refused under both
-    # bracketings. A containment test (refuse iff a twin has an edge the kept lacks) admits the
-    # left and refuses the right.
-    test-the-set-union-verdict-is-the-same-under-both-bracketings = {
+    # ★ THE STATED BOUNDARY for the union (den-hoag-kunjm F2, pending an owner reading; README
+    # "Dedup and string context"): a collapse of `==`-equal NON-string elements keeps the
+    # walk-first element and loses `a`. Flips when den-hoag-gkrtw carries every datum's edges.
+    test-the-set-union-non-string-collapse-drops-the-twins-edge-the-stated-boundary = {
       expr =
         let
-          op = (v.combines.setUnion { acc = true; }).op;
-          x = [ (builtins.appendContext bareA (builtins.getContext (a + b))) ];
-          y = [ a ];
-          z = [ aWithB ];
-          admits = r: (builtins.tryEval (builtins.deepSeq r true)).success;
-        in
-        {
-          left = admits (op (op [ x ] [ y ]) [ z ]);
-          right = admits (op [ x ] (op [ y ] [ z ]));
-        };
-      expected = {
-        left = false;
-        right = false;
-      };
-    };
-    test-the-set-union-admits-a-non-string-collapse-of-equal-edge-sets = {
-      expr =
-        let
-          r = (v.combines.setUnion { acc = true; }).op [ [ a ] ] [ [ (bareA + builtins.substring 0 0 a) ] ];
+          r = (v.combines.setUnion { acc = true; }).op [ [ bareA ] ] [ [ a ] ];
         in
         {
           length = builtins.length r;
@@ -335,8 +316,34 @@ in
         };
       expected = {
         length = 1;
-        edges = pathsOf a;
+        edges = [ ];
       };
+    };
+    # The union walks no non-string content: a pointer-shared cyclic element, and one holding a
+    # lazily-throwing attribute, contributed twice, are values (`==` shortcuts on the pointer), as
+    # before the rule. An edge walk overflows on the first, uncatchably, and forces the second.
+    test-the-set-union-of-a-pointer-shared-cyclic-element-is-a-value = {
+      expr =
+        let
+          cyc = {
+            a = 1;
+            me = cyc;
+          };
+          r = (v.combines.setUnion { acc = true; }).op [ cyc ] [ cyc ];
+        in
+        map (e: e.a) r;
+      expected = [ 1 ];
+    };
+    test-the-set-union-of-a-shared-lazily-throwing-element-is-a-value = {
+      expr =
+        let
+          lazy = {
+            a = throw "lazy attribute forced";
+          };
+          r = (v.combines.setUnion { acc = true; }).op [ lazy ] [ lazy ];
+        in
+        builtins.all builtins.isAttrs r;
+      expected = true;
     };
     test-control-a-context-free-string-collapse-is-unchanged = {
       expr = byDatum [
