@@ -304,15 +304,18 @@ primary order to a tie and the canonical-JSON secondary resolves it.
 `edgeSortKey` and `renderEntry` are published over **any** entry, and a hand-built one reaches them
 without passing `traceEntryOf`. They split on what each owes its reader:
 
-- **`edgeSortKey` refuses by name.** A sort key must be injective on what it orders, so an entry
-  whose fields are not the names `traceEntryOf` would have minted — a function, a set, an
-  `outPath`/`__toString` set that would key as the string it coerces to — is refused with a
-  catchable `gen-view.edgeSortKey:` (or `.sourceKey:`, `.targetKey:`, `.pathKey:`) error.
+- **`edgeSortKey` refuses by name.** A sort key must be injective on what it orders, so a field it
+  reads (target, path, source, mode, kind, and their names) that is absent, is not a record where a
+  record belongs, carries an arm other than `root` or `output`, or is not a name — a function, a set,
+  an `outPath`/`__toString` set that would key as the string it coerces to — is refused with a
+  catchable `gen-view.edgeSortKey:` (or `.sourceKey:`, `.targetKey:`, `.pathKey:`) error. The
+  witness distance and word are not read, so the key does not judge them.
 - **`renderEntry` discloses by type and never coerces.** Each field renders by `builtins.typeOf`: a
   string, a number and a path as values, anything else as its marker (`‹set›`, `‹lambda›`, `‹list›`,
-  `‹bool›`, `‹null›`, and `‹absent›` for a missing field). It is total, so one malformed entry never
-  hides the rest of a `renderTrace`. What a display may still do is render two distinct values alike
-  (two sets, a path and its string); distinct entries stay distinct in the trace and its fingerprint.
+  `‹bool›`, `‹null›`, and `‹absent›` for a missing field). It is total over values, so one malformed
+  entry never hides the rest of a `renderTrace`; `renderTrace` itself refuses by name anything that
+  is not a list. What a display may still do is render two distinct values alike (two sets, a path
+  and its string); distinct entries stay distinct in the trace and its fingerprint.
 
 ## Tests
 

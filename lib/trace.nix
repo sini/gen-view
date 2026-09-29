@@ -75,8 +75,6 @@ let
       refuse "edgeSortKey" "field 'entry' is ${renderValue e}; it must be a trace entry, as `traceEntryOf` mints"
     else if missing != [ ] then
       refuse "edgeSortKey" "the entry carries no '${builtins.head missing}'; it must be a trace entry, as `traceEntryOf` mints"
-    else if !(builtins.isAttrs e.target) || !(builtins.isAttrs e.source) then
-      refuse "edgeSortKey" "the entry's target and source must be records, as `traceEntryOf` mints"
     else if !((e.kind or null) == null || builtins.isString e.kind) then
       refuse "edgeSortKey" "the entry's kind is ${renderValue e.kind}; it must be a relation name"
     else
@@ -190,7 +188,6 @@ let
   # price is the one a display is allowed: two distinct values may render alike (two sets, a path
   # and its string). Inside a key tuple a marker stands unquoted, where no name can.
   renderEntry =
-    entry:
     let
       marker = x: "‹${builtins.typeOf x}›";
       absent = "‹absent›";
@@ -251,6 +248,7 @@ let
         e: n: render:
         if builtins.hasAttr n e then record e.${n} render else absent;
     in
+    entry:
     record entry (
       e:
       part e "target" target
@@ -264,7 +262,13 @@ let
       + leaf e "mode"
     );
 
-  renderTrace = entries: map renderEntry entries;
+  # A trace is a list; anything else has no rows to disclose, so it is refused by name.
+  renderTrace =
+    entries:
+    if builtins.isList entries then
+      map renderEntry entries
+    else
+      refuse "renderTrace" "field 'entries' is ${renderValue entries}; it must be a list of trace entries, as `trace` returns";
 
   # `hashTrace { relation; placement; }` — the topology's structural fingerprint: `sha256` over the
   # canonical JSON of the trace. Content-independent, because the trace it hashes is: an entry

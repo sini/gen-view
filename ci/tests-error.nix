@@ -186,6 +186,48 @@ in
             };
           }
         )) "^gen-view\\.sourceKey: a key component is <a set>; .*$";
+        # A record malformed BELOW the top level: each selection aborted past `tryEval`
+        # (`attribute … missing`), and an unknown arm keyed as the root it is not.
+        test-an-empty-source-is-refused-at-edgeSortKey = cell (v.edgeSortKey (
+          e0 // { source = { }; }
+        )) "^gen-view\\.sourceKey: the source carries no 'scope'$";
+        test-a-source-without-relation-is-refused-at-edgeSortKey = cell (v.edgeSortKey (
+          e0 // { source = { inherit (e0.source) scope; }; }
+        )) "^gen-view\\.sourceKey: the source carries no 'relation'$";
+        test-an-empty-target-is-refused-at-edgeSortKey = cell (v.edgeSortKey (
+          e0 // { target = { }; }
+        )) "^gen-view\\.targetKey: the target carries no 'arm'$";
+        test-a-target-without-arm-is-refused-at-edgeSortKey = cell (v.edgeSortKey (
+          e0 // { target = builtins.removeAttrs e0.target [ "arm" ]; }
+        )) "^gen-view\\.targetKey: the target carries no 'arm'$";
+        test-an-output-target-without-path-is-refused-at-edgeSortKey = cell (v.edgeSortKey (
+          e0
+          // {
+            target = {
+              arm = "output";
+            };
+          }
+        )) "^gen-view\\.targetKey: the target carries no 'path'$";
+        test-a-non-record-target-is-refused-at-edgeSortKey = cell (v.edgeSortKey (
+          e0 // { target = 42; }
+        )) "^gen-view\\.targetKey: field 'target' is 42; it must be a record$";
+        test-an-undeclared-string-arm-is-refused-at-edgeSortKey = cell (v.edgeSortKey (
+          e0
+          // {
+            target = e0.target // {
+              arm = "bogus";
+            };
+          }
+        )) "^gen-view\\.targetKey: field 'arm' is \"bogus\", which is not one of the declared arms .*$";
+        test-a-function-arm-is-refused-at-edgeSortKey = cell (v.edgeSortKey (
+          e0
+          // {
+            target = e0.target // {
+              arm = fn;
+            };
+          }
+        )) "^gen-view\\.targetKey: field 'arm' is <a lambda>, which is not one of the declared arms .*$";
+        test-a-non-list-is-refused-at-renderTrace = cell (v.renderTrace 42) "^gen-view\\.renderTrace: field 'entries' is 42; .*$";
         test-a-non-entry-is-refused-at-edgeSortKey = cell (v.edgeSortKey 42) "^gen-view\\.edgeSortKey: field 'entry' is 42; .*$";
       };
 

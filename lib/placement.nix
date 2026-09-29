@@ -158,17 +158,44 @@ let
   # Published because the key is built from them and a caller re-deriving one by hand would be
   # re-deriving the encoding. The arm tag and the shape at position 1 (a string for a root's scope,
   # a list for an output's path) keep the two target arms apart.
+  #
+  # ★ A HAND-BUILT RECORD REACHES THEM TOO (`edgeSortKey` over any entry), so each refuses by name a
+  # record that is not a record, a field it reads that is absent, and an arm that is neither declared
+  # one, rather than aborting on the selection or keying an unknown arm as a root (`den-hoag-g1qy0`).
+  # `carrying site what r names` returns `r` unchanged once it is a record carrying every name.
+  carrying =
+    site: what: r: names:
+    let
+      missing = builtins.filter (n: !(builtins.hasAttr n r)) names;
+    in
+    if !(builtins.isAttrs r) then
+      refuse site "field '${what}' is ${renderValue r}; it must be a record"
+    else if missing != [ ] then
+      refuse site "the ${what} carries no '${builtins.head missing}'"
+    else
+      r;
   pathKey = path: tupleKey "pathKey" null path;
   targetKey =
     target:
-    if target.arm == "output" then
+    let
+      arm = choice "targetKey" "arm" [
+        "root"
+        "output"
+      ] (carrying "targetKey" "target" target [ "arm" ]).arm;
+    in
+    if arm == "output" then
       tupleKey "targetKey" 1 [
         "out"
-        target.path
+        (carrying "targetKey" "target" target [ "path" ]).path
       ]
     else
       let
-        t = rootNames "targetKey" target;
+        t = rootNames "targetKey" (
+          carrying "targetKey" "target" target [
+            "scope"
+            "channel"
+          ]
+        );
       in
       tupleKey "targetKey" null [
         "root"
@@ -181,9 +208,15 @@ let
   # than keyed as the string it coerces to (`den-hoag-g1qy0`).
   sourceKey =
     source:
+    let
+      s = carrying "sourceKey" "source" source [
+        "scope"
+        "relation"
+      ];
+    in
     tupleKey "sourceKey" null [
-      source.scope
-      source.relation
+      s.scope
+      s.relation
     ];
 in
 {
