@@ -97,17 +97,98 @@ in
           target = forgedStringPath;
           mode = "merge";
         }) "^gen-view\\.writesOf: a key component is \"x/y\"; a path in a key must be a list of strings$";
-        # ★ `sourceKey` IS JSON-ENCODED BUT DELIBERATELY UNGUARDED (see `lib/placement.nix`): a
-        # non-string must abort exactly as it did under interpolation, not be silently keyed. A
-        # bare `toJSON` would key `[1,"import"]` and this cell would see no error at all.
-        test-a-non-string-source-scope-still-aborts-as-before = {
-          expr = builtins.deepSeq (v.placement.sourceKey {
-            scope = 1;
-            relation = "import";
-          }) true;
-          expectedError.type = "TypeError";
-        };
+        # `sourceKey` is guarded like its siblings (`den-hoag-g1qy0`): a non-string is refused by
+        # name, and so is an `outPath` set, which interpolation would have keyed as the string it
+        # coerces to — equal to the plain source's key.
+        test-a-non-string-source-scope-is-refused-by-name = refused (v.placement.sourceKey {
+          scope = 1;
+          relation = "import";
+        }) "^gen-view\\.sourceKey: a key component is 1; a name in a key must be a string$";
+        test-an-outPath-source-scope-is-refused-by-name = refused (v.placement.sourceKey {
+          scope = {
+            outPath = "inc";
+          };
+          relation = "import";
+        }) "^gen-view\\.sourceKey: a key component is <a set>; a name in a key must be a string$";
       };
+
+    # ── A TRACE ENTRY'S FIELDS ARE REFUSED BY NAME AT THE SORT KEY (den-hoag-g1qy0) ──
+    # Every entry `traceEntryOf` mints is typed at intake — its scope and channel by `targets.root`,
+    # its relation, distance and path by its own arms — so `trace` and `hashTrace` never meet a value
+    # canonical JSON would coerce. `edgeSortKey` is published over ANY entry, and a hand-built one
+    # reaches it without passing `traceEntryOf`: each `edgeSortKey` cell below aborted uncatchably
+    # (`cannot coerce …`) or answered the coerced string, and is now refused by name, because a sort
+    # key must be injective. `renderEntry`, the display half of the split, refuses nothing: it
+    # discloses by type (`ci/tests/render-disclosure.nix`).
+    flake.testsError.entry-refusals =
+      let
+        fn = x: x;
+        c0 = builtins.head f.relation.contributions;
+        e0 = v.traceEntryOf {
+          contribution = c0;
+          placement = f.placement;
+        };
+        cell = expr: msg: {
+          expr = builtins.deepSeq expr true;
+          expectedError = {
+            type = "ThrownError";
+            inherit msg;
+          };
+        };
+        # A contribution whose scope is an `outPath` set is refused where the entry is minted, so
+        # the JSON routes never see it: the (c) half of the ruling holds by the entry's type.
+        coercingScope = f.relation // {
+          contributions = map (
+            c:
+            c
+            // {
+              scope = {
+                outPath = c.scope;
+              };
+            }
+          ) f.relation.contributions;
+        };
+      in
+      {
+        test-an-outPath-scope-is-refused-at-hashTrace = cell (v.hashTrace {
+          relation = coercingScope;
+          inherit (f) placement;
+        }) "^gen-view\\.targets\\.root: field 'scope' is <a set>; .*$";
+        test-a-function-relation-is-refused-at-hashTrace = cell (v.hashTrace {
+          relation = f.relation // {
+            contributions = [ (c0 // { relation = fn; }) ];
+          };
+          inherit (f) placement;
+        }) "^gen-view\\.traceEntryOf: the contribution's relation is <a lambda>; .*$";
+        test-a-function-source-scope-is-refused-at-edgeSortKey = cell (v.edgeSortKey (
+          e0
+          // {
+            source = e0.source // {
+              scope = fn;
+            };
+          }
+        )) "^gen-view\\.sourceKey: a key component is <a lambda>; .*$";
+        test-an-outPath-kind-is-refused-at-edgeSortKey = cell (v.edgeSortKey (
+          e0
+          // {
+            kind = {
+              outPath = e0.kind;
+            };
+          }
+        )) "^gen-view\\.edgeSortKey: the entry's kind is <a set>; .*$";
+        test-an-outPath-source-scope-is-refused-at-edgeSortKey = cell (v.edgeSortKey (
+          e0
+          // {
+            source = e0.source // {
+              scope = {
+                outPath = e0.source.scope;
+              };
+            };
+          }
+        )) "^gen-view\\.sourceKey: a key component is <a set>; .*$";
+        test-a-non-entry-is-refused-at-edgeSortKey = cell (v.edgeSortKey 42) "^gen-view\\.edgeSortKey: field 'entry' is 42; .*$";
+      };
+
     # ── EVERY OMITTED FIELD IS NAMED, ONE CELL PER FIELD ──
     # Generated from the library's own field enumeration, so a thirteenth field cannot arrive
     # without a message cell arriving with it. The pattern is anchored at the front and pins the

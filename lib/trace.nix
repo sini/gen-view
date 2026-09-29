@@ -42,7 +42,7 @@ let
   # not: T, P and S are the JSON name tuples of `targetKey`/`pathKey`/`sourceKey`, so each ends at
   # a point no name can move. The kind component is APPENDED only when present, so an entry that
   # carries no kind renders the four-component form rather than gaining an empty field.
-  edgeSortKey =
+  sortKeyOf =
     entry:
     targetKey entry.target
     + " | "
@@ -52,6 +52,37 @@ let
     + " | "
     + entry.mode
     + (if (entry.kind or null) == null then "" else " | " + entry.kind);
+
+  # `sortEntry entry` — THE CHECK ON THE FIELDS `edgeSortKey` READS, returning the entry unchanged
+  # (`rootNames`' rule). `edgeSortKey` is published over any entry, and a hand-built one reaches it
+  # without passing `traceEntryOf`, so it is owed the refusals `traceEntryOf` would have given it:
+  # `+` aborts past `tryEval` on a value it cannot coerce, and silently coerces an
+  # `outPath`/`__toString` set to its string. A sort key must be INJECTIVE on what it orders, and a
+  # key built from a coerced value is not, so the entry is REFUSED BY NAME rather than keyed
+  # (`den-hoag-g1qy0`). `kind` is optional; the target, the path and the source are checked by the
+  # keys that read them (`targetKey`, `pathKey`, `sourceKey`).
+  sortEntry =
+    e:
+    let
+      missing = builtins.filter (n: !(builtins.hasAttr n e)) [
+        "target"
+        "source"
+        "mode"
+        "path"
+      ];
+    in
+    if !(builtins.isAttrs e) then
+      refuse "edgeSortKey" "field 'entry' is ${renderValue e}; it must be a trace entry, as `traceEntryOf` mints"
+    else if missing != [ ] then
+      refuse "edgeSortKey" "the entry carries no '${builtins.head missing}'; it must be a trace entry, as `traceEntryOf` mints"
+    else if !(builtins.isAttrs e.target) || !(builtins.isAttrs e.source) then
+      refuse "edgeSortKey" "the entry's target and source must be records, as `traceEntryOf` mints"
+    else if !((e.kind or null) == null || builtins.isString e.kind) then
+      refuse "edgeSortKey" "the entry's kind is ${renderValue e.kind}; it must be a relation name"
+    else
+      builtins.seq (choice "edgeSortKey" "mode" placement.modes e.mode) e;
+
+  edgeSortKey = entry: sortKeyOf (sortEntry entry);
 
   # `traceEntryOf { contribution; placement; }` — the structured identity entry.
   traceEntryOf =
@@ -140,25 +171,98 @@ let
       ord =
         x: y:
         let
-          kx = edgeSortKey x;
-          ky = edgeSortKey y;
+          kx = sortKeyOf x;
+          ky = sortKeyOf y;
         in
         if kx != ky then kx < ky else builtins.toJSON x < builtins.toJSON y;
     in
     decided [ checked ] (sort ord entries);
 
   # DISPLAY RENDERING — strings are derived HERE and nothing consumes them programmatically.
+  #
+  # ★ DISCLOSED BY TYPE, NEVER COERCED (`den-hoag-g1qy0`). `renderEntry` is published over any
+  # entry, and a hand-built one may carry anything in any field. Each leaf is dispatched on
+  # `builtins.typeOf`: a string, a number and a path render as values, and every other type renders
+  # as its marker (`‹set›`, `‹lambda›`, `‹list›`, `‹bool›`, `‹null›`), as does a record or list
+  # position holding something else, and `‹absent›` a missing field. Nothing is coerced, so an
+  # `outPath`/`__toString` set renders `‹set›` rather than the string it would coerce to, and no
+  # field aborts the rendering: one malformed entry cannot hide the rest of a `renderTrace`. The
+  # price is the one a display is allowed: two distinct values may render alike (two sets, a path
+  # and its string). Inside a key tuple a marker stands unquoted, where no name can.
   renderEntry =
     entry:
-    targetKey entry.target
-    + " ← "
-    + sourceKey entry.source
-    + " ["
-    + concatStringsSep "." entry.word
-    + "] d="
-    + toString entry.distance
-    + " "
-    + entry.mode;
+    let
+      marker = x: "‹${builtins.typeOf x}›";
+      absent = "‹absent›";
+      shown =
+        x:
+        let
+          t = builtins.typeOf x;
+        in
+        if t == "string" then
+          x
+        else if t == "int" || t == "float" then
+          builtins.toJSON x
+        else if t == "path" then
+          toString x
+        else
+          marker x;
+      cell = x: if builtins.isString x || builtins.isPath x then builtins.toJSON (shown x) else shown x;
+      tuple = xs: "[" + concatStringsSep "," xs + "]";
+      field = r: n: if builtins.hasAttr n r then r.${n} else null;
+      leaf = r: n: if builtins.hasAttr n r then shown r.${n} else absent;
+      leafCell = r: n: if builtins.hasAttr n r then cell r.${n} else absent;
+      record = r: body: if builtins.isAttrs r then body r else marker r;
+      target =
+        t:
+        if (field t "arm") == "output" then
+          tuple [
+            (cell "out")
+            (
+              if !(builtins.hasAttr "path" t) then
+                absent
+              else if builtins.isList t.path then
+                tuple (map cell t.path)
+              else
+                marker t.path
+            )
+          ]
+        else
+          tuple [
+            (cell "root")
+            (leafCell t "scope")
+            (leafCell t "channel")
+          ];
+      source =
+        src:
+        tuple [
+          (leafCell src "scope")
+          (leafCell src "relation")
+        ];
+      word =
+        e:
+        if !(builtins.hasAttr "word" e) then
+          absent
+        else if builtins.isList e.word then
+          concatStringsSep "." (map shown e.word)
+        else
+          marker e.word;
+      part =
+        e: n: render:
+        if builtins.hasAttr n e then record e.${n} render else absent;
+    in
+    record entry (
+      e:
+      part e "target" target
+      + " ← "
+      + part e "source" source
+      + " ["
+      + word e
+      + "] d="
+      + leaf e "distance"
+      + " "
+      + leaf e "mode"
+    );
 
   renderTrace = entries: map renderEntry entries;
 

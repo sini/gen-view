@@ -175,15 +175,15 @@ let
         t.scope
         t.channel
       ];
-  # ★ JSON-ENCODED BUT NOT GUARDED: interpolation keeps exactly today's admission — a non-string
-  # still aborts, an `outPath`/`__toString` set still coerces — because the raw trace surface's
-  # coercion class is an open owner reading (`den-hoag-g1qy0`) that a guard here would pre-empt. A
-  # bare `toJSON` would be worse than either: it silently keys an int, a plain set, a list or null.
+  # `sourceKey` is guarded like its siblings: a source's scope and relation are names, and no
+  # genuine construction carries anything else (`scopeGraph` and `relations` refuse a non-string),
+  # so an `outPath`/`__toString` set here came from a hand-built entry and is refused by name rather
+  # than keyed as the string it coerces to (`den-hoag-g1qy0`).
   sourceKey =
     source:
-    builtins.toJSON [
-      "${source.scope}"
-      "${source.relation}"
+    tupleKey "sourceKey" null [
+      source.scope
+      source.relation
     ];
 in
 {

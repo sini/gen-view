@@ -255,6 +255,12 @@ where every component sits under its own name; entries that collide on the key s
 The collision only degrades `trace`'s **primary** order to a tie, which the canonical-JSON secondary
 resolves.
 
+★ **Over a hand-built entry the two display routes split** (`den-hoag-g1qy0`): `edgeSortKey`
+**refuses by name** anything `traceEntryOf` would not have minted, and `renderEntry` **discloses by
+type** (`builtins.typeOf`: string, number and path as values, else `‹set›`/`‹lambda›`/… markers) and
+never coerces or aborts. Do not make `renderEntry` refuse, and do not make `edgeSortKey` render a
+marker: a sort key must be injective, and a marker is shared by every value of its type.
+
 **Compositions**: `compositions.{ movement, channel, registry, topology, role }`.
 
 **`__` keys crossing the boundary** (R12 stated contracts; the census that reads these lines takes the
