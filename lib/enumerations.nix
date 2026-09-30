@@ -256,7 +256,7 @@ let
     if twins == [ ] then
       kept
     else if uncertified kept then
-      refuse fn "${subject} collapses a datum${at} holding a coercible set that is not a derivation and has attributes besides its coercion; a store dependency there is an edge the collapse cannot read, so it cannot carry it (den-hoag-gkrtw retires this refusal)"
+      refuse fn "${subject} collapses a datum${at} holding a coercible set that is not a derivation and has attributes besides its coercion; a store dependency there is an edge the collapse cannot read, so it cannot carry it"
     else if !(builtins.hasContext lost) then
       kept
     else if builtins.isString kept then
@@ -264,7 +264,7 @@ let
     else if builtins.getContext (edgesOf kept + lost) == builtins.getContext (edgesOf kept) then
       kept
     else
-      refuse fn "${subject} collapses a non-string datum${at} with ${toString (builtins.length twins)} `==`-equal twin(s) whose store dependencies it does not carry (${quote (builtins.attrNames (removeAttrs (builtins.getContext lost) (builtins.attrNames (builtins.getContext (edgesOf kept)))))}); a collapse keeps its twins' dependency edges, and only a string can carry the union (den-hoag-gkrtw retires this refusal)";
+      refuse fn "${subject} collapses a non-string datum${at} with ${toString (builtins.length twins)} `==`-equal twin(s) whose store dependencies it does not carry (${quote (builtins.attrNames (removeAttrs (builtins.getContext lost) (builtins.attrNames (builtins.getContext (edgesOf kept)))))}); a collapse keeps its twins' dependency edges, and only a string can carry the union";
 
   # `combineOf combine` — the combine record its checked `arm` decides, read from the whitelist
   # table. `op`, `unit`, `associative` and `setSemilattice` are the ARM's, so every reader runs

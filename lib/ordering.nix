@@ -532,7 +532,7 @@ let
       ) condensation.sccs;
     in
     if missingEndpoints != [ ] then
-      refuse "boundedWellDefinedSchedule" "field 'nodes' does not contain the declared relation's endpoint(s) ${quote missingEndpoints}; ADR-0008 §3's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`"
+      refuse "boundedWellDefinedSchedule" "field 'nodes' does not contain the declared relation's endpoint(s) ${quote missingEndpoints}; a schedule's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`"
     else if !(builtins.isFunction a.admitsCycle) then
       refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must be a function from a node identifier to a bool (`isRegistered`'s shape — the membership authority `mkNodeRef` itself takes); received a ${builtins.typeOf a.admitsCycle}"
     else if formalsOf a.admitsCycle != [ ] then

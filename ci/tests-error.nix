@@ -1506,7 +1506,7 @@ in
         )) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'nodes' does not contain the declared relation's endpoint\\(s\\) child, parent; ADR-0008 §3's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`$";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'nodes' does not contain the declared relation's endpoint\\(s\\) child, parent; a schedule's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`$";
         };
       };
 
@@ -1522,7 +1522,7 @@ in
         )) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'nodes' does not contain the declared relation's endpoint\\(s\\) parent; ADR-0008 §3's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`$";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'nodes' does not contain the declared relation's endpoint\\(s\\) parent; a schedule's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`$";
         };
       };
 
@@ -1540,7 +1540,7 @@ in
         )) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'nodes' does not contain the declared relation's endpoint\\(s\\) parent; ADR-0008 §3's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`$";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'nodes' does not contain the declared relation's endpoint\\(s\\) parent; a schedule's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`$";
         };
       };
 
@@ -2314,7 +2314,7 @@ in
       let
         a = builtins.toFile "kunjm-ctx-a" "a";
         bareA = builtins.unsafeDiscardStringContext a;
-        w3 = "^gen-view\\.viewRelation: channel 'settings' collapses a datum at scope 'inc' holding a coercible set that is not a derivation and has attributes besides its coercion; .*den-hoag-gkrtw.*$";
+        w3 = "^gen-view\\.viewRelation: channel 'settings' collapses a datum at scope 'inc' holding a coercible set that is not a derivation and has attributes besides its coercion; a store dependency there is an edge the collapse cannot read, so it cannot carry it$";
         byDatum =
           datums:
           (v.viewRelation {
@@ -2349,7 +2349,7 @@ in
           ]) true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.viewRelation: channel 'settings' collapses a non-string datum at scope 'inc' with 1 `==`-equal twin\\(s\\) whose store dependencies it does not carry \\(.*-kunjm-ctx-a\\); .*den-hoag-gkrtw.*$";
+            msg = "^gen-view\\.viewRelation: channel 'settings' collapses a non-string datum at scope 'inc' with 1 `==`-equal twin\\(s\\) whose store dependencies it does not carry \\(.*-kunjm-ctx-a\\); a collapse keeps its twins' dependency edges, and only a string can carry the union$";
           };
         };
         # A set carrying BOTH coercions is read through `__toString`, as `toJSON` reads it, so its
