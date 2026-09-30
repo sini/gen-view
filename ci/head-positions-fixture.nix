@@ -145,6 +145,8 @@ let
       tieSet ? v.tieSets.union,
       root ? pos.root,
       wellFormed ? _: true,
+      marks ? _: [ ],
+      dedup ? v.dedups.none,
     }:
     v.viewRelation {
       definition = v.compositions.movement {
@@ -156,9 +158,9 @@ let
         empty = [ ];
         inherit tieSet;
         combine = v.combines.listAppend;
-        dedup = v.dedups.none;
+        inherit dedup;
       };
-      marks = _: [ ];
+      inherit marks;
       inherit (pos) orderMark graph;
     };
 
@@ -248,6 +250,51 @@ let
       .${s}
     };
 
+  # Three scopes under a caller-given shape, joined end to end: `records` are `recordOf` results,
+  # and every one with a band is placed. Returns the join's three halves by scope.
+  joinOver =
+    {
+      edges,
+      expression,
+      records,
+      wellFormed ? _: true,
+      marks ? _: _: [ ],
+      dedup ? v.dedups.none,
+    }:
+    let
+      pos = v.headPositions {
+        inherit heads;
+        structure = structure {
+          scopes = [
+            "r"
+            "t"
+            "u"
+          ];
+          inherit edges expression;
+        };
+        root = "r";
+        data = placed records;
+      };
+      vr = relationOver pos {
+        inherit wellFormed dedup;
+        marks = marks pos;
+      };
+      j = v.joinedTrace {
+        relation = vr;
+        placement = {
+          mode = "merge";
+          path = [ ];
+        };
+        positions = pos;
+        innerOf = s: builtins.head (builtins.filter (r: r.scope == s) records);
+      };
+    in
+    {
+      joined = map (e: e.contributor) j.joined;
+      unset = map (r: r.scope) j.unset;
+      unaccounted = map (r: r.scope) j.unaccounted;
+    };
+
   # three contributors, all setting at one structural distance except the root: a within-head tie
   tie =
     tieSet:
@@ -308,6 +355,7 @@ in
     run
     swapped
     tie
+    joinOver
     q3InValue
     ;
 }

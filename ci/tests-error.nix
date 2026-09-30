@@ -3370,6 +3370,12 @@ in
           refused
             (joinWith (rs: s: if s == "t" then rs.t // { reason = "unset: default-only"; } else rs.${s}) "k4")
             "^gen-view\\.joinedTrace: innerOf returned a record for the contributor 't' carrying both `band` and `reason`; .*$";
+        test-a-head-list-that-is-not-a-list-is-refused-by-name = refused (h.v.headPositions {
+          heads = "force";
+          structure = h.structure { };
+          root = "r";
+          data = [ ];
+        }) "^gen-view\\.headPositions: field 'heads' is \"force\"; it must be an ORDERED LIST .*$";
         test-an-empty-head-list-is-refused-by-name = refused (h.v.headPositions {
           heads = [ ];
           structure = h.structure { };

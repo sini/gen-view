@@ -316,10 +316,12 @@ let
   #   · a throw → propagates, as the caller's own error
   #
   # ★★ AND A MOVED VALUE THE RELATION NEVER ACCOUNTS FOR IS RECORDED, NOT REFUSED. A `band` record
-  # whose scope owns no position among the relation's `contributions`, `shadowed`, `withheld` or
-  # `dropped` goes to `unaccounted`, record intact. It covers a datum never placed, a relation
-  # materialized from another root, and a datum the definition's `wellFormed` rejected — which is
-  # lawful and which the relation records nowhere, so a refusal here would reject lawful input.
+  # whose scope owns no datum among the relation's `contributions`, `shadowed` or `dropped` goes to
+  # `unaccounted`, record intact. It covers a datum never placed, a relation materialized from
+  # another root, and a datum the definition's `wellFormed` rejected — which is lawful and which the
+  # relation records nowhere, so a refusal here would reject lawful input. `withheld` is NOT read:
+  # its rows are blocked EDGES keyed by the edge's source, so a row at a position witnesses no datum
+  # there, and reading it would drop a record the moment a mark walls that position's out-edge.
   joinedTrace =
     args:
     let
@@ -368,19 +370,12 @@ let
           value = recordOf s;
         }) p.scopes
       );
-      # every scope owning a position the relation reports, under any of its dispositions
+      # every scope owning a datum the relation reports, under any of its dispositions
       accounted = builtins.listToAttrs (
-        map
-          (x: {
-            name = attrKey (p.owners.${attrKey x.scope} or { scope = ""; }).scope;
-            value = null;
-          })
-          (
-            a.relation.contributions
-            ++ a.relation.shadowed
-            ++ a.relation.withheld
-            ++ map (d: d.contribution) a.relation.dropped
-          )
+        map (x: {
+          name = attrKey (p.owners.${attrKey x.scope} or { scope = ""; }).scope;
+          value = null;
+        }) (a.relation.contributions ++ a.relation.shadowed ++ map (d: d.contribution) a.relation.dropped)
       );
       joinEntry =
         e:

@@ -310,6 +310,69 @@ in
         unaccounted = [ "t" ];
       };
     };
+    # A boundary mark walling the out-edge of `t`'s position is a `withheld` row AT `t`, and it
+    # witnesses no datum there: `t`'s rejected datum is still unaccounted, not hidden by the wall.
+    test-a-mark-walling-a-dropped-contributors-edge-does-not-account-for-it = {
+      expr = h.joinOver {
+        edges.tacks =
+          id:
+          {
+            r = [ "t" ];
+            t = [ "u" ];
+          }
+          .${id} or [ ];
+        expression = "tacks*";
+        records = [
+          (h.recordOf "r" [ "R" ])
+          (h.recordOf "t" [ (lib.mkForce "TF") ])
+          (h.recordOf "u" [ ])
+        ];
+        wellFormed = d: d != [ "TF" ];
+        marks =
+          pos: id:
+          if id == pos.position "t" "force" then
+            [
+              {
+                name = "wall";
+                admits = _: false;
+              }
+            ]
+          else
+            [ ];
+      };
+      expected = {
+        joined = [ "r" ];
+        unset = [ "u" ];
+        unaccounted = [ "t" ];
+      };
+    };
+    # A contribution the dedup collapses is recorded in the relation's `dropped`, so it is
+    # accounted for and does not land in `unaccounted`.
+    test-a-dedup-collapsed-contribution-is-accounted = {
+      expr = h.joinOver {
+        edges.tacks =
+          id:
+          if id == "r" then
+            [
+              "t"
+              "u"
+            ]
+          else
+            [ ];
+        expression = "tacks?";
+        records = [
+          (h.recordOf "r" [ ])
+          (h.recordOf "t" [ "X" ])
+          (h.recordOf "u" [ "X" ])
+        ];
+        dedup = h.v.dedups.byDatum;
+      };
+      expected = {
+        joined = [ "t" ];
+        unset = [ "r" ];
+        unaccounted = [ ];
+      };
+    };
     test-control-the-same-case-unaltered-accounts-for-both = {
       expr = halves (h.run { } "k4").joined;
       expected = {
