@@ -77,6 +77,10 @@ let
       heads =
         if builtins.isList a.heads && builtins.any builtins.isList a.heads then
           refuse site "field 'heads' carries a list where a head letter belongs; `heads` is an ORDERED LIST of letters, one rank per position, so two letters sharing a rank cannot be written"
+        else if a.heads == [ ] then
+          refuse site "field 'heads' is empty; a position is reached only by a head letter, so with none declared no datum could be placed"
+        else if builtins.elem "$" a.heads then
+          refuse site "field 'heads' names '$', which is the end-of-path label of every alphabet and never a letter"
         else
           strings site "field 'heads'" a.heads;
       sg = elementOf site "structure" "scopeGraph" a.structure;
@@ -188,7 +192,7 @@ let
         data = map place a.data;
       };
     in
-    decided [ heads checked ] {
+    decided [ heads checked labels ] {
       inherit (sg) scopes;
       position = at;
       inherit

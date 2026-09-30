@@ -3366,6 +3366,22 @@ in
         test-a-non-record-is-refused-by-name = refused (joinWith (
           rs: s: if s == "t" then "t.nix" else rs.${s}
         ) "k2") "^gen-view\\.joinedTrace: innerOf returned \"t\\.nix\" for the contributor 't'; .*$";
+        test-a-record-both-moved-and-unset-is-refused-by-name =
+          refused
+            (joinWith (rs: s: if s == "t" then rs.t // { reason = "unset: default-only"; } else rs.${s}) "k4")
+            "^gen-view\\.joinedTrace: innerOf returned a record for the contributor 't' carrying both `band` and `reason`; .*$";
+        test-an-empty-head-list-is-refused-by-name = refused (h.v.headPositions {
+          heads = [ ];
+          structure = h.structure { };
+          root = "r";
+          data = [ ];
+        }) "^gen-view\\.headPositions: field 'heads' is empty; .*$";
+        test-the-end-of-path-label-as-a-head-is-refused-by-name = refused (h.v.headPositions {
+          heads = [ "$" ];
+          structure = h.structure { };
+          root = "r";
+          data = [ ];
+        }) "^gen-view\\.headPositions: field 'heads' names '\\$', .*$";
         test-a-throwing-innerOf-propagates-as-the-callers-error = refused (joinWith (
           _: _: throw "caller: no evaluation for this scope"
         ) "k1") "^caller: no evaluation for this scope$";

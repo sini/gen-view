@@ -26,6 +26,11 @@ let
       }) j.joined;
       unset = map (u: { inherit (u) scope reason priority; }) j.unset;
     };
+  halves = j: {
+    joined = map (e: e.contributor) j.joined;
+    unset = map (r: r.scope) j.unset;
+    unaccounted = map (r: r.scope) j.unaccounted;
+  };
 in
 {
   flake.tests.head-positions = {
@@ -273,6 +278,45 @@ in
           [ "t.nix" ]
         ]
       ];
+    };
+
+    # ── NOTHING VANISHES: a moved value the relation never accounts for is recorded, not refused ──
+    # k4: `t` moved under `force`. Each arm below removes `t`'s datum from the relation a different
+    # way; its record lands in `unaccounted`, and in neither `joined` nor `unset`.
+    test-a-moved-value-never-placed-is-unaccounted = {
+      expr = halves (h.run { unplaced = [ "t" ]; } "k4").joined;
+      expected = {
+        joined = [ "r" ];
+        unset = [ ];
+        unaccounted = [ "t" ];
+      };
+    };
+    test-a-relation-from-another-root-leaves-both-moved-values-unaccounted = {
+      expr = halves (h.run { root = pos: pos.position "t" "force"; } "k4").joined;
+      expected = {
+        joined = [ ];
+        unset = [ ];
+        unaccounted = [
+          "r"
+          "t"
+        ];
+      };
+    };
+    test-a-datum-wellFormed-rejects-is-unaccounted-not-refused = {
+      expr = halves (h.run { wellFormed = d: d != [ "TF" ]; } "k4").joined;
+      expected = {
+        joined = [ "r" ];
+        unset = [ ];
+        unaccounted = [ "t" ];
+      };
+    };
+    test-control-the-same-case-unaltered-accounts-for-both = {
+      expr = halves (h.run { } "k4").joined;
+      expected = {
+        joined = [ "t" ];
+        unset = [ ];
+        unaccounted = [ ];
+      };
     };
 
     # ── NOTHING VANISHES: a field that did not move is recorded, and the substrate does not ──

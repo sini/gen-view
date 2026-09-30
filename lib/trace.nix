@@ -311,7 +311,15 @@ let
   #   · a missing or non-record result for a contributor in the trace → refused by name, naming it
   #   · a record whose `scope` is another contributor's (a mis-keyed join) → refused by name: the
   #     record's `scope` is compared with the position's owner
+  #   · a record carrying both `band` and `reason` → refused by name: it would be reported as moved
+  #     and as not moved at once
   #   · a throw → propagates, as the caller's own error
+  #
+  # ★★ AND A MOVED VALUE THE RELATION NEVER ACCOUNTS FOR IS RECORDED, NOT REFUSED. A `band` record
+  # whose scope owns no position among the relation's `contributions`, `shadowed`, `withheld` or
+  # `dropped` goes to `unaccounted`, record intact. It covers a datum never placed, a relation
+  # materialized from another root, and a datum the definition's `wellFormed` rejected — which is
+  # lawful and which the relation records nowhere, so a refusal here would reject lawful input.
   joinedTrace =
     args:
     let
@@ -348,6 +356,8 @@ let
           )
         then
           refuse site "innerOf returned ${renderValue r} for the contributor ${renderSubject s}; a record carries `scope`, `loc`, and `band` (it moved) or `reason` (it did not), and a scope that contributes nothing returns null"
+        else if r ? band && r ? reason then
+          refuse site "innerOf returned a record for the contributor ${renderSubject s} carrying both `band` and `reason`; a record says the value moved (`band`) or that it did not (`reason`), never both"
         else if r.scope != s then
           refuse site "innerOf returned the record of ${renderSubject r.scope} for the contributor ${renderSubject s}; a record is joined only to its own contributor's position, and this one is mis-keyed"
         else
@@ -357,6 +367,20 @@ let
           name = attrKey s;
           value = recordOf s;
         }) p.scopes
+      );
+      # every scope owning a position the relation reports, under any of its dispositions
+      accounted = builtins.listToAttrs (
+        map
+          (x: {
+            name = attrKey (p.owners.${attrKey x.scope} or { scope = ""; }).scope;
+            value = null;
+          })
+          (
+            a.relation.contributions
+            ++ a.relation.shadowed
+            ++ a.relation.withheld
+            ++ map (d: d.contribution) a.relation.dropped
+          )
       );
       joinEntry =
         e:
@@ -381,6 +405,9 @@ let
         inherit (a) relation placement;
       });
       unset = builtins.filter (r: r != null && r ? reason) (map (s: records.${attrKey s}) p.scopes);
+      unaccounted = builtins.filter (r: r != null && r ? band && !(accounted ? ${attrKey r.scope})) (
+        map (s: records.${attrKey s}) p.scopes
+      );
     };
 in
 {

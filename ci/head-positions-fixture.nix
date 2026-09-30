@@ -143,14 +143,16 @@ let
     pos:
     {
       tieSet ? v.tieSets.union,
+      root ? pos.root,
+      wellFormed ? _: true,
     }:
     v.viewRelation {
       definition = v.compositions.movement {
         channel = "selvage";
         relation = "gimp";
-        inherit (pos) root admission order;
+        inherit (pos) admission order;
+        inherit root wellFormed;
         direction = "outbound";
-        wellFormed = _: true;
         empty = [ ];
         inherit tieSet;
         combine = v.combines.listAppend;
@@ -189,17 +191,26 @@ let
   recordsOf = k: lib.mapAttrs recordOf cases.${k};
 
   # One case, end to end. `innerOf` defaults to the right one; `swapped` joins each contributor to
-  # the other's record, the mis-keyed arm.
+  # the other's record, the mis-keyed arm. `unplaced` names scopes whose moved datum is withheld
+  # from `data`; `root` picks the relation's root from the positions; `wellFormed` is the WFD.
   run =
     {
       endOfPath ? -1,
       innerOf ? null,
+      unplaced ? [ ],
+      root ? pos: pos.root,
+      wellFormed ? _: true,
     }:
     k:
     let
       rs = recordsOf k;
-      pos = positionsOf { inherit endOfPath; } (placed (builtins.attrValues rs));
-      vr = relationOver pos { };
+      pos = positionsOf { inherit endOfPath; } (
+        placed (builtins.filter (r: !(builtins.elem r.scope unplaced)) (builtins.attrValues rs))
+      );
+      vr = relationOver pos {
+        root = root pos;
+        inherit wellFormed;
+      };
       joined = v.joinedTrace {
         relation = vr;
         placement = {
