@@ -37,6 +37,8 @@ in
         "edgeLabels"
         "edgeSortKey"
         "hashTrace"
+        "headPositions"
+        "joinedTrace"
         "labelOrder"
         "labelWellFormedness"
         "neededBy"

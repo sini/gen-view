@@ -111,6 +111,7 @@ let
   transformLib = import ./transform.nix { inherit prelude; };
   referenceLib = import ./reference.nix { inherit prelude graph; };
   traceLib = import ./trace.nix { inherit prelude; };
+  positionsLib = import ./positions.nix { inherit prelude graph; };
   compositionLib = import ./compositions.nix { inherit prelude graph; };
 in
 {
@@ -235,7 +236,14 @@ in
     renderEntry
     edgeSortKey
     hashTrace
+    joinedTrace
     ;
+
+  # ── HEAD POSITIONS — a structural graph lifted per ranked head letter, so the head decides first ─
+  # A construction over the raw calculus, returning a scope graph, its admission, its query order
+  # and its order mark as data; `joinedTrace` above reads its `owners`. Not a carrier element and
+  # not a composition: it builds the graph a composition is then declared over.
+  inherit (positionsLib) headPositions;
 
   # ── THE NAMED COMPOSITIONS ──────────────────────────────────────────────────────────────────
   inherit (compositionLib) compositions;

@@ -23,6 +23,7 @@
   genView,
   genScope,
   graph,
+  lib,
   ...
 }:
 let
@@ -3250,6 +3251,124 @@ in
         test-control-the-over-datum-seed-is-live =
           cell (over (cs: cs ++ [ ((builtins.head cs) // { datum = throw "0gpyq seed: forced"; }) ])).value
             "^0gpyq seed: forced$";
+      };
+
+    # ── HEAD POSITIONS AND THE JOINED TRACE: THE DOORS (den-hoag-zakjg, spec §8 U2 and U3) ──
+    # A tail-placed head and a rank tie are refused or unwritable THROUGH `headPositions`; a raw
+    # `viewRelation` still accepts a tail word, and the invariant is this construction's. Each
+    # `innerOf` failure mode is refused by name, except a throw, which is the caller's own error.
+    flake.testsError.head-positions =
+      let
+        h = import ./head-positions-fixture.nix { inherit genView lib; };
+        refused = expr: msg: {
+          expr = builtins.deepSeq expr true;
+          expectedError = {
+            type = "ThrownError";
+            inherit msg;
+          };
+        };
+        # the tail construction: the head letters as structural edges at the END of the word
+        # (`c —h→ c#h`), under the same head letters
+        tailStructure = h.structure {
+          scopes = [
+            "r"
+            "t"
+          ]
+          ++ lib.concatMap (c: map (x: "${c}#${x}") h.heads) [
+            "r"
+            "t"
+          ];
+          letters = [ "tacks" ] ++ h.heads;
+          expression = "tacks?(force|set|default)";
+          edges = {
+            tacks = id: if id == "r" then [ "t" ] else [ ];
+          }
+          // lib.genAttrs h.heads (
+            x: id:
+            if
+              builtins.elem id [
+                "r"
+                "t"
+              ]
+            then
+              [ "${id}#${x}" ]
+            else
+              [ ]
+          );
+        };
+        joinWith = innerOf: k: (h.run { inherit innerOf; } k).joined.joined;
+      in
+      {
+        test-a-tail-placed-head-is-refused-by-name = refused (h.v.headPositions {
+          inherit (h) heads;
+          structure = tailStructure;
+          root = "r";
+          data = [ ];
+        }) "^gen-view\\.headPositions: head letter 'force' is also a letter of the structural alphabet .*$";
+        test-a-head-letter-the-structure-steps-is-refused-by-name =
+          refused
+            (h.v.headPositions {
+              heads = [
+                "force"
+                "tacks"
+              ];
+              structure = h.structure { };
+              root = "r";
+              data = [ ];
+            })
+            "^gen-view\\.headPositions: head letter 'tacks' is also a letter of the structural alphabet \\(tacks\\); .*$";
+        # the rank-tied mutant (`mRankTie_k4`) has no spelling: a list position holds one letter
+        test-a-rank-tie-between-head-letters-cannot-be-written = refused (h.v.headPositions {
+          heads = [
+            [
+              "force"
+              "set"
+            ]
+            "default"
+          ];
+          structure = h.structure { };
+          root = "r";
+          data = [ ];
+        }) "^gen-view\\.headPositions: field 'heads' carries a list where a head letter belongs; .*$";
+        test-a-head-letter-named-twice-is-refused-by-name = refused (h.v.headPositions {
+          heads = [
+            "set"
+            "set"
+          ];
+          structure = h.structure { };
+          root = "r";
+          data = [ ];
+        }) "^gen-view\\.headPositions: field 'heads' names 'set' more than once$";
+        test-a-datum-under-an-undeclared-head-is-refused-by-name =
+          refused
+            (h.v.headPositions {
+              inherit (h) heads;
+              structure = h.structure { };
+              root = "r";
+              data = [
+                {
+                  scope = "t";
+                  head = "veto";
+                  relation = "gimp";
+                  datum = [ "T" ];
+                }
+              ];
+            }).graph
+            "^gen-view\\.headPositions: a datum of field 'data' is placed under the head 'veto', which is not a declared head letter .*$";
+
+        # ── `innerOf`, per failure mode ──
+        test-a-mis-keyed-join-is-refused-by-name-k1 = refused (joinWith h.swapped "k1") "^gen-view\\.joinedTrace: innerOf returned the record of 't' for the contributor 'r'; .* mis-keyed$";
+        test-a-mis-keyed-join-is-refused-by-name-k2 = refused (joinWith h.swapped "k2") "^gen-view\\.joinedTrace: innerOf returned the record of '[rt]' for the contributor '[rt]'; .* mis-keyed$";
+        test-a-mis-keyed-join-is-refused-by-name-k4 = refused (joinWith h.swapped "k4") "^gen-view\\.joinedTrace: innerOf returned the record of '[rt]' for the contributor '[rt]'; .* mis-keyed$";
+        test-no-record-for-a-contributor-in-the-trace-is-refused-by-name =
+          refused (joinWith (rs: s: if s == "t" then null else rs.${s}) "k2")
+            "^gen-view\\.joinedTrace: innerOf returned null for the contributor 't', whose datum survives in the trace; .*$";
+        test-a-non-record-is-refused-by-name = refused (joinWith (
+          rs: s: if s == "t" then "t.nix" else rs.${s}
+        ) "k2") "^gen-view\\.joinedTrace: innerOf returned \"t\\.nix\" for the contributor 't'; .*$";
+        test-a-throwing-innerOf-propagates-as-the-callers-error = refused (joinWith (
+          _: _: throw "caller: no evaluation for this scope"
+        ) "k1") "^caller: no evaluation for this scope$";
       };
   };
 }

@@ -35,6 +35,8 @@ let
     decided
     choice
     strings
+    renderSubject
+    attrKey
     ;
   inherit (placement) pathKey targetKey sourceKey;
 
@@ -289,6 +291,97 @@ let
   # two presentations of one set reach `toJSON` byte-equal and there is nothing left here to make
   # order-independent.
   hashTrace = args: builtins.hashString "sha256" (builtins.toJSON (trace args));
+
+  # `joinedTrace { relation; placement; positions; innerOf; }` — the trace of a relation materialized
+  # over `headPositions`, each entry joined to the record its contributor's OWN evaluation keeps.
+  #
+  # ★★ THE JOIN READS NOTHING BUT THIS LIBRARY'S TRACE AND THE CALLER'S RECORDS. The head letter is
+  # already in the entry's word (its first letter), and the contributor is the position's owner, so
+  # the substrate side needs no new fact. What happened INSIDE the contributor is the caller's to
+  # supply: `innerOf scope` returns that scope's record for the channel, opaque here except for the
+  # fields the door reads — `scope` and `loc`, and `band` if the value moved or `reason` if it did
+  # not — or `null` for a scope that contributes nothing. A caller-supplied function is this
+  # library's standing shape (`keyOf`, `combine`, `wellFormed`), and its output is data.
+  #
+  # ★★ EVERY STRUCTURAL SCOPE IS ASKED, NOT ONLY THE TRACE'S. A scope whose field was not moved puts
+  # nothing in the relation, so the substrate's own record never mentions it; `unset` is where it is
+  # recorded, which is what keeps a value that did not move from vanishing silently.
+  #
+  # ★ `innerOf`, PER FAILURE MODE (door or falsifier, never a silent reading):
+  #   · a missing or non-record result for a contributor in the trace → refused by name, naming it
+  #   · a record whose `scope` is another contributor's (a mis-keyed join) → refused by name: the
+  #     record's `scope` is compared with the position's owner
+  #   · a throw → propagates, as the caller's own error
+  joinedTrace =
+    args:
+    let
+      site = "joinedTrace";
+      a = fields site [
+        "relation"
+        "placement"
+        "positions"
+        "innerOf"
+      ] args;
+      p = a.positions;
+      positionsOk =
+        if
+          !(builtins.isAttrs p && builtins.isAttrs (p.owners or null) && builtins.isList (p.scopes or null))
+        then
+          refuse site "field 'positions' is ${renderValue p}; it must be what `headPositions` returns, carrying `owners` and `scopes`"
+        else if !(builtins.isFunction a.innerOf) then
+          refuse site "field 'innerOf' is ${renderValue a.innerOf}; it must be a function from a contributor's scope to its record, or null"
+        else
+          true;
+      recordOf =
+        s:
+        let
+          r = a.innerOf s;
+        in
+        if r == null then
+          null
+        else if
+          !(
+            builtins.isAttrs r
+            && builtins.isString (r.scope or null)
+            && builtins.isList (r.loc or null)
+            && (r ? band || r ? reason)
+          )
+        then
+          refuse site "innerOf returned ${renderValue r} for the contributor ${renderSubject s}; a record carries `scope`, `loc`, and `band` (it moved) or `reason` (it did not), and a scope that contributes nothing returns null"
+        else if r.scope != s then
+          refuse site "innerOf returned the record of ${renderSubject r.scope} for the contributor ${renderSubject s}; a record is joined only to its own contributor's position, and this one is mis-keyed"
+        else
+          r;
+      records = builtins.listToAttrs (
+        map (s: {
+          name = attrKey s;
+          value = recordOf s;
+        }) p.scopes
+      );
+      joinEntry =
+        e:
+        let
+          o = p.owners.${attrKey e.source.scope} or null;
+          r = records.${attrKey o.scope};
+        in
+        if o == null then
+          refuse site "the trace entry from ${renderSubject e.source.scope} is not at a position of field 'positions'; the relation was materialized over a different graph"
+        else if r == null || !(r ? band) then
+          refuse site "innerOf returned ${renderValue r} for the contributor ${renderSubject o.scope}, whose datum survives in the trace; it must be the record of a value that moved, carrying `band`"
+        else
+          {
+            entry = e;
+            contributor = o.scope;
+            band = builtins.head e.word;
+            inner = r;
+          };
+    in
+    decided [ positionsOk ] {
+      joined = map joinEntry (trace {
+        inherit (a) relation placement;
+      });
+      unset = builtins.filter (r: r != null && r ? reason) (map (s: records.${attrKey s}) p.scopes);
+    };
 in
 {
   inherit
@@ -298,5 +391,6 @@ in
     renderEntry
     renderTrace
     hashTrace
+    joinedTrace
     ;
 }

@@ -217,6 +217,7 @@ in
       "lib/enumerations.nix"
       "lib/ordering.nix"
       "lib/placement.nix"
+      "lib/positions.nix"
       "lib/reference.nix"
       "lib/refusal.nix"
       "lib/relation.nix"
@@ -242,8 +243,10 @@ in
       "lib/definition.nix"
       "lib/elements.nix"
       "lib/ordering.nix"
+      "lib/positions.nix"
       "lib/reference.nix"
       "lib/relation.nix"
+      "lib/trace.nix"
       "flake.nix"
       "default.nix"
     ];
