@@ -245,6 +245,8 @@ has **moved the oracle rather than met it**.
 
 **Oracle cluster**: `trace` `traceEntryOf` `renderTrace` `renderEntry` `edgeSortKey` `hashTrace`.
 
+**Head positions**: `headPositions` and `joinedTrace` (README, *Head positions and the joined trace*). A head letter is ranked at the HEAD of every word, never the tail: the visibility order decides at the first differing position, so a tail-placed rank is never read and refuses nothing. `heads` is an ordered list (a rank tie has no spelling), and a head letter that is also a structural letter is refused by name. `joinedTrace` returns `joined`, `unset` and `unaccounted`; an unaccounted moved record is recorded, never refused.
+
 ★ **Fingerprint a topology with `hashTrace`, never with `edgeSortKey`.** The key is a
 **projection**: it leaves out the witness distance and word, so two structurally distinct entries
 render one key — it is **not preimage-injective**, and anything keyed on it mints one value for

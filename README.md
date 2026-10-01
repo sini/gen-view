@@ -347,6 +347,59 @@ without passing `traceEntryOf`. They split on what each owes its reader:
   is not a list. What a display may still do is render two distinct values alike (two sets, a path
   and its string); distinct entries stay distinct in the trace and its fingerprint.
 
+## Head positions and the joined trace
+
+`headPositions { heads; structure; root; data; }` lifts a structural scope graph to one copy per
+declared **head letter**, so every datum's path word is a head letter followed by a structural
+word. Fig. 1's visibility order decides at the **first** position where two words differ, so a
+ranked letter at the head is compared before any structural letter and structure decides only
+between words sharing one head. The same letter at the tail is compared only after the structure
+has already differed: the rank is never read, the answer is plausible and wrong, and nothing is
+refused. The construction makes that placement unwritable rather than detected — a fresh root is
+the only scope with a head edge, position `⟨s, h⟩` exists for every structural scope `s` and head
+`h`, and a structural edge only ever joins two positions of one head.
+
+The door is what keeps it true, and each refusal is by name:
+
+- **`heads` is an ordered list of distinct strings, one rank per letter.** Two head letters sharing
+  a rank have no spelling, because a list position holds one letter; a list inside the list, a
+  non-list, an empty list, a letter named twice and `$` (the end-of-path label) are all refused.
+- **A head letter that is also a structural letter is refused.** A structural edge carrying it
+  would put a ranked letter inside the structural word, which is the tail placement again.
+- **A datum enters a position only through `data`, under a declared head letter.** The structure's
+  own data and any edge that is not a structural letter are refused, and so is a datum under an
+  undeclared head.
+
+It returns data: `graph` (the product scope graph), `admission`, `order` and `orderMark` (the mark
+ranks each head letter in its own layer in list order, then every structural letter with `$` in
+one layer, so within one head the query order decides), `owners` (each position back to its
+`{ scope; head; }`), `scopes` (the structure's own) and `position s h` (a position's id). There is
+no caller-mark parameter: the order mark is the head ranks, outermost, and one tied structural layer.
+
+`joinedTrace { relation; placement; positions; innerOf; }` is the trace of a relation
+materialized over `headPositions`, each entry joined to the record its contributor's **own**
+evaluation keeps. The head letter is already the first letter of the entry's word and the
+contributor is the position's owner, so the substrate side needs no new fact; what happened inside
+the contributor is the caller's to supply. `innerOf scope` returns that scope's record for the
+channel — opaque except for `scope`, `loc`, and `band` (the value moved) or `reason` (it did not) —
+or `null` for a scope that contributes nothing. It returns three halves:
+
+- **`joined`**: one `{ entry; contributor; band; inner; }` per trace entry, where `band` is the
+  head letter and `inner` is the contributor's record.
+- **`unset`**: every structural scope's record of a value that did not move. Every scope is asked,
+  not only the trace's, because a scope that did not move puts nothing in the relation and the
+  substrate's own record never mentions it.
+- **`unaccounted`**: a moved record whose scope owns no datum among the relation's `contributions`,
+  `shadowed` or `dropped`, kept intact. It is **recorded, not refused**: it covers a datum never
+  placed, a relation materialized from another root and a datum the definition's `wellFormed`
+  rejected, which is lawful and which the relation records nowhere. `withheld` is not read: its
+  rows are blocked edges keyed by the edge's source, so a row at a position witnesses no datum there.
+
+`innerOf` is a caller-supplied function, so each failure mode has a door: a missing or non-record
+result for a contributor in the trace, a record whose `scope` is another contributor's (a
+mis-keyed join) and a record carrying both `band` and `reason` are each refused by name; a throw
+propagates as the caller's own error.
+
 ## Tests
 
 ```
