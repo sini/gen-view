@@ -10,7 +10,7 @@
 # declared order", "no declared ACC flag" and "outside the whitelist" are all the tag check, and
 # the fifth (arrival order) is the one arm that needs a check of its own because its subject is a
 # value that is genuinely there.
-{ genView, ... }:
+{ genPrelude, genView, ... }:
 let
   f = import ../fixture.nix { inherit genView; };
   v = genView;
@@ -186,8 +186,8 @@ in
       in
       {
         expr = {
-          present = builtins.match ".*ANCHOR: R10\\.1-RIDER-ACC-VALUE-DOMAIN.*" src != null;
-          absentControl = builtins.match ".*${absentToken}.*" src != null;
+          present = genPrelude.hasInfix "ANCHOR: R10.1-RIDER-ACC-VALUE-DOMAIN" src;
+          absentControl = genPrelude.hasInfix absentToken src;
         };
         expected = {
           present = true;
