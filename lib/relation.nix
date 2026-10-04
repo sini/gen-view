@@ -77,7 +77,7 @@ let
     ;
   enums = import ./enumerations.nix { inherit prelude; };
   refusal = import ./refusal.nix { inherit prelude; };
-  carrierLib = import ./carrier.nix { inherit prelude graph; };
+  carrierLib = import ./carrier.nix { inherit prelude; };
   inherit (refusal)
     refuse
     fields

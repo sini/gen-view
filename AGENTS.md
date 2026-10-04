@@ -311,8 +311,8 @@ first line of each):
 - **No identifier may be named `materialize`.** The act has no term at any archived primary;
   `viewDefinition` and `viewRelation` do (Manchanda & Warren, printed 381), and the update-versus-
   maintenance narrowing travels with that citation everywhere it appears.
-- **The fold may not reorder or dedup by rank.** `gen-graph.queryFold` is NOT a successor to it: it
-  folds over the sorted answer set and wants a commutative-idempotent monoid.
+- **The fold may not reorder or dedup by rank.** No sorted-answer-set fold is a successor to it:
+  such a fold (the retired `gen-graph.queryFold`) wants a commutative-idempotent monoid.
 - **The ordering door must never accept the raw labelled-edge accessor.** The input type is the
   stratification, and relaxing it reads like a query-surface change while being a semantics change
   that does not throw.

@@ -40,7 +40,8 @@ relation is reached **once, at the end of the path**, by **(NR-Rel)**. So the wa
 throughout and content is filtered by WFD at the end — **a content name can never enter the label
 word**, and `carrier` refuses an alphabet and a relation sort that overlap.
 
-The regular-expression kernel is **cited, not reinvented**: `gen-graph.regex` steps Brzozowski
+The regular-expression kernel is **cited, not reinvented**: the label well-formedness and label
+order are built by gen-scope's `wellFormed` and `labelOrder`, and its `resolve` steps Brzozowski
 (1964) derivatives in a normal form, which is what bounds the derivative state set (Thm 5.2, over
 the similarity of Def 5.2, whose ACI identities the normalization must *perform*).
 

@@ -31,7 +31,6 @@ let
   f = import ./fixture.nix { inherit genView genScope; };
   carrierLib = import ../lib/carrier.nix {
     prelude = genPrelude;
-    inherit graph;
   };
   r = import ./reference-fixture.nix { inherit genView genScope; };
   v = genView;

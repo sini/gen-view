@@ -50,7 +50,7 @@ let
     concatMap
     ;
   refusal = import ./refusal.nix { inherit prelude; };
-  carrierLib = import ./carrier.nix { inherit prelude graph; };
+  carrierLib = import ./carrier.nix { inherit prelude; };
   inherit (import ./elements.nix { inherit prelude; }) elementOf;
   inherit (refusal)
     fields
