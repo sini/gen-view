@@ -200,16 +200,13 @@ exactly one step of one pipeline. ★ Nor is it a second access path to
 holds a walk, a competition, a tie-set and a dedup; this reaches the **evaluator's live node set**
 from the id handed `compute` **at force time** and holds none of them.
 
-★★ **THE ENGINE CHECK NAMES `queryReverse`, NOT `query` — do not "unify" it with the sibling's.** An
-authority publishing only the forward operator cannot answer this construct, and a check copied
-from above would **accept** it and then fail at force with an unnamed error inside an evaluator.
-`refusals.test-an-engine-publishing-no-queryreverse-refuses` carries that arm.
+★★ **ONE OPERATOR, BOTH DIRECTIONS.** Both constructs require the authority's `resolve`
+(den-hoag-gayc): this one walks it `direction = "inbound"`, the converse taken after the marks are
+applied at the AUTHORED source (ADR-0024), so the two constructs share one engine check.
+`refusals.test-an-engine-publishing-no-queryreverse-refuses` carries it.
 
-★★ **`transitive` IS SPELLED THE DELEGATE'S WAY AND NOT `transitiveImports`, DELIBERATELY.** The
-delegate's reverse operator owns the name, refuses the forward spelling **loudly and
-tryEval-uncatchably**, and `inherit (a) transitive` is what makes a disagreement between two
-written-down literals inexpressible. Symmetry with the forward half would cost a rename layer
-inside `compute` — a literal at one site about a name owned at another.
+★★ **`transitive` IS NOT `transitiveImports`.** It names the converse's well-formedness, `imports`
+or `imports imports*`, and the closed field set refuses the forward spelling by name.
 
 ★ **NO ORDER AND NO `dedup` FIELD, and the duplicate is ASSERTED rather than tolerated.** The
 delegate neither sorts nor deduplicates: a node reachable along two reverse paths **contributes

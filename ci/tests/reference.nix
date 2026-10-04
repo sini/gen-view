@@ -76,7 +76,7 @@ in
     # ══ ORACLE O3 — THE DELEGATION IS HONEST ══
     #
     # ★★★ THE SEEDED-DEFECT ORACLE FOR THE ANTI-DRIFT CONDITION, and the cell a later author will
-    # meet. The construct is handed an authority whose `query` IGNORES ITS ARGUMENTS and answers a
+    # meet. The construct is handed an authority whose `resolve` IGNORES ITS ARGUMENTS and answers a
     # sentinel; `compute` must return that sentinel. It can only do so while the answer is entirely
     # the authority's — the moment any part of the resolution is computed inside the construct, the
     # sentinel stops coming back. This is what fails if a shadowing decision is ever "optimized"
@@ -118,6 +118,20 @@ in
           "read"
           "write"
         ];
+      };
+    };
+
+    # ★ THE FLAG TRIPLE NAMES A PRESET, AND THE PRESET DECIDES (den-hoag-gayc design §2, the flag
+    # table): a node carrying a datum of its own and importing another answers its own under D < I < P
+    # and the import's under `localShadowsImport = false`. Each arm is the other's control.
+    test-the-shadowing-flag-names-the-label-order = {
+      expr = {
+        localWins = f.shadowSelf.get "req" "localWins";
+        importWins = f.shadowSelf.get "req" "importWins";
+      };
+      expected = {
+        localWins = [ "local" ];
+        importWins = [ "imported" ];
       };
     };
 
@@ -209,8 +223,8 @@ in
     # ══ ORACLE O6 — THE REVERSE DELEGATION IS HONEST, AND ITS ENGINE CHECK NAMES ITS OWN OPERATOR ══
     #
     # ★★★ THE SEEDED-DEFECT ORACLE, ONE RELATION OVER. The construct is handed an authority whose
-    # `queryReverse` IGNORES ITS ARGUMENTS and answers a sentinel; `compute` must return that
-    # sentinel, which it can do only while the answer is entirely the authority's. The moment any
+    # `resolve` IGNORES ITS ARGUMENTS and answers one witness carrying a sentinel; `compute` must
+    # return that sentinel, which it can do only while the answer is entirely the authority's. The moment any
     # part of the reverse walk — an importer enumeration, a closure step, a fold — is computed
     # inside `lib/reference.nix`, the sentinel stops coming back.
     #
@@ -224,7 +238,7 @@ in
         real = f.gatherSelf.get "db1" "direct";
       };
       expected = {
-        stub = f.reverseSentinel;
+        stub = [ f.reverseSentinel ];
         real = [
           "w1"
           "w2"
@@ -318,7 +332,7 @@ in
       };
     };
 
-    # ══ ADR-0026 — THE BOUNDARY MARK IS THE FAIL-CLOSED FLOOR, COMPILED AT THE ACCESSOR ══
+    # ══ ADR-0026 — THE BOUNDARY MARK IS THE FAIL-CLOSED FLOOR, READ BY THE AUTHORITY ══
     #
     # ★★★ THE WITNESS. Before `marks` existed the consumer's declaration read THROUGH a boundary
     # the calculus draws: `req`'s own mark refuses `imports`, and the answer was the provider's
@@ -496,15 +510,15 @@ in
       };
     };
 
-    # ★ NARROWING NEVER WIDENS. Over an authority already behind a bound, the construct's own bound
-    # intersects: the same seal twice is one seal, and neither layer re-admits what the other
-    # withheld. No case is written for an already-bounded authority, and this is why none is owed.
+    # ★ NARROWING NEVER WIDENS. The evaluation's own floor and the construct's `marks` (the
+    # authority's `bound`) intersect: the same seal in both is one seal, and neither re-admits what
+    # the other withheld.
     test-narrowing-an-already-bounded-authority-never-widens = {
       expr = {
-        sameTwice = f.compiledSelf.get "req" "sameTwice";
-        innerOnly = f.compiledSelf.get "req" "innerOnly";
-        outerOnly = f.compiledSelf.get "req" "outerOnly";
-        neither = f.compiledSelf.get "req" "neither";
+        sameTwice = (f.compiledSelf (f.sealAt "req" "imports")).get "req" "bounded";
+        innerOnly = (f.compiledSelf (f.sealAt "req" "imports")).get "req" "unbounded";
+        outerOnly = (f.compiledSelf f.noMarks).get "req" "bounded";
+        neither = (f.compiledSelf f.noMarks).get "req" "unbounded";
       };
       expected = {
         sameTwice = null;
@@ -518,8 +532,8 @@ in
     };
 
     # ★★ σ AND π SEE THE AUTHORITY'S OWN RECORD. A π reading `parent` at a node whose own datum
-    # decides answers the real parent under a `parent` seal; only the delegate's P-STEP sees the
-    # narrowed one, which the inherited-candidate cell above pins.
+    # decides answers the real parent under a `parent` seal; only the delegate's P-STEP is withheld,
+    # which the inherited-candidate cell above pins.
     test-wellformed-and-project-read-the-unbounded-record = {
       expr = {
         sealed =
@@ -540,61 +554,6 @@ in
       expected = {
         sealed = [ "outer" ];
         unmarked = [ "outer" ];
-      };
-    };
-
-    # ★★ THE BOUND IS A PROJECTION, NOT A FILTERED VIEW. An authority reading P through `node` is
-    # bounded; one reading it through `allNodes` — a member the bound does not narrow — is REFUSED
-    # rather than handed an unbounded second path. So are a relation other than `imports` and a
-    # record with no `parent`; the in-protocol read over the same stub answers.
-    test-a-read-outside-the-bound-is-refused = {
-      expr = {
-        viaNodeSealed =
-          (f.v.referenceResolution (
-            f.referenceArgs
-            // {
-              engine = f.viaNode;
-              marks = f.sealAt "child" "parent";
-            }
-          )).compute
-            f.allNodesRecord
-            "child";
-        viaNodeUnmarked =
-          (f.v.referenceResolution (f.referenceArgs // { engine = f.viaNode; })).compute f.allNodesRecord
-            "child";
-        viaAllNodes = refuses (
-          (f.v.referenceResolution (
-            f.referenceArgs
-            // {
-              engine = f.viaAllNodes;
-              marks = f.sealAt "child" "parent";
-            }
-          )).compute
-            f.allNodesRecord
-            "child"
-        );
-        unknownRelation = refuses (
-          (f.v.referenceResolution (f.referenceArgs // { engine = f.viaIncludes; })).compute
-            (f.stubRecord true)
-            "x"
-        );
-        noParent = refuses (
-          (f.v.referenceResolution (f.referenceArgs // { engine = f.viaImports; })).compute
-            (f.stubRecord false)
-            "x"
-        );
-        inProtocol =
-          (f.v.referenceResolution (f.referenceArgs // { engine = f.viaImports; })).compute
-            (f.stubRecord true)
-            "x";
-      };
-      expected = {
-        viaNodeSealed = null;
-        viaNodeUnmarked = "outer";
-        viaAllNodes = true;
-        unknownRelation = true;
-        noParent = true;
-        inProtocol = [ "y" ];
       };
     };
 

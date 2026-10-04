@@ -325,7 +325,7 @@ in
           expr = builtins.deepSeq (v.referenceResolution (r.referenceArgs // { engine = { }; })) true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.referenceResolution: field 'engine' must be a query authority publishing a 'query'.*performs no resolution of its own.*$";
+            msg = "^gen-view\\.referenceResolution: field 'engine' must be a query authority publishing a 'resolve'.*performs no resolution of its own.*$";
           };
         };
 
@@ -350,6 +350,18 @@ in
           expectedError = {
             type = "ThrownError";
             msg = "^gen-view\\.referenceResolution: field 'importShadowsParent' is null, which is not a boolean.*DECLARED here rather than left to the authority's defaults.*$";
+          };
+        };
+
+        # `importShadowsParent = false` names no order: the retired flag yielded imports-before-parent
+        # whatever its value, so it is refused by name rather than carried inert.
+        test-a-false-importshadowsparent-is-named = {
+          expr = builtins.deepSeq (v.referenceResolution (
+            r.referenceArgs // { importShadowsParent = false; }
+          )) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.referenceResolution: field 'importShadowsParent' is false, which names no order.*$";
           };
         };
 
@@ -396,58 +408,6 @@ in
           };
         };
 
-        # ── THE BOUND REFUSES WHAT IT DOES NOT NARROW, BY NAME ──
-        # A relation other than `imports`, a node record with no `parent`, and an evaluator member
-        # outside the bound's protocol: each would otherwise be read UNBOUNDED with nothing saying so.
-        test-a-relation-the-bound-does-not-know-is-named = {
-          expr =
-            (v.referenceResolution (r.referenceArgs // { engine = r.viaIncludes; })).compute (r.stubRecord true)
-              "x";
-          expectedError = {
-            type = "ThrownError";
-            msg = ".*gen-view\\.referenceResolution: the injected authority read the relation \"includes\" through the bounded accessor, which knows imports; a relation the bound does not know is refused rather than read unbounded.*";
-          };
-        };
-        test-a-node-record-with-no-parent-is-named = {
-          expr =
-            (v.referenceResolution (r.referenceArgs // { engine = r.viaImports; })).compute (r.stubRecord false)
-              "x";
-          expectedError = {
-            type = "ThrownError";
-            msg = ".*gen-view\\.referenceResolution: the injected authority's node record for \"x\" carries no 'parent'.*";
-          };
-        };
-        test-a-member-outside-the-bound-is-named = {
-          expr =
-            (v.referenceResolution (
-              r.referenceArgs
-              // {
-                engine = r.viaAllNodes;
-                marks = r.sealAt "child" "parent";
-              }
-            )).compute
-              r.allNodesRecord
-              "child";
-          expectedError = {
-            type = "ThrownError";
-            msg = ".*gen-view\\.referenceResolution: the injected authority read 'allNodes' through the bounded accessor, which serves allNodeIds, get, node; a member the bound does not narrow is refused rather than read unbounded.*";
-          };
-        };
-        # σ and π are re-read by id from the unbounded record, so a record with no id is named.
-        test-a-node-record-with-no-id-is-named = {
-          expr = (v.referenceResolution r.referenceArgs).compute {
-            node = _: {
-              parent = null;
-              decls.provided = [ "x" ];
-            };
-            get = _: _: [ ];
-            allNodeIds = [ ];
-          } "x";
-          expectedError = {
-            type = "ThrownError";
-            msg = ".*gen-view\\.referenceResolution: node \\(the engine's node record carries no 'id'\\): 'wellFormed' and 'project' read the authority's own node record.*";
-          };
-        };
       };
 
     # ── `neededBy`: EVERY OMITTED FIELD IS NAMED, ONE CELL PER FIELD ──
@@ -491,25 +451,13 @@ in
           };
         };
 
-        # ★★★ THE ENGINE CHECK NAMES `queryReverse` AND NOT `query`, AND THIS IS THE CELL THAT PINS
-        # IT. An authority publishing only the forward operator cannot answer this construct at all,
-        # so an engine check COPIED from the forward sibling would accept it here and defer the
-        # failure to some later force, where it arrives as an unnamed missing-attribute error inside
-        # an evaluator. Two arms: a value publishing NOTHING, and — the arm that catches the copy —
-        # a value publishing exactly `query`.
+        # The engine check names the operator the construct needs: `resolve`, whose converse
+        # (`direction = "inbound"`) is this construct's walk.
         test-an-engine-publishing-no-queryreverse-is-named-with-the-operator-it-lacks = {
           expr = builtins.deepSeq (v.neededBy (r.reverseArgs // { engine = { }; })) true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.neededBy: field 'engine' must be a query authority publishing a 'queryReverse'.*performs no traversal of its own.*$";
-          };
-        };
-
-        test-a-forward-only-authority-is-named-with-the-operator-it-lacks = {
-          expr = builtins.deepSeq (v.neededBy (r.reverseArgs // { engine = r.stubEngine; })) true;
-          expectedError = {
-            type = "ThrownError";
-            msg = "^gen-view\\.neededBy: field 'engine' must be a query authority publishing a 'queryReverse'.*only the forward 'query' cannot answer the reverse direction.*$";
+            msg = "^gen-view\\.neededBy: field 'engine' must be a query authority publishing a 'resolve'.*performs no traversal of its own.*$";
           };
         };
 
@@ -1753,8 +1701,7 @@ in
           c;
         vd = over: v.viewDefinition (f.definitionArgs // over);
         engine = {
-          query = _: [ ];
-          queryReverse = _: [ ];
+          resolve = _: [ ];
         };
         forged = el: arm: {
           __element = el;
@@ -3130,11 +3077,11 @@ in
 
         # S11 — the engine's operator is a function, decided at construction
         test-a-non-function-query-operator-is-named =
-          cell (v.referenceResolution (r.referenceArgs // { engine.query = 42; }))
-            "^gen-view\\.referenceResolution: field 'engine' must be a query authority publishing a 'query'; .*$";
-        test-a-non-function-queryReverse-operator-is-named = cell (v.neededBy
-          (r.reverseArgs // { engine.queryReverse = 42; })
-        ) "^gen-view\\.neededBy: field 'engine' must be a query authority publishing a 'queryReverse'; .*$";
+          cell (v.referenceResolution (r.referenceArgs // { engine.resolve = 42; }))
+            "^gen-view\\.referenceResolution: field 'engine' must be a query authority publishing a 'resolve'; .*$";
+        test-a-non-function-queryReverse-operator-is-named = cell (v.neededBy (
+          r.reverseArgs // { engine.resolve = 42; }
+        )) "^gen-view\\.neededBy: field 'engine' must be a query authority publishing a 'resolve'; .*$";
 
         # S6 — the distance rule (its result is already refused by name: value-comparator-refusals)
         test-a-distance-pattern-formal-aborts = residue "TypeError" (read (withDef {
@@ -3152,7 +3099,7 @@ in
           project = { x }: 1;
         }) "called without required argument 'x'";
         test-an-engine-query-pattern-formal-aborts = residue "TypeError" (refRead {
-          engine.query = { x }: _: _: 1;
+          engine.resolve = { x }: _: _: 1;
         }) "called without required argument 'x'";
         # S12/S13 residue — `map`'s and `scan`'s results are datums (content); only the application is pinned
         test-a-map-pattern-formal-aborts =

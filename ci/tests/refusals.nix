@@ -355,8 +355,8 @@ in
       };
 
       # ── THE INJECTED AUTHORITY IS CHECKED AT CONSTRUCTION, NOT AT SOME LATER FORCE ──
-      # A value publishing no `query` is the whole of "wrong authority", and catching it here is what
-      # keeps the failure at the declaration rather than inside an evaluator three layers away.
+      # A value publishing no `resolve` is the whole of "wrong authority", and catching it here is
+      # what keeps the failure at the declaration rather than inside an evaluator three layers away.
       test-an-engine-publishing-no-query-refuses = {
         expr = {
           noQuery = refuses (v.referenceResolution (r.referenceArgs // { engine = { }; }));
@@ -506,26 +506,18 @@ in
         };
       };
 
-      # ── THE INJECTED AUTHORITY IS CHECKED AT CONSTRUCTION, AND IT IS CHECKED FOR THE RIGHT
-      # OPERATOR ──
-      #
-      # ★★★ THE `forwardOnly` ROW IS THE ONE THIS CELL EXISTS FOR. A construct whose engine check
-      # was COPIED from the forward sibling would test for `query`, ACCEPT `stubEngine` — which
-      # publishes exactly that and nothing else — and then fail at force with an unnamed
-      # missing-attribute error three layers inside an evaluator. The two stubs are each other's
-      # wrong-authority arm: `stubEngine` publishes only `query`, `reverseStubEngine` only
-      # `queryReverse`, and the second is the positive control that the check is not simply
-      # refusing every stub.
+      # ── THE INJECTED AUTHORITY IS CHECKED AT CONSTRUCTION ──
+      # One operator, `resolve`, carries both directions (`direction = "inbound"` is the converse),
+      # so the check is the forward half's; the stub is the positive control that the check is not
+      # simply refusing every stub.
       test-an-engine-publishing-no-queryreverse-refuses = {
         expr = {
           noOperator = refuses (v.neededBy (r.reverseArgs // { engine = { }; }));
-          forwardOnly = refuses (v.neededBy (r.reverseArgs // { engine = r.stubEngine; }));
           notAnAttrset = refuses (v.neededBy (r.reverseArgs // { engine = "gen-scope"; }));
           reverseStubAccepted = refuses (v.neededBy (r.reverseArgs // { engine = r.reverseStubEngine; }));
         };
         expected = {
           noOperator = true;
-          forwardOnly = true;
           notAnAttrset = true;
           reverseStubAccepted = false;
         };

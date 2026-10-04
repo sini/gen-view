@@ -269,15 +269,16 @@ are two constructs over the two directions of one relation.
 
 ```nix
 referenceResolution {
-  engine;                # the authority — must publish `query`
+  engine;                # the authority — must publish `resolve` (gen-scope's one calculus)
   name; wellFormed;      # the result name, and σ
   project;               # π
   marks;                 # required: node id → [ { name; admits; } ]; `_: [ ]` for none
-  localShadowsImport; importShadowsParent; transitiveImports;
-}                        # ⇒ ONE datum, or the authority's refusal
+  localShadowsImport; importShadowsParent; transitiveImports;  # name a preset: `neron`, or I < D < P;
+                         # `importShadowsParent = false` is refused (it named no order)
+}                        # ⇒ ONE datum (`single`), or the authority's AMBIGUITY refusal
 
 neededBy {
-  engine;                # the authority — must publish `queryReverse`
+  engine;                # the authority — must publish `resolve`; walked `direction = "inbound"`
   name; wellFormed;      # the result name, and σ
   project;               # π
   marks;                 # required, as above

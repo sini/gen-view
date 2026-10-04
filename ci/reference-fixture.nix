@@ -29,14 +29,16 @@ let
   v = genView;
   s = genScope;
 
-  # `mkSelf { edges; decls; attributes; }` — an evaluator over a declared import graph. `children`
-  # and `imports` are the structural attributes every scope needs; `attributes` carries the
-  # computes under test.
+  # `mkSelf { edges; decls; attributes; floor ? none; }` — an evaluator over a declared import
+  # graph. `children` and `imports` are the structural attributes every scope needs, and `marks` is
+  # the evaluation's own boundary floor, which the authority reads in every resolution (`_: _: [ ]`
+  # states none); `attributes` carries the computes under test.
   mkSelf =
     {
       edges,
       decls,
       attributes,
+      floor ? _: [ ],
     }:
     let
       importIndex = builtins.foldl' (
@@ -51,6 +53,7 @@ let
         {
           children = _self: _id: { };
           imports = _self: id: importIndex.${id} or [ ];
+          marks = _self: floor;
         }
         // attributes
       )
@@ -121,14 +124,12 @@ let
     transitiveImports = false;
   };
 
-  # THE STUB AUTHORITY — a `query` that ignores its arguments entirely and answers a sentinel. It
-  # is the whole of the delegation oracle: a construct that computed any part of the answer itself
-  # could not return this.
+  # THE STUB AUTHORITY — a `resolve` that ignores its arguments entirely and answers a record
+  # whose selection is a sentinel. It is the whole of the delegation oracle: a construct that
+  # computed any part of the answer itself could not return this.
   sentinel = "the-stub-authority-answered";
   stubEngine = {
-    query =
-      _options: _dataFilter: _self: _id:
-      sentinel;
+    resolve = _options: _self: _id: { single = _group: sentinel; };
   };
 
   providesSelf = mkSelf {
@@ -139,6 +140,21 @@ let
       # differ in exactly the injected field and in nothing else.
       resolved = computeOf referenceArgs;
       stubbed = computeOf (referenceArgs // { engine = stubEngine; });
+    };
+  };
+
+  # ── THE FLAG TRIPLE NAMES THE ORDER ──
+  # `req` declares a datum of its own AND imports `prov`, which declares another: D < I < P answers
+  # the local datum, and `localShadowsImport = false` (I < D < P) the imported one.
+  shadowSelf = mkSelf {
+    edges = providesEdges;
+    decls = {
+      req.provided = [ "local" ];
+      prov.provided = [ "imported" ];
+    };
+    attributes = {
+      localWins = computeOf referenceArgs;
+      importWins = computeOf (referenceArgs // { localShadowsImport = false; });
     };
   };
 
@@ -186,12 +202,16 @@ let
     n: if wellFormed n then project n else null;
 
   unguardedQuery =
-    args:
-    s.query {
-      localShadowsImport = true;
-      importShadowsParent = true;
-      transitiveImports = false;
-    } (unguarded args);
+    args: self: id:
+    (s.resolve (
+      s.neron
+      // {
+        mode = "visible";
+        dataFilter = unguarded args;
+        group = "·";
+      }
+    ) self id).single
+      "·";
 
   projectionSelf = mkSelf {
     edges = projectionEdges;
@@ -337,16 +357,12 @@ let
     transitive = false;
   };
 
-  # THE REVERSE STUB AUTHORITY — a `queryReverse` ignoring its arguments entirely, answering a
-  # sentinel. It is the whole of the reverse delegation oracle, on the forward stub's own terms.
-  # ★ IT PUBLISHES NO `query`, and `stubEngine` above publishes no `queryReverse`: the two stubs
-  # are each other's wrong-authority arm, so "the engine check names the operator THIS construct
-  # needs" is checked in both directions rather than asserted in one.
+  # THE REVERSE STUB AUTHORITY — a `resolve` ignoring its arguments entirely, answering one
+  # witness whose value is a sentinel. It is the whole of the reverse delegation oracle, on the
+  # forward stub's own terms: the construct reads the answers' values and nothing else.
   reverseSentinel = "the-reverse-stub-authority-answered";
   reverseStubEngine = {
-    queryReverse =
-      _options: _dataFilter: _self: _id:
-      reverseSentinel;
+    resolve = _options: _self: _id: { answers = [ { value = reverseSentinel; } ]; };
   };
 
   gatherSelf = mkSelf {
@@ -401,10 +417,21 @@ let
         # ★ THE VACUITY ARM — the same π ∘ σ composition with the guard removed and nothing else
         # changed, reached through the delegate directly. Written from the shared `unguarded`
         # binding above so the guarded and unguarded readings differ in EXACTLY the guard.
-        unguarded = s.queryReverse { } (unguarded {
-          wellFormed = admitsTagged;
-          project = tagOf;
-        });
+        unguarded =
+          self: id:
+          map (x: x.value)
+            (s.resolve {
+              wf = s.wellFormed {
+                alphabet = [ "imports" ];
+                expression = "imports";
+              };
+              mode = "witnesses";
+              direction = "inbound";
+              dataFilter = unguarded {
+                wellFormed = admitsTagged;
+                project = tagOf;
+              };
+            } self id).answers;
       };
     };
 
@@ -444,7 +471,12 @@ let
       node = id: nodes.${id};
       get =
         id: attr:
-        if attr == "imports" then imports.${id} or [ ] else throw "fixture record: no attribute ${attr}";
+        if attr == "imports" then
+          imports.${id} or [ ]
+        else if attr == "marks" then
+          [ ]
+        else
+          throw "fixture record: no attribute ${attr}";
       allNodeIds = builtins.attrNames nodes;
     };
   node = id: parent: provided: {
@@ -467,15 +499,6 @@ let
     };
     imports = { };
   };
-  # `localParentRecord` with its node set ALSO published as `allNodes` — a second path to `parent`
-  # among the evaluator members the bound does not narrow.
-  allNodesRecord = localParentRecord // {
-    allNodes = {
-      outer = node "outer" null [ "ambient" ];
-      child = node "child" "outer" [ "c" ];
-    };
-  };
-
   # ── THE DUALITY: `neededBy` IS THE INVERSE OF WHAT `referenceResolution` READS ──
   # `req` imports `prov`; `prov` provides, `req` is tagged. Forward reads `prov` from `req`, reverse
   # gathers `req` at `prov`, both under ONE marks accessor.
@@ -574,71 +597,20 @@ let
       attributes.gathered = reverseComputeOf (reverseArgs // { inherit marks; });
     };
 
-  # ── AN AUTHORITY THAT IS ALREADY MARKS-COMPILED ──
-  # The bounded record a construct hands its authority, captured by an authority that answers with
-  # it; gen-scope's `query` behind that record is a marks-compiled authority built from the
-  # published surface alone.
-  boundedRecord =
-    marks: self:
-    (v.referenceResolution (
-      referenceArgs
-      // {
-        inherit marks;
-        engine.query =
-          _: _: bself: _:
-          bself;
-      }
-    )).compute
-      self
-      null;
-  compiledEngine = inner: {
-    query =
-      o: dataFilter: self:
-      s.query o dataFilter (boundedRecord inner self);
-  };
-  compiledSelf = mkSelf {
-    edges = providesEdges;
-    decls = providesDecls;
-    attributes = {
-      sameTwice = computeOf (
-        referenceArgs
-        // {
-          engine = compiledEngine (sealAt "req" "imports");
-          marks = sealAt "req" "imports";
-        }
-      );
-      innerOnly = computeOf (referenceArgs // { engine = compiledEngine (sealAt "req" "imports"); });
-      outerOnly = computeOf (
-        referenceArgs
-        // {
-          engine = compiledEngine noMarks;
-          marks = sealAt "req" "imports";
-        }
-      );
-      neither = computeOf (referenceArgs // { engine = compiledEngine noMarks; });
+  # ── THE FLOOR AND THE BOUND ──
+  # The evaluation's own `marks` (the floor, ADR-0026) beside the construct's `marks` field (the
+  # query's `bound`): the authority reads both at every edge source, so the two intersect.
+  compiledSelf =
+    floor:
+    mkSelf {
+      edges = providesEdges;
+      decls = providesDecls;
+      inherit floor;
+      attributes = {
+        bounded = computeOf (referenceArgs // { marks = sealAt "req" "imports"; });
+        unbounded = computeOf referenceArgs;
+      };
     };
-  };
-
-  # ── AUTHORITIES READING PAST THE BOUND'S PROTOCOL ──
-  # Each reads one channel and answers what it found. `viaNode` reads P through the bounded `node`;
-  # `viaAllNodes` reads it through `allNodes`, a member the bound does not narrow; `viaIncludes`
-  # reads a relation the bound does not know; `viaImports` is the in-protocol control.
-  viaNode.query =
-    _: _: self: id:
-    (self.node id).parent;
-  viaAllNodes.query =
-    _: _: self: id:
-    (builtins.getAttr id self.allNodes).parent;
-  viaIncludes.query =
-    _: _: self: id:
-    self.get id "includes";
-  viaImports.query =
-    _: _: self: id:
-    self.get id "imports";
-  stubRecord = withParent: {
-    get = _: _: [ "y" ];
-    node = id: { inherit id; } // (if withParent then { parent = null; } else { });
-  };
 in
 {
   inherit
@@ -651,21 +623,16 @@ in
     boundarySelf
     parentRecord
     localParentRecord
-    allNodesRecord
     dual
     twoHop
     libGatherSelf
     compiledSelf
-    viaNode
-    viaAllNodes
-    viaIncludes
-    viaImports
-    stubRecord
     computeOf
     referenceArgs
     sentinel
     stubEngine
     providesSelf
+    shadowSelf
     projectionArgs
     projectionSelf
     multiArgs
