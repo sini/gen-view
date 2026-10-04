@@ -181,10 +181,10 @@ in
     # ── THE DOOR REJECTS THE RAW LABELLED-EDGE ACCESSOR BY TYPE ──
     test-the-ordering-door-rejects-the-raw-labelled-edge-accessor = {
       expr = {
-        reads = refuses (v.readsOf f.graph.labeled);
+        reads = refuses (v.readsOf f.rawLabelled);
         writes = refuses (
           v.writesOf {
-            relation = f.graph.labeled;
+            relation = f.rawLabelled;
             target = v.placement.targets.root {
               scope = "leaf";
               channel = "settings";
@@ -194,7 +194,7 @@ in
         );
         makingAUnit = refuses (
           v.unit {
-            relation = f.graph.labeled;
+            relation = f.rawLabelled;
             target = v.placement.targets.root {
               scope = "leaf";
               channel = "settings";

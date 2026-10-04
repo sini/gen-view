@@ -21,8 +21,8 @@
 # right type and the constructor's law (a `data` listing other datums) is the cooperative-caller
 # residue 8rkc names. An operation or value the library can restate from checked structure is
 # restated and never read — `member` from the lists above, the walk's `step` and `stateKey` from
-# gen-graph's kernel (l83dk), `scopeGraph.labeled` from `carrier`, `scopes` and `edges` under the
-# constructor's own law (`labeledOf`, den-hoag-cer8j), and `datumsAt` from `data`, `expr` from
+# gen-graph's kernel (l83dk), the edge component from `carrier`, `scopes` and `edges` under the
+# constructor's own law (`checkedEdgesOf`, den-hoag-cer8j), and `datumsAt` from `data`, `expr` from
 # `expression`, L̂ from `letters` and a definition's or relation's `name` from its `channel`, each
 # under its constructor's law (`dataLaw`, `exprOf`, den-hoag-dcvpi), and `combine`'s `op`, `unit`,
 # `associative` and `setSemilattice` from its checked `arm` through the whitelist table
@@ -191,7 +191,6 @@ let
     scopeGraph = _: {
       carrier = el "carrier";
       scopes = list;
-      labeled = set;
       datumsAt = set;
       edges = set;
       data = list;

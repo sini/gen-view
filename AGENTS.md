@@ -117,8 +117,8 @@ withdrew the divergence and the family retired with it. R17 is satisfied by the 
 authoring into the component IS the declaration.
 
 ★★★ **SCOPE THAT CLAIM WHEN YOU RESTATE IT — "walk-dependence is unsayable" is FALSE and was struck.**
-Measured: `scopeGraph` forces `scope` and `relation` but never `datum`, and `labeled` is computable
-from `edges` and `scopes` without `data`, so a caller can bind the graph and read it from inside a
+Measured: `scopeGraph` forces `scope` and `relation` but never `datum`, and `edges` is readable
+without `data`, so a caller can bind the graph and read it from inside a
 datum. MEMBERSHIP and FILING are closed (both give infinite recursion, loudly); a datum's **VALUE**
 is not, and it participates conditionally on graph shape. **That door is lawful and stays open:** a
 datum's value is the author's and is not analysed — computing one IS authoring it, which is ADR-0024

@@ -54,8 +54,7 @@
 # ★★★ THE CLAIM IS SCOPED TO PRESENCE AND FILING, AND SAYING MORE WOULD BE FALSE. Struck, quoted so
 # the broader form is not restored: ~~*"WALK-DEPENDENCE IS UNSAYABLE"*~~. MEASURED, each door in its
 # own evaluation — a caller can bind the graph and read it from inside a datum, because `scopeGraph`
-# forces `scope` and `relation` but never `datum`, and `labeled` is computable from `edges` and
-# `scopes` without `data`:
+# forces `scope` and `relation` but never `datum`, and `edges` is readable without `data`:
 #
 #   MEMBERSHIP — whether the datum is in `data` at all   → CLOSED, infinite recursion
 #   FILING     — which scope it sits at                  → CLOSED, infinite recursion

@@ -22,12 +22,17 @@
 {
   genView,
   genScope,
+  genPrelude,
   graph,
   lib,
   ...
 }:
 let
   f = import ./fixture.nix { inherit genView genScope; };
+  carrierLib = import ../lib/carrier.nix {
+    prelude = genPrelude;
+    inherit graph;
+  };
   r = import ./reference-fixture.nix { inherit genView genScope; };
   v = genView;
 
@@ -813,7 +818,7 @@ in
       # The ordering door names the raw labelled-edge accessor specifically, so the reader meets
       # the REASON and not just the denial: the input type is the stratification.
       test-the-ordering-door-names-the-raw-accessor = {
-        expr = builtins.deepSeq (v.readsOf f.graph.labeled) true;
+        expr = builtins.deepSeq (v.readsOf f.rawLabelled) true;
         expectedError = {
           type = "ThrownError";
           msg = "^gen-view\\.readsOf: field 'relation' is a RAW LABELLED-EDGE ACCESSOR; this door takes the materialized result and only that.*$";
@@ -2936,19 +2941,21 @@ in
         # CONTROL: the target check is L's only (`s —l→ s`). An R edge's target is a datum
         # (`s —r→ d`) and a Λ edge's a binding node; both are admitted as inert, not narrowed.
         test-control-an-R-or-Lambda-edge-target-outside-the-scopes-is-admitted = {
-          expr = map (e: { inherit (e) label target; }) (
-            builtins.filter (e: e.label != "parent") (
-              (v.scopeGraph {
+          expr =
+            let
+              g = v.scopeGraph {
                 inherit (f) carrier scopes;
                 edges = f.edges // {
                   import = fromLeaf [ { x = 1; } ];
                   relatum-target = fromLeaf [ "binding" ];
                 };
                 data = f.authored f.datums;
-              }).labeled.labeledEdges
-                "leaf"
-            )
-          );
+              };
+              checked = carrierLib.checkedEdgesOf "scopeGraph" "" g.carrier g.scopes g.edges;
+            in
+            builtins.concatMap (label: map (target: { inherit label target; }) (checked.${label} "leaf")) (
+              builtins.filter (l: l != "parent") (builtins.attrNames checked)
+            );
           expected = [
             {
               label = "import";

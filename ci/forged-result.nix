@@ -153,7 +153,6 @@ let
   # above reads the shape register, which types such a field `set`/`list`/`any` and cannot see in.
   # This walks the genuine VALUES; a field whose value holds a function leaf needs a disposition.
   nestedDisposition = {
-    "scopeGraph.labeled" = "restated";
     "scopeGraph.edges" = "checked";
   };
   holdsFunction =
@@ -178,7 +177,6 @@ let
       ) (builtins.attrNames s)
     )
   ) (builtins.attrNames shapes);
-  forgedLabeled = over: f.graph // { labeled = f.graph.labeled // over; };
   # A derived VALUE is a claim too (den-hoag-dcvpi): every non-function, non-element field of every
   # shape is classified, and the census cell holds the classification equal to the register.
   #
@@ -204,7 +202,6 @@ let
     "scopeGraph.data" = "checked";
     "scopeGraph.datumsAt" = "restated";
     "scopeGraph.edges" = "checked";
-    "scopeGraph.labeled" = "restated";
     "scopeGraph.scopes" = "checked";
     "target.arm" = "declared";
     "target.channel" = "declared";
@@ -248,10 +245,6 @@ let
       scope = "leaf";
       inherit channel;
     };
-  inboundDef = f.mkDefinition {
-    direction = "inbound";
-    root = "root";
-  };
   functionFields = builtins.concatMap (
     k:
     let
@@ -355,46 +348,14 @@ in
     test-a-forged-relatum-member-is-inert-on-a-graph-with-a-relatum-edge = inert (
       viaGraph (graphOver (v.carrier (carrierArgs // { relatumLabels = badRoles; })) roleEdge)
     );
-    # restated — scopeGraph.labeled, from the checked edges, scopes and carrier (den-hoag-cer8j)
     test-every-function-nested-in-an-element-field-has-a-disposition = {
       expr = builtins.sort builtins.lessThan nestedFields;
       expected = builtins.sort builtins.lessThan (builtins.attrNames nestedDisposition);
     };
-    test-a-forged-labeled-answering-no-edges-is-inert = inert (
-      viaGraph (forgedLabeled {
-        labeledEdges = _: [ ];
-      })
-    );
-    test-a-forged-labeled-adding-an-edge-is-inert = inert (
-      viaGraph (forgedLabeled {
-        labeledEdges =
-          id:
-          f.graph.labeled.labeledEdges id
-          ++ [
-            {
-              label = "parent";
-              target = "root";
-            }
-          ];
-      })
-    );
-    test-a-forged-labeled-returning-an-int-is-inert = inert (
-      viaGraph (forgedLabeled {
-        labeledEdges = forty2;
-      })
-    );
-    test-a-forged-labeled-with-no-labeledEdges-is-inert = inert (
-      viaGraph (f.graph // { labeled = { inherit (f.graph) scopes; }; })
-    );
-    test-a-forged-labeled-is-inert-on-an-inbound-walk = {
-      expr = read (
-        f.mkRelation {
-          definition = inboundDef;
-          graph = forgedLabeled { labeledEdges = _: [ ]; };
-        }
-      );
-      expected = read (f.mkRelation { definition = inboundDef; });
-    };
+    # `scopeGraph` publishes no `labeled` (den-hoag-gayc U2f), and a caller's hand-built labelled
+    # record carried on the element is inert: no reader falls back to it when it is present
+    # (den-hoag-cer8j).
+    test-a-carried-labeled-is-inert = inert (viaGraph (f.graph // { labeled = f.rawLabelled; }));
     # what the restatement reads meets the constructor's law at the reading door
     test-forged-edges-with-a-non-accessor-are-refused-at-viewRelation = refused (viaGraph (
       f.graph
@@ -472,7 +433,7 @@ in
             "$" = id: if id == "root" then [ "leaf" ] else [ ];
           };
           data = f.authored f.datums;
-        }).labeled
+        }).scopes
         "^gen-view\\.scopeGraph: field 'carrier\\.labelOrder\\.alphabet' carries the reserved letter '\\$' .*$";
     # The refusal names the ONE field path that carries the letter, so a door reaching L by several
     # paths says which declaration to fix: here only the admission's alphabet is forged.
@@ -486,7 +447,7 @@ in
           };
           inherit (f) scopes edges;
           data = f.authored f.datums;
-        }).labeled
+        }).scopes
         "^gen-view\\.scopeGraph: field 'carrier\\.labelWellFormedness\\.alphabet' carries the reserved letter '\\$' .*$";
     test-a-forged-empty-relations-is-refused-at-the-carrier = refused (v.carrier (
       carrierArgs

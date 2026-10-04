@@ -350,28 +350,15 @@ let
   # the separate component — `data` below — so its datums do not ride on `labeledEdges`. Admitting
   # an `R` label anyway is the stated condition read literally, and such an edge is inert by the
   # same argument; refusing it would be narrowing a law this library does not own.
-  # `labeledOf site at c scopes edges` — the labeled graph of a scopeGraph, derived from its checked
-  # structure. The constructor and every reader run THIS, never a `labeled` an element carries
-  # (den-hoag-cer8j), so a forged `labeled` is inert and forged `edges`/`scopes` meet the
-  # constructor's own law, refused at the reading door. An accessor's RESULT is the graph's law
-  # wherever it is applied, so its refusal names `scopeGraph` at every door. A read costs
-  # O(|scopes|) for `strings` and the scope index, plus O(|edge labels|·(|L|+|R|+|Λ|)) for
-  # `unclassified`, a constant in the data.
-  #
-  # `checkedEdgesOf` is the same law returning the per-label accessors themselves, each result
-  # checked where it is read: what a lift into the calculus's evaluated scope hands its `edges-<l>`
-  # attributes (`relation.nix`), so the walk reads the graph's law and never a second copy of it.
-  labeledOf =
-    site: at: c: scopes0: edges:
-    let
-      checked = checkedEdgesOf site at c scopes0 edges;
-    in
-    builtins.seq checked (
-      graph.labeledFrom checked (
-        strings site (if at == "" then "scopes" else "field '${at}scopes'") scopes0
-      )
-    );
-
+  # `checkedEdgesOf site at c scopes edges` — the edge component of a scopeGraph under its
+  # constructor's law, returned as the per-label accessors themselves, each result checked where it
+  # is read. The constructor and every reader run THIS on the element's `scopes` and `edges`
+  # (den-hoag-cer8j), so forged `edges`/`scopes` meet the constructor's own law, refused at the
+  # reading door. An accessor's RESULT is the graph's law wherever it is applied, so its refusal
+  # names `scopeGraph` at every door. It is what a lift into the calculus's evaluated scope hands its
+  # `edges-<l>` attributes (`relation.nix`), so the walk reads the graph's law and never a second
+  # copy of it. A read costs O(|scopes|) for `strings` and the scope index, plus
+  # O(|edge labels|·(|L|+|R|+|Λ|)) for `unclassified`, a constant in the data.
   checkedEdgesOf =
     site: at: c: scopes0: edges:
     let
@@ -485,22 +472,21 @@ let
         "data"
       ] args;
       c = elementOf "scopeGraph" "carrier" "carrier" a.carrier;
-      # The scopes `labeledOf` checked, so `strings` runs once per construction.
-      scopes = labeled.nodes;
+      scopes = strings "scopeGraph" "scopes" a.scopes;
       # Each accessor's RESULT is checked where the walk consumes it: a list, on every label. The
       # TARGET is checked only on an L label, where `Edges ::= s —l→ s` makes it a scope of this
       # graph; an R edge's target is a datum (`s —r→ d`) and a Λ edge's is a binding node, both
       # admitted above as inert, so narrowing their targets would narrow a law this library does not
       # own. A target is forced to WHNF only when the walk reads it, as it would be unchecked.
-      labeled = labeledOf "scopeGraph" "" c a.scopes a.edges;
+      checked = checkedEdgesOf "scopeGraph" "" c a.scopes a.edges;
       data = dataLaw "scopeGraph" "" c scopes a.data;
       datumsAt = indexData data;
     in
-    builtins.seq data (
-      builtins.seq labeled decided [ c scopes ] {
+    builtins.seq checked (
+      builtins.seq data decided [ c scopes ] {
         __element = "scopeGraph";
         carrier = c;
-        inherit scopes labeled datumsAt;
+        inherit scopes datumsAt;
         inherit (a) edges data;
       }
     );
@@ -585,7 +571,6 @@ in
     dataOrder
     carrier
     scopeGraph
-    labeledOf
     checkedEdgesOf
     entriesOf
     relationLookup

@@ -365,7 +365,7 @@ in
       expr = refuses (
         v.relationLookup {
           graph = f.graph;
-          labeled = f.graph.labeled;
+          labeled = f.rawLabelled;
           scope = "inc";
           relation = "import";
           wellFormed = f.admitAll;
@@ -550,8 +550,8 @@ in
     #
     # ★★★ THIS CELL EXISTS TO STOP A FUTURE READER "FIXING" A DOOR THAT IS MEANT TO BE OPEN. The
     # library once claimed WALK-DEPENDENCE IS UNSAYABLE without qualification, and that claim was
-    # false: `scopeGraph` forces `scope` and `relation` but never `datum`, and `labeled` is
-    # computable from `edges` and `scopes` without `data` — so a caller can bind the graph and read
+    # false: `scopeGraph` forces `scope` and `relation` but never `datum`, and `edges` is
+    # readable without `data` — so a caller can bind the graph and read
     # it from inside a datum. Someone meeting the old sentence and this fact would reasonably try to
     # close the door. THEY MUST NOT: a datum's VALUE is the author's and is not analysed, computing
     # one IS authoring it, and that is exactly ADR-0024 arm F's *declared explicitly rather than as
@@ -590,7 +590,7 @@ in
                   {
                     scope = "inc";
                     relation = "import";
-                    datum = if (g.labeled.labeledEdges "mid") != [ ] then [ "admit" ] else [ "reject" ];
+                    datum = if (g.edges.parent "mid") != [ ] then [ "admit" ] else [ "reject" ];
                   }
                 ];
               };

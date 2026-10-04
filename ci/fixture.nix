@@ -232,6 +232,13 @@ let
 
   noMarks = _: [ ];
 
+  # A RAW gen-graph labelled graph, hand-built as data (den-hoag-gayc U2f): the value the ordering
+  # door exists to reject and an argument `relationLookup` no longer takes. No constructor builds it.
+  rawLabelled = {
+    nodes = scopes;
+    labeledEdges = _: [ ];
+  };
+
   # THE IDENTITY ORDER MARK — one layer holding every letter, with `$` tied to them. It is what "this
   # query carries no order mark" is WRITTEN DOWN as, and writing it down is the whole of why the
   # field is required: the library defaults nothing on the axis that decides who wins, so a suite
@@ -296,6 +303,7 @@ in
 {
   inherit
     v
+    rawLabelled
     labels
     relations
     admission

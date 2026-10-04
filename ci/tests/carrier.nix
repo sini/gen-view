@@ -414,7 +414,7 @@ in
       expr = {
         # (i) PRESENT — the incidence edge is in the graph, reachable through the same accessor
         # every other edge is.
-        present = builtins.any (e: e.label == "relatum-target") (roleGraph.labeled.labeledEdges "leaf");
+        present = builtins.elem "binding" (roleGraph.edges.relatum-target "leaf");
         # (ii) NOT WALKED — structurally, not by a filter: a role label is no letter of the
         # admission's alphabet, so its derivative is the empty state and the calculus prunes there
         # (the derivative is the calculus's, stepped in gen-scope and nowhere here, den-hoag-gayc

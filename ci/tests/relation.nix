@@ -6,13 +6,71 @@
 {
   genView,
   genScope,
-  graph,
   ...
 }:
 let
   f = import ../fixture.nix { inherit genView genScope; };
-  # the canonical key of a residual admission expression, as the walk records it
-  admissionKey = e: graph.regex.stateKey (graph.regex.parse e);
+  # A scope graph lifted into an evaluated scope as `viewRelation` lifts it (den-hoag-gayc U2a), and
+  # the calculus's witnesses over it: what a control reads BENEATH the projection.
+  witnessesOf =
+    g: wf: from:
+    let
+      letters = g.carrier.labels.letters;
+      at = l: id: if builtins.elem l letters && g.edges ? ${l} then g.edges.${l} id else [ ];
+      lifted =
+        genScope.eval { parseParent = _: null; }
+          (
+            {
+              children = _: _: { };
+              marks = _: _: [ ];
+            }
+            // builtins.listToAttrs (
+              map (l: {
+                name = "edges-${l}";
+                value = _: at l;
+              }) (builtins.filter (l: l != "parent") letters)
+            )
+          )
+          (
+            genScope.buildRoots {
+              parentGraph = genScope.overlay (genScope.vertices g.scopes) (
+                genScope.edges (
+                  builtins.concatMap (
+                    s:
+                    map (t: {
+                      from = s;
+                      to = t;
+                    }) (at "parent" s)
+                  ) g.scopes
+                )
+              );
+            }
+          );
+    in
+    (genScope.resolve {
+      inherit wf;
+      dataFilter = _: true;
+      mode = "witnesses";
+    } lifted from).answers;
+  # the canonical key of a residual admission expression, as the walk records it: the calculus's
+  # own `state` at the start of a walk under that expression (den-hoag-gayc D13), read on a one-scope
+  # graph over the fixture's letters, so no key is formed outside the calculus.
+  admissionKey =
+    e:
+    (builtins.head (
+      witnessesOf
+        (v.scopeGraph {
+          inherit (f) carrier;
+          scopes = [ "x" ];
+          edges = { };
+          data = [ ];
+        })
+        (genScope.wellFormed {
+          alphabet = f.labels.letters;
+          expression = e;
+        })
+        "x"
+    )).state;
   v = genView;
 
   scopesOf = r: map (c: c.scope) r.contributions;
@@ -1141,16 +1199,7 @@ in
     test-control-two-witnesses-reach-the-node-beneath-the-projection = {
       expr =
         let
-          answers =
-            graph.query
-              {
-                mode = "paths";
-              }
-              {
-                graph = diamond.labeled;
-                from = "d";
-                follow = dAdmission.term;
-              };
+          answers = witnessesOf diamond dAdmission "d";
           atA = builtins.filter (ans: ans.node == "a") answers;
         in
         {
@@ -1158,14 +1207,7 @@ in
           lengths = builtins.sort builtins.lessThan (map (ans: builtins.length ans.path) atA);
           # And both sit in the SAME derivative state, which is what makes them one class rather
           # than two: `up*` steps to `up*`, at one hop and at two.
-          states = builtins.sort builtins.lessThan (
-            map (
-              ans:
-              graph.regex.stateKey (
-                builtins.foldl' (st: step: graph.regex.deriv step.label st) dAdmission.term ans.path
-              )
-            ) atA
-          );
+          states = map (ans: ans.state) atA;
         };
       expected = {
         witnesses = 2;
@@ -1173,10 +1215,20 @@ in
           1
           2
         ];
-        states = [
-          (admissionKey "up*")
-          (admissionKey "up*")
-        ];
+        states =
+          let
+            k =
+              (builtins.head (
+                witnessesOf diamond (genScope.wellFormed {
+                  alphabet = dLabels.letters;
+                  expression = "up*";
+                }) "a"
+              )).state;
+          in
+          [
+            k
+            k
+          ];
       };
     };
 
@@ -1936,12 +1988,12 @@ in
       ];
     };
 
-    # ── THE LIFT: THE CALCULUS OVER THE LIFTED SCOPE WALKS WHAT THE LABELLED GRAPH WALKS ──
-    # (den-hoag-gayc U2a.) The outbound walk is the calculus's `witnesses` over the graph lifted into
-    # an evaluated scope; the reference is the labelled graph's own NR-Cons walk from the same root
-    # under the same admission, read where a datum sits. ★ CONTROL: the same graph with its one
-    # `include` edge planted away answers differently, so agreement is a verdict, not two dead arms.
-    test-the-lift-answers-what-the-labelled-graph-answers =
+    # ── THE LIFT: THE CALCULUS OVER THE LIFTED SCOPE WALKS THE AUTHORED EDGES ──
+    # (den-hoag-gayc U2a, U2f.) The outbound walk is the calculus's `witnesses` over the graph lifted
+    # into an evaluated scope; the reference is the reach the fixture's edges author from the same
+    # root under the same admission, read where a datum sits. ★ CONTROL: the same graph with its one
+    # `include` edge planted away answers differently, so the reference is a verdict, not a dead arm.
+    test-the-lift-answers-the-authored-reach =
       let
         scopesOf =
           g:
@@ -1950,15 +2002,11 @@ in
               definition = v.viewDefinition (f.definitionArgs // { channel = f.perScopeKey; });
               graph = g;
             }).contributions;
-        labelled = builtins.filter (n: n != "leaf") (
-          map (a: a.node) (
-            graph.query { mode = "paths"; } {
-              graph = f.graph.labeled;
-              from = "leaf";
-              follow = f.admission.term;
-            }
-          )
-        );
+        authored = [
+          "inc"
+          "mid"
+          "root"
+        ];
         planted = v.scopeGraph {
           inherit (f) carrier scopes;
           edges = f.edges // {
@@ -1970,8 +2018,8 @@ in
       {
         expr = {
           lifted = scopesOf f.graph;
-          agrees = scopesOf f.graph == labelled;
-          plantedAgrees = scopesOf planted == labelled;
+          agrees = scopesOf f.graph == authored;
+          plantedAgrees = scopesOf planted == authored;
         };
         expected = {
           lifted = [
@@ -2434,26 +2482,12 @@ in
     test-control-o1-diamond-has-two-distinguishable-arrivals-before-collapse = {
       expr =
         let
-          answers =
-            graph.query
-              {
-                mode = "paths";
-              }
-              {
-                graph = diamondGraph.labeled;
-                from = "leaf";
-                follow = diamondAdmission.term;
-              };
+          answers = witnessesOf diamondGraph diamondAdmission "leaf";
           atTop = builtins.filter (ans: ans.node == "top") answers;
-          stateOf =
-            ans:
-            graph.regex.stateKey (
-              builtins.foldl' (st: step: graph.regex.deriv step.label st) diamondAdmission.term ans.path
-            );
         in
         {
           witnesses = builtins.length atTop;
-          states = builtins.sort builtins.lessThan (map stateOf atTop);
+          states = builtins.sort builtins.lessThan (map (ans: ans.state) atTop);
         };
       expected = {
         witnesses = 2;
