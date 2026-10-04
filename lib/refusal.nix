@@ -93,7 +93,7 @@ let
   # every construct that takes one, so two constructs carrying one contract cannot drift into two.
   # `unit` names what the accessor is applied to ("scope", "node"); `checked marks` is the
   # construction-time door on the field itself, `at marks id` the accessor's RESULT at one id,
-  # checked where gen-graph's `boundedBy` consumes it: a list, of marks carrying a `name` and a
+  # checked where gen-scope's `resolve` consumes it: a list, of marks carrying a `name` and a
   # callable `admits`, and each `admits` verdict a bool. Only that shape is forced; a mark's `name`
   # is carried unforced into `withheld`.
   marksContract =

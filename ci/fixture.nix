@@ -256,7 +256,7 @@ let
     endOfPath = 0;
   };
 
-  # A boundary mark on `leaf` refusing the containment letter. `boundedBy`'s contract: a mark is
+  # A boundary mark on `leaf` refusing the containment letter. gen-scope's marks contract: a mark is
   # `{ name; admits; }` — a NAME the diagnostic can quote and a `label → bool` predicate.
   includeMark =
     id:
