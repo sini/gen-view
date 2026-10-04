@@ -50,7 +50,7 @@
 #
 # ★ ACQUISITION GAP, recorded rather than papered over: no paper has a general noun for a
 # "structural relay letter" — they name only the parent edge `P`. None is invented here.
-{ prelude, graph }:
+{ prelude }:
 let
   inherit (prelude)
     any

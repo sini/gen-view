@@ -73,7 +73,7 @@ let
     unique
     ;
   refusal = import ./refusal.nix { inherit prelude; };
-  carrierLib = import ./carrier.nix { inherit prelude graph; };
+  carrierLib = import ./carrier.nix { inherit prelude; };
   placement = import ./placement.nix { inherit prelude; };
   inherit (refusal)
     refuse

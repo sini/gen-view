@@ -44,7 +44,7 @@
 { prelude, graph }:
 let
   refusal = import ./refusal.nix { inherit prelude; };
-  carrierLib = import ./carrier.nix { inherit prelude graph; };
+  carrierLib = import ./carrier.nix { inherit prelude; };
   definitionLib = import ./definition.nix { inherit prelude graph; };
   inherit (refusal) refuse fields;
   inherit (carrierLib) dataOrder;

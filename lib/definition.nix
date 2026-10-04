@@ -31,7 +31,7 @@
 let
   inherit (prelude) elem;
   refusal = import ./refusal.nix { inherit prelude; };
-  carrierLib = import ./carrier.nix { inherit prelude graph; };
+  carrierLib = import ./carrier.nix { inherit prelude; };
   enums = import ./enumerations.nix { inherit prelude; };
   inherit (refusal)
     refuse

@@ -103,7 +103,7 @@
 # keep that algebra separate and load-bearing, not to absorb it.
 { prelude, graph }:
 let
-  carrierLib = import ./carrier.nix { inherit prelude graph; };
+  carrierLib = import ./carrier.nix { inherit prelude; };
   enums = import ./enumerations.nix { inherit prelude; };
   definitionLib = import ./definition.nix { inherit prelude graph; };
   relationLib = import ./relation.nix { inherit prelude graph; };

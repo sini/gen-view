@@ -23,7 +23,6 @@ let
   f = import ./fixture.nix { inherit genView genScope; };
   carrierLib = import ../lib/carrier.nix {
     prelude = genPrelude;
-    inherit graph;
   };
   refused = expr: msg: {
     expr = builtins.deepSeq expr true;
