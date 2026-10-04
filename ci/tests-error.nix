@@ -27,7 +27,7 @@
   ...
 }:
 let
-  f = import ./fixture.nix { inherit genView; };
+  f = import ./fixture.nix { inherit genView genScope; };
   r = import ./reference-fixture.nix { inherit genView genScope; };
   v = genView;
 
@@ -263,6 +263,7 @@ in
         # widening unsayable at the materialization.
         test-an-undeclared-field-is-named = {
           expr = builtins.deepSeq (v.viewRelation {
+            engine = genScope;
             definition = f.definition;
             graph = f.graph;
             marks = f.noMarks;
@@ -510,27 +511,27 @@ in
     flake.testsError.carrier-refusals = {
       # The letter, not merely "an unranked letter".
       test-an-unranked-letter-is-named = {
-        expr = builtins.deepSeq (v.labelOrder {
-          alphabet = f.labels;
+        expr = builtins.deepSeq (genScope.labelOrder {
+          alphabet = f.labels.letters;
           layers = [ [ "parent" ] ];
           endOfPath = -1;
         }) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.labelOrder: letter 'include' is not ranked; the label order is total over the alphabet.*$";
+          msg = "^gen-scope\\.labelOrder: letter 'include' is not ranked; the label order is total over the alphabet.*$";
         };
       };
 
       # The offending name AND the alphabet it is not in, because a caller who wrote a relation
       # name into a path expression needs to see both populations to see the mistake.
       test-a-relation-name-in-a-path-expression-is-named-with-the-alphabet = {
-        expr = builtins.deepSeq (v.labelWellFormedness {
-          alphabet = f.labels;
+        expr = builtins.deepSeq (genScope.wellFormed {
+          alphabet = f.labels.letters;
           expression = "import*";
         }) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-view\\.labelWellFormedness: the expression names 'import', which is not a letter of the alphabet \\(include, parent\\).*$";
+          msg = "^gen-scope\\.wellFormed: the expression names 'import', which is not a letter of the alphabet \\(\\[\"parent\",\"include\"\\]\\).*$";
         };
       };
 
@@ -565,13 +566,6 @@ in
       };
 
       # A label outside L̂ is refused by name, where the rank read would abort past `tryEval`.
-      test-precedes-names-an-unknown-label = {
-        expr = f.order.precedes "nope" "parent";
-        expectedError = {
-          type = "ThrownError";
-          msg = "^gen-view\\.labelOrder: 'nope' is not a label of L̂ \\(include, parent, or `\\$`\\)$";
-        };
-      };
 
       # The overlapping name, at the one place that can see both sorts at once.
       test-a-name-in-both-sorts-is-named = {
@@ -869,8 +863,8 @@ in
         # §1.2's diamond alphabet — ASYMMETRIC so the two arrivals keep distinguishable admission
         # states; `ci/fixture.nix`'s own `f.admission` is symmetric and would merge them (O0's
         # masker #1). Never a custom label order: `f.flatOrder` below is the one O0 requires.
-        diamondAdmission = v.labelWellFormedness {
-          alphabet = f.labels;
+        diamondAdmission = genScope.wellFormed {
+          alphabet = f.labels.letters;
           expression = "parent(include)*|include(parent)*";
         };
 
@@ -1012,6 +1006,7 @@ in
           expr =
             builtins.deepSeq
               (v.viewRelation {
+                engine = genScope;
                 definition = mkSplitKeyDef { };
                 graph = diamondGraph;
                 marks = f.noMarks;
@@ -1031,6 +1026,7 @@ in
           expr =
             builtins.deepSeq
               (v.viewRelation {
+                engine = genScope;
                 definition = mkSplitKeyDef { } // {
                   name = x: x;
                 };
@@ -1052,6 +1048,7 @@ in
           expr =
             builtins.deepSeq
               (v.viewRelation {
+                engine = genScope;
                 definition = mkSplitKeyDef { tieSet = v.tieSets.refuse; };
                 graph = zGraph;
                 marks = f.noMarks;
@@ -1074,6 +1071,7 @@ in
           expr =
             builtins.deepSeq
               (v.viewRelation {
+                engine = genScope;
                 definition = mkSplitKeyDef { tieSet = v.tieSets.refuse; };
                 graph = yGraph;
                 marks = f.noMarks;
@@ -1108,17 +1106,17 @@ in
         # definition's; `B` shares no letter with it.
         mkWorld = letters: rec {
           labels = v.edgeLabels { inherit letters; };
-          admission = v.labelWellFormedness {
-            alphabet = labels;
+          admission = genScope.wellFormed {
+            alphabet = labels.letters;
             expression = "(" + builtins.concatStringsSep "|" letters + ")*";
           };
-          order = v.labelOrder {
-            alphabet = labels;
+          order = genScope.labelOrder {
+            alphabet = labels.letters;
             layers = map (l: [ l ]) letters;
             endOfPath = -1;
           };
-          identity = v.labelOrder {
-            alphabet = labels;
+          identity = genScope.labelOrder {
+            alphabet = labels.letters;
             layers = [ letters ];
             endOfPath = 0;
           };
@@ -1223,6 +1221,7 @@ in
           expr =
             builtins.deepSeq
               (v.viewRelation {
+                engine = genScope;
                 definition = v.compositions.movement aDefArgs;
                 graph = aGraph;
                 marks = f.noMarks;
@@ -1232,7 +1231,7 @@ in
               true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.viewRelation: field 'widen' is not a field of this construct; the field set is closed \\(required: definition, graph, marks, orderMark\\)$";
+            msg = "^gen-view\\.viewRelation: field 'widen' is not a field of this construct; the field set is closed \\(required: definition, engine, graph, marks, orderMark\\)$";
           };
         };
 
@@ -1250,6 +1249,7 @@ in
           expr =
             builtins.deepSeq
               (v.viewRelation {
+                engine = genScope;
                 definition = v.compositions.movement aDefArgs;
                 graph = aGraph;
                 marks = f.noMarks;
@@ -1275,6 +1275,7 @@ in
           expr =
             builtins.deepSeq
               (v.viewRelation {
+                engine = genScope;
                 definition = v.compositions.movement (aDefArgs // { root = "Z"; });
                 graph = aGraph;
                 marks = f.noMarks;
@@ -1322,12 +1323,12 @@ in
           root:
           f.mkDefinition {
             inherit root;
-            admission = v.labelWellFormedness {
-              alphabet = foreignLabels;
+            admission = genScope.wellFormed {
+              alphabet = foreignLabels.letters;
               expression = "(alpha|beta)*";
             };
-            order = v.labelOrder {
-              alphabet = foreignLabels;
+            order = genScope.labelOrder {
+              alphabet = foreignLabels.letters;
               layers = [
                 [ "alpha" ]
                 [ "beta" ]
@@ -1342,8 +1343,8 @@ in
         # is green on any build that merely reorders two guards, and it never once sees the defect
         # it is named for. The mark therefore agrees with the definition, the mark check cannot
         # fire, and what these cells refuse is the definition against the graph and nothing else.
-        foreignMark = v.labelOrder {
-          alphabet = foreignLabels;
+        foreignMark = genScope.labelOrder {
+          alphabet = foreignLabels.letters;
           layers = [
             [
               "alpha"
@@ -1356,6 +1357,7 @@ in
           root:
           builtins.deepSeq
             (v.viewRelation {
+              engine = genScope;
               definition = foreignDef root;
               graph = f.voidGraph;
               marks = f.noMarks;
@@ -1927,22 +1929,24 @@ in
         # intake, so a lambda planted in `letters` or `names` is refused THERE, rendered by its type,
         # and never reaches the unranked-letter, collision or alphabet-seam refusals these cells
         # used to pin. Each plant is the one it was; the refusal it meets is the intake's. ──
-        test-forged-alphabet-letter-renders-a-lambda-at-labelOrder = cell (v.labelOrder
-          {
-            alphabet = f.labels // {
-              letters = [
-                "parent"
-                "include"
-                fn
-              ];
-            };
-            layers = [
-              [ "include" ]
-              [ "parent" ]
-            ];
-            endOfPath = -1;
-          }
-        ) "^gen-view\\.labelOrder: field 'alphabet\\.letters' carries a lambda where a string is required$";
+        test-forged-alphabet-letter-renders-a-lambda-at-labelOrder = cell (genScope.labelOrder {
+          alphabet =
+            (
+              f.labels
+              // {
+                letters = [
+                  "parent"
+                  "include"
+                  fn
+                ];
+              }
+            ).letters;
+          layers = [
+            [ "include" ]
+            [ "parent" ]
+          ];
+          endOfPath = -1;
+        }) "^gen-scope\\.labelOrder: alphabet carries a lambda where a letter \\(a string\\) belongs$";
         test-forged-relation-name-renders-a-lambda-at-the-carrier = cell (v.carrier {
           inherit (f) labels;
           relations = f.relations // {
@@ -1984,23 +1988,25 @@ in
         # `cannot compare a function with a function` where the refusal above belongs. Two forged
         # names each, which is the least that reaches a comparison; since l83dk the comparison they
         # reach is the intake's list law, which reports the first non-string without sorting.
-        test-two-forged-alphabet-letters-reach-labelOrder = cell (v.labelOrder
-          {
-            alphabet = f.labels // {
-              letters = [
-                "parent"
-                "include"
-                fn
-                fn
-              ];
-            };
-            layers = [
-              [ "include" ]
-              [ "parent" ]
-            ];
-            endOfPath = -1;
-          }
-        ) "^gen-view\\.labelOrder: field 'alphabet\\.letters' carries a lambda where a string is required$";
+        test-two-forged-alphabet-letters-reach-labelOrder = cell (genScope.labelOrder {
+          alphabet =
+            (
+              f.labels
+              // {
+                letters = [
+                  "parent"
+                  "include"
+                  fn
+                  fn
+                ];
+              }
+            ).letters;
+          layers = [
+            [ "include" ]
+            [ "parent" ]
+          ];
+          endOfPath = -1;
+        }) "^gen-scope\\.labelOrder: alphabet carries a lambda where a letter \\(a string\\) belongs$";
         test-two-forged-relation-names-reach-the-carrier = cell (v.carrier {
           inherit (f) labels;
           relations = f.relations // {
@@ -2050,16 +2056,14 @@ in
             (f.mkRelation {
               definition = f.definition // {
                 order = f.order // {
-                  alphabet = f.labels // {
-                    letters = [
-                      fn
-                      fn
-                    ];
-                  };
+                  alphabet = [
+                    fn
+                    fn
+                  ];
                 };
               };
             }).value
-            "^gen-view\\.viewRelation: field 'definition\\.order\\.alphabet\\.letters' carries a lambda where a string is required$";
+            "^gen-view\\.viewRelation: field 'definition\\.order\\.alphabet' carries a lambda where a string is required$";
 
         # ── den-hoag-gen-view-fields-attrnames-abort-txc33: `fields` refuses a non-attrset by name ──
         # `attrNames` over a function aborts past `tryEval`, so before the `isAttrs` arm every
@@ -2091,14 +2095,16 @@ in
         };
         # ci/tests/relation.nix's diamond: `a` is reached from `d` in one hop and in two, in one
         # derivative state, so step 4's projection compares the two arrivals' distances.
-        dLabels = v.edgeLabels { letters = [ "parent" ]; };
-        dAdmission = v.labelWellFormedness {
-          alphabet = dLabels;
-          expression = "parent*";
+        # The letter is `up`: `parent` is the calculus's containment, a function, and `d` has two
+        # ancestors here (den-hoag-gayc U2a lift).
+        dLabels = v.edgeLabels { letters = [ "up" ]; };
+        dAdmission = genScope.wellFormed {
+          alphabet = dLabels.letters;
+          expression = "up*";
         };
-        dOrder = v.labelOrder {
-          alphabet = dLabels;
-          layers = [ [ "parent" ] ];
+        dOrder = genScope.labelOrder {
+          alphabet = dLabels.letters;
+          layers = [ [ "up" ] ];
           endOfPath = -1;
         };
         dKey = v.dataOrder {
@@ -2108,6 +2114,7 @@ in
         diamondUnder =
           distance:
           v.viewRelation {
+            engine = genScope;
             definition = v.viewDefinition {
               channel = dKey;
               relation = "import";
@@ -2136,7 +2143,7 @@ in
                 "b"
                 "d"
               ];
-              edges.parent =
+              edges.up =
                 id:
                 {
                   d = [
@@ -2156,9 +2163,9 @@ in
               };
             };
             marks = f.noMarks;
-            orderMark = v.labelOrder {
-              alphabet = dLabels;
-              layers = [ [ "parent" ] ];
+            orderMark = genScope.labelOrder {
+              alphabet = dLabels.letters;
+              layers = [ [ "up" ] ];
               endOfPath = 0;
             };
           };
@@ -2212,7 +2219,7 @@ in
           inherit expr;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.labelOrder: 'nope' is not a label of L̂ \\(include, parent, or `\\$`\\)$";
+            msg = "^gen-scope\\.labelOrder: 'nope' is not a label of L̂ \\(\\[\"parent\",\"include\"\\], or `\\$`\\)$";
           };
         };
         step = label: { inherit label; };
@@ -2235,23 +2242,17 @@ in
         };
         # A set with an `outPath` is not a letter, and is not coerced into one by the key.
         test-a-forged-letter-is-not-coerced-into-a-rank = {
-          expr = f.order.precedes { outPath = "include"; } "parent";
+          expr = f.order.rankOf { outPath = "include"; };
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.labelOrder: <a set> is not a label of L̂ .*$";
+            msg = "^gen-scope\\.labelOrder: a set is not a label of L̂ .*$";
           };
         };
         # Every rank read goes through `rankOf`, so a label outside L̂ is refused by name at each
         # published reader rather than aborting on the rank table.
         test-rankOf-names-an-unknown-label = unknownLabel (f.order.rankOf "nope");
-        test-rankWord-names-an-unknown-label = unknownLabel (
-          builtins.deepSeq (f.order.rankWord [ (step "nope") ]) true
-        );
         test-pathPrecedes-names-an-unknown-label = unknownLabel (
           f.order.pathPrecedes [ (step "nope") ] [ (step "parent") ]
-        );
-        test-rankLess-names-an-unknown-label = unknownLabel (
-          f.order.rankLess [ (step "nope") ] [ (step "parent") ]
         );
       };
 
@@ -2266,6 +2267,7 @@ in
         byDatum =
           datums:
           (v.viewRelation {
+            engine = genScope;
             definition = f.mkDefinition {
               order = f.flatOrder;
               dedup = v.dedups.byDatum;
@@ -2574,14 +2576,14 @@ in
         test-a-relatum-label-name-list-is-decided-at-relatumLabels = cell (v.relatumLabels {
           names = [ 42 ];
         }) "^gen-view\\.relatumLabels: names carries a int where a string is required$";
-        test-a-non-string-expression-is-refused-at-labelWellFormedness = cell (v.labelWellFormedness {
-          alphabet = f.labels;
+        test-a-non-string-expression-is-refused-at-labelWellFormedness = cell (genScope.wellFormed {
+          alphabet = f.labels.letters;
           expression = 42;
-        }) "^gen-view\\.labelWellFormedness: field 'expression' is 42; .*$";
-        test-the-alphabet-is-decided-at-labelWellFormedness-with-no-literals = cell (v.labelWellFormedness {
+        }) "^gen-scope\\.wellFormed: expression is a int, not a path expression.*$";
+        test-the-alphabet-is-decided-at-labelWellFormedness-with-no-literals = cell (genScope.wellFormed {
           alphabet = 42;
           expression = "_*";
-        }) "^gen-view\\.labelWellFormedness: field 'alphabet' is not a edgeLabels carrier element .*$";
+        }) "^gen-scope\\.wellFormed: alphabet is a int, not a list of letters$";
         test-the-data-order-is-decided-at-carrier = cell (v.carrier (
           car // { dataOrder = 42; }
         )) "^gen-view\\.carrier: field 'dataOrder' is not a dataOrder carrier element .*$";
@@ -3206,7 +3208,7 @@ in
     # `innerOf` failure mode is refused by name, except a throw, which is the caller's own error.
     flake.testsError.head-positions =
       let
-        h = import ./head-positions-fixture.nix { inherit genView lib; };
+        h = import ./head-positions-fixture.nix { inherit genView lib genScope; };
         refused = expr: msg: {
           expr = builtins.deepSeq expr true;
           expectedError = {
@@ -3247,6 +3249,7 @@ in
       in
       {
         test-a-tail-placed-head-is-refused-by-name = refused (h.v.headPositions {
+          engine = genScope;
           inherit (h) heads;
           structure = tailStructure;
           root = "r";
@@ -3255,6 +3258,7 @@ in
         test-a-head-letter-the-structure-steps-is-refused-by-name =
           refused
             (h.v.headPositions {
+              engine = genScope;
               heads = [
                 "force"
                 "tacks"
@@ -3266,6 +3270,7 @@ in
             "^gen-view\\.headPositions: head letter 'tacks' is also a letter of the structural alphabet \\(tacks\\); .*$";
         # the rank-tied mutant (`mRankTie_k4`) has no spelling: a list position holds one letter
         test-a-rank-tie-between-head-letters-cannot-be-written = refused (h.v.headPositions {
+          engine = genScope;
           heads = [
             [
               "force"
@@ -3278,6 +3283,7 @@ in
           data = [ ];
         }) "^gen-view\\.headPositions: field 'heads' carries a list where a head letter belongs; .*$";
         test-a-head-letter-named-twice-is-refused-by-name = refused (h.v.headPositions {
+          engine = genScope;
           heads = [
             "set"
             "set"
@@ -3289,6 +3295,7 @@ in
         test-a-datum-under-an-undeclared-head-is-refused-by-name =
           refused
             (h.v.headPositions {
+              engine = genScope;
               inherit (h) heads;
               structure = h.structure { };
               root = "r";
@@ -3318,18 +3325,21 @@ in
             (joinWith (rs: s: if s == "t" then rs.t // { reason = "unset: default-only"; } else rs.${s}) "k4")
             "^gen-view\\.joinedTrace: innerOf returned a record for the contributor 't' carrying both `band` and `reason`; .*$";
         test-a-head-list-that-is-not-a-list-is-refused-by-name = refused (h.v.headPositions {
+          engine = genScope;
           heads = "force";
           structure = h.structure { };
           root = "r";
           data = [ ];
         }) "^gen-view\\.headPositions: field 'heads' is \"force\"; it must be an ORDERED LIST .*$";
         test-an-empty-head-list-is-refused-by-name = refused (h.v.headPositions {
+          engine = genScope;
           heads = [ ];
           structure = h.structure { };
           root = "r";
           data = [ ];
         }) "^gen-view\\.headPositions: field 'heads' is empty; .*$";
         test-the-end-of-path-label-as-a-head-is-refused-by-name = refused (h.v.headPositions {
+          engine = genScope;
           heads = [ "$" ];
           structure = h.structure { };
           root = "r";
@@ -3338,6 +3348,69 @@ in
         test-a-throwing-innerOf-propagates-as-the-callers-error = refused (joinWith (
           _: _: throw "caller: no evaluation for this scope"
         ) "k1") "^caller: no evaluation for this scope$";
+        # The lifted E and < are the calculus's, so an engine that is not it is refused by name.
+        test-an-engine-that-is-not-the-calculus-is-refused-by-name = refused (h.v.headPositions {
+          engine = { };
+          heads = [ "force" ];
+          structure = h.structure { };
+          root = "r";
+          data = [ ];
+        }) "^gen-view\\.headPositions: field 'engine' must be the resolution calculus .*$";
+      };
+
+    # The outbound walk is the calculus's over the graph LIFTED into an evaluated scope
+    # (den-hoag-gayc U2a): the letter `parent` is its containment, a function, and the lift is the
+    # injected authority's, so each half is refused by name where the lift meets it.
+    flake.testsError.lift-refusals =
+      let
+        refused = expr: msg: {
+          expr = builtins.deepSeq expr true;
+          expectedError = {
+            type = "ThrownError";
+            inherit msg;
+          };
+        };
+        twoParents = v.scopeGraph {
+          inherit (f) carrier scopes;
+          edges = f.edges // {
+            parent =
+              id:
+              if id == "leaf" then
+                [
+                  "mid"
+                  "root"
+                ]
+              else
+                f.edges.parent id;
+          };
+          data = f.authored f.datums;
+        };
+      in
+      {
+        test-a-scope-with-two-parent-targets-is-refused-at-the-lift =
+          refused
+            (f.mkRelation {
+              graph = twoParents;
+            }).value
+            "^gen-view\\.viewRelation: scope 'leaf' has 2 'parent' targets \\(mid, root\\); the letter 'parent' is the calculus's containment, which is a function.*$";
+        test-an-engine-that-is-not-the-calculus-is-refused-by-name =
+          refused
+            (f.mkRelation {
+              engine = {
+                resolve =
+                  _: _: _:
+                  { };
+              };
+            }).value
+            "^gen-view\\.viewRelation: field 'engine' must be the resolution calculus publishing `resolve`, `wellFormed`, `labelOrder`, `buildRoots` and `eval`.*$";
+        test-the-engine-is-a-required-field =
+          refused
+            (genView.viewRelation {
+              inherit (f) definition graph;
+              marks = f.noMarks;
+              orderMark = f.identityMark;
+            }).value
+            "^gen-view\\.viewRelation: .*'engine'.*$";
       };
   };
 }

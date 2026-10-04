@@ -16,7 +16,7 @@
 # an empty answer — which is exactly the failure it would be testing for.
 { genView, genScope, ... }:
 let
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   r = import ../reference-fixture.nix { inherit genView genScope; };
   v = genView;
 
@@ -178,6 +178,7 @@ in
       test-an-undeclared-field-is-refused-by-name = {
         expr = refuses (
           v.viewRelation {
+            engine = genScope;
             definition = f.definition;
             graph = f.graph;
             marks = f.noMarks;
@@ -210,8 +211,8 @@ in
       # label word" true by construction rather than by discipline.
       test-an-expression-naming-a-relation-refuses = {
         expr = refuses (
-          v.labelWellFormedness {
-            alphabet = f.labels;
+          genScope.wellFormed {
+            alphabet = f.labels.letters;
             expression = "import*";
           }
         );
@@ -223,8 +224,8 @@ in
       # behaviour this element exists to correct.
       test-an-unranked-letter-refuses = {
         expr = refuses (
-          v.labelOrder {
-            alphabet = f.labels;
+          genScope.labelOrder {
+            alphabet = f.labels.letters;
             layers = [ [ "parent" ] ];
             endOfPath = -1;
           }

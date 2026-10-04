@@ -4,9 +4,14 @@
 # the whole of what a key can hold. The caller's value keeps its context. Each cell below reads one
 # keying site; its context-free twin is the control. The error half is in `../tests-error.nix`,
 # `flake.testsError.context-identifiers`.
-{ genView, genPrelude, ... }:
+{
+  genView,
+  genScope,
+  genPrelude,
+  ...
+}:
 let
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   v = genView;
   ctx = s: "${builtins.substring 0 0 (toString (builtins.toFile "3tsd3-ctx" "x"))}${s}";
   sN = [
@@ -41,14 +46,40 @@ let
     };
   ranked =
     c:
-    v.labelOrder {
-      alphabet = f.carrier.labels;
+    genScope.labelOrder {
+      alphabet = f.carrier.labels.letters;
       layers = [
         [ (c "include") ]
         [ "parent" ]
       ];
       endOfPath = -1;
     };
+  # An order MARK ranking `include` first, its letter spelled through `c`.
+  marked =
+    c:
+    genScope.labelOrder {
+      alphabet = f.carrier.labels.letters;
+      layers = [
+        [ (c "include") ]
+        [ "parent" ]
+      ];
+      endOfPath = 0;
+    };
+  # The visible scopes of the fixture's own view from `leaf`, one competition key, under a given
+  # definition order and order mark (flat and identity by default).
+  visibleUnder =
+    {
+      order ? f.flatOrder,
+      mark ? f.identityMark,
+    }:
+    map (c: c.scope)
+      (v.viewRelation {
+        engine = genScope;
+        definition = f.mkDefinition { inherit order; };
+        graph = f.graph;
+        marks = f.noMarks;
+        orderMark = mark;
+      }).contributions;
   gathered =
     g:
     map
@@ -57,6 +88,7 @@ let
         c.datum
       ])
       (v.viewRelation {
+        engine = genScope;
         definition = f.mkDefinition {
           root = "r";
           order = f.flatOrder;
@@ -91,13 +123,40 @@ in
       });
       expected = gathered (mkG { });
     };
+    # A letter carrying string context ranks as the plain letter in gen-view's OWN construct: the
+    # definition's `order` and the `orderMark` are both restated through the calculus's
+    # `labelOrder` (den-hoag-gayc D14), which must read a context-carrying letter by its text
+    # (den-hoag-we7kr). The plain arm is the reference; the flat arm is the control that the order
+    # decides the answer here, so agreement is not two vacuous reads.
     test-a-context-carrying-letter-is-ranked = {
-      expr = (ranked ctx).precedes "include" "parent";
-      expected = true;
+      expr = {
+        withContext = visibleUnder { order = ranked ctx; };
+        plain = visibleUnder { order = ranked (s: s); };
+        flat = visibleUnder { order = f.flatOrder; };
+      };
+      expected = {
+        withContext = [ "inc" ];
+        plain = [ "inc" ];
+        flat = [
+          "inc"
+          "mid"
+        ];
+      };
     };
     test-a-context-carrying-letter-is-looked-up = {
-      expr = (ranked (s: s)).precedes (ctx "include") "parent";
-      expected = true;
+      expr = {
+        withContext = visibleUnder { mark = marked ctx; };
+        plain = visibleUnder { mark = marked (s: s); };
+        identity = visibleUnder { };
+      };
+      expected = {
+        withContext = [ "inc" ];
+        plain = [ "inc" ];
+        identity = [
+          "inc"
+          "mid"
+        ];
+      };
     };
     test-merge-under-a-context-carrying-path = {
       expr =

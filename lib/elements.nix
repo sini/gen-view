@@ -160,25 +160,21 @@ let
       names = list;
       member = fn;
     };
-    labelWellFormedness = _: {
-      alphabet = el "edgeLabels";
-      literals = list;
-      expr = set;
-      # `isString`, as the constructor checks it: `""` is the lawful empty-word expression.
-      expression = t "a string" builtins.isString;
-      step = fn;
-      accepts = fn;
-      stateKey = fn;
+    # E and < are gen-scope's elements (den-hoag-gayc D14): their shapes are the fields gen-scope's
+    # `wellFormed` and `labelOrder` build, over a PLAIN alphabet list, which `laws` reads under this
+    # library's letter law.
+    wellFormed = _: {
+      alphabet = list;
+      term = set;
+      # A string, or a term the `wfl` constructors built; `""` is the lawful empty-word expression.
+      expression = t "a string or a path-expression term" (v: builtins.isString v || builtins.isAttrs v);
     };
     labelOrder = _: {
-      alphabet = el "edgeLabels";
+      alphabet = list;
       layers = list;
       endOfPath = int;
       rankOf = fn;
-      precedes = fn;
-      rankWord = fn;
       pathPrecedes = fn;
-      rankLess = fn;
     };
     dataOrder = _: {
       channel = str;
@@ -188,7 +184,7 @@ let
       labels = el "edgeLabels";
       relations = el "relations";
       relatumLabels = el "relatumLabels";
-      labelWellFormedness = el "labelWellFormedness";
+      labelWellFormedness = el "wellFormed";
       labelOrder = el "labelOrder";
       dataOrder = el "dataOrder";
     };
@@ -227,7 +223,7 @@ let
           keyOf = if e.arm == "byKey" then fn else nul;
         };
     viewDefinition = _: {
-      admission = el "labelWellFormedness";
+      admission = el "wellFormed";
       order = el "labelOrder";
       channel = el "dataOrder";
       tieSet = el "tieSet";
@@ -282,6 +278,14 @@ let
     edgeLabels =
       site: at: e:
       builtins.isList (lettersLaw site "field '${at}.letters'" e.letters);
+    # gen-scope's letter law admits any distinct string; a letter of THIS library's L is also a
+    # label word, so E's and <'s alphabets meet the same law `edgeLabels` does.
+    wellFormed =
+      site: at: e:
+      builtins.isList (lettersLaw site "field '${at}.alphabet'" e.alphabet);
+    labelOrder =
+      site: at: e:
+      builtins.isList (lettersLaw site "field '${at}.alphabet'" e.alphabet);
     relations =
       site: at: e:
       builtins.isList (relationNamesLaw site "field '${at}.names'" e.names);

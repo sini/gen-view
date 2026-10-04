@@ -22,7 +22,7 @@
 # on both arms and would have measured nothing. Its siblings do NOT share this — `compositions
 # .movement` and `viewDefinition` put `__element` behind their refusal chain — so an author who
 # validates the idiom on one of those carries a DEAD CELL here.
-{ genView, ... }:
+{ genView, genScope, ... }:
 let
   v = genView;
 
@@ -32,8 +32,8 @@ let
     "default"
   ];
   labels = v.edgeLabels { inherit letters; };
-  admission = v.labelWellFormedness {
-    alphabet = labels;
+  admission = genScope.wellFormed {
+    alphabet = labels.letters;
     expression = "(mandate|default)*";
   };
   relations = v.relations { names = [ "import" ]; };
@@ -45,8 +45,8 @@ let
 
   order =
     spec:
-    v.labelOrder {
-      alphabet = labels;
+    genScope.labelOrder {
+      alphabet = labels.letters;
       inherit (spec) layers endOfPath;
     };
 
@@ -174,6 +174,7 @@ let
   relationOn =
     g: root: querySpec: markSpec:
     v.viewRelation {
+      engine = genScope;
       definition = v.compositions.movement {
         channel = "settings";
         relation = "import";
@@ -275,8 +276,8 @@ let
       "X"
     ];
   };
-  pOrder = v.labelOrder {
-    alphabet = pLabels;
+  pOrder = genScope.labelOrder {
+    alphabet = pLabels.letters;
     layers = [
       [
         "P"
@@ -320,19 +321,20 @@ let
     }:
     let
       ls = v.edgeLabels { inherit letters; };
-      adm = v.labelWellFormedness {
-        alphabet = ls;
+      adm = genScope.wellFormed {
+        alphabet = ls.letters;
         inherit expression;
       };
       ord =
         spec:
-        v.labelOrder {
-          alphabet = ls;
+        genScope.labelOrder {
+          alphabet = ls.letters;
           inherit (spec) layers endOfPath;
         };
     in
     attribution (
       v.viewRelation {
+        engine = genScope;
         definition = v.compositions.movement {
           channel = "settings";
           relation = "import";
@@ -512,8 +514,8 @@ in
         in
         {
           accepted = composed.__element;
-          mandateBeatsEndOfPath = composed.precedes "mandate" "$";
-          endOfPathBeatsDefault = composed.precedes "$" "default";
+          mandateBeatsEndOfPath = (composed.rankOf "mandate" < composed.rankOf "$");
+          endOfPathBeatsDefault = (composed.rankOf "$" < composed.rankOf "default");
         };
       expected = {
         accepted = "labelOrder";
@@ -524,9 +526,8 @@ in
 
     # ★★ THE FALSIFIER STILL BITES AT THE PATH LEVEL, AND THE COMPOSITION DOES NOT REPAIR IT. The
     # path lift is not integer-representable: `P·X` and `I·P` diverge at position 0 on two letters
-    # the order leaves INCOMPARABLE, so `pathPrecedes` is false BOTH ways while the total sort key
-    # `rankLess` cheerfully decides the pair. That gap is the antichain the competition keeps, and
-    # it is why `rankLess` is a total sort key and never the visibility order.
+    # the order leaves INCOMPARABLE, so `pathPrecedes` is false BOTH ways, where a total sort key
+    # over rank words would decide the pair. That gap is the antichain the competition keeps.
     # ★ CONTROL: a pair the lift DOES order, so the two falses above are a verdict and not a dead
     # predicate.
     test-o8c-the-path-level-falsifier-fails-as-it-did-and-the-lift-is-live = {
@@ -551,33 +552,11 @@ in
               "P"
               "X"
             ]);
-        rankLessForward =
-          pOrder.rankLess
-            (asPath [
-              "P"
-              "X"
-            ])
-            (asPath [
-              "I"
-              "P"
-            ]);
-        rankLessConverse =
-          pOrder.rankLess
-            (asPath [
-              "I"
-              "P"
-            ])
-            (asPath [
-              "P"
-              "X"
-            ]);
         controlOrderedPair = pOrder.pathPrecedes (asPath [ "P" ]) (asPath [ "X" ]);
       };
       expected = {
         precedesForward = false;
         precedesConverse = false;
-        rankLessForward = false;
-        rankLessConverse = true;
         controlOrderedPair = true;
       };
     };

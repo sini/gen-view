@@ -3,9 +3,9 @@
 # where it can read them: the kept datum carries the union of its collapsed twins' contexts (den-hoag-kunjm, the quotient
 # rule). Each cell reads the edges off the result; the context-free cells in `relation.nix` are
 # the control. The error half is `../tests-error.nix`, `flake.testsError.dedup-context`.
-{ genView, ... }:
+{ genView, genScope, ... }:
 let
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   v = genView;
   a = builtins.toFile "kunjm-ctx-a" "a";
   b = builtins.toFile "kunjm-ctx-b" "b";
@@ -16,6 +16,7 @@ let
   run =
     definition: datums:
     v.viewRelation {
+      engine = genScope;
       inherit definition;
       graph = v.scopeGraph {
         inherit (f) carrier scopes edges;
@@ -358,6 +359,7 @@ in
           };
           r =
             (v.viewRelation {
+              engine = genScope;
               definition = f.mkDefinition {
                 order = f.flatOrder;
                 combine = v.combines.setUnion { acc = true; };

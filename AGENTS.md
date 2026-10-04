@@ -68,9 +68,21 @@ is therefore declared once in this repository, in `default.nix`. The unresolved 
 label exactly, so a last-segment shortcut would read correctly here and hide behind this library's
 own data; `ci/tests/entry.nix`'s hermetic fixture is what actually catches that class of bug.
 
-**Raw calculus** (the five, each a named export): `edgeLabels` `labelWellFormedness` `labelOrder`
-`dataOrder` `relations` — plus `relatumLabels`, `carrier`, `scopeGraph`, `relationEntries`,
-`relationLookup`, and `carrierElements` as the checkable enumeration of the five.
+**Raw calculus** (the five): `edgeLabels` `dataOrder` `relations` are named exports; E and < are
+gen-scope's `wellFormed` and `labelOrder`, taken as element values by tag, because the calculus that
+walks them builds them (den-hoag-gayc D14) — plus `relatumLabels`, `carrier`, `scopeGraph`,
+`relationEntries`, `relationLookup`, and `carrierElements` as the checkable enumeration of the five
+(their tags, each a constructor here or in gen-scope).
+
+★★ **`viewRelation` LIFTS THE GRAPH INTO THE CALCULUS AND WALKS IT THERE** (den-hoag-gayc U2a). It
+requires `engine` (gen-scope): the scopes become an evaluated scope, the letter `parent` its
+containment (a function — a scope with two `parent` targets is refused at the lift by name),
+`imports` its import relation, every other letter `l` an `edges-l` attribute reading the graph's
+checked accessor, and `marks` the scope's own. The walk is `resolve`'s `witnesses`, the alphabet
+handed over sorted because L is a set here; step 4 keys on the answer's `state`; outbound
+`withheld` is the record's, so it names what the walk considered. The **inbound** arm keeps its
+labelled-transpose walk until U2e: the calculus's converse refuses an alphabet carrying `parent`,
+and what a lifted `parent` means under the converse is an open design question.
 
 ★★ **`relatumLabels` IS A PUBLISHED CONSTRUCTOR AND IS NOT A SIXTH CARRIER ELEMENT** — do not read
 `carrierElements` as the whole raw layer, and do not "complete" the enumeration by adding it. `Λ` is
@@ -82,7 +94,7 @@ never by a role label — which is why `carrierElements` stays five while the ex
 - **Required, not optional.** `carrier` refuses without it by name; a graph with no reified bindings
   says so by declaring `relatumLabels { names = [ ]; }`. An empty `Λ` is lawful where an empty `R` is
   refused — `R` empty means (NR-Rel) reaches no datum at all, `Λ` empty is the commonest graph.
-- **Λ-labelled edges are HELD AND NOT WALKED.** `Λ ∩ L = ∅` and `labelWellFormedness` refuses every
+- **Λ-labelled edges are HELD AND NOT WALKED.** `Λ ∩ L = ∅` and `wellFormed` refuses every
   literal outside `L`, so the derivative of any admission expression with respect to a role label is
   the empty state and the walk prunes there. The inertness is structural, not promised.
 - **The classification of an edge label is total over three populations**, `L` · `R` · `Λ`:
@@ -218,16 +230,15 @@ delegate owns — fails it.
 importers. This is why the refusal sweep needs a **populated** positive control: without one it
 cannot tell a refusal from a node that legitimately gathered nothing.
 
-★★ **`marks` IS REQUIRED ON BOTH, AND IT COMPILES AT THE AUTHORITY'S ACCESSOR** (owner-ruled
-2026-09-25, `den-hoag-wneo0`: ADR-0026's floor reaches injected-authority constructs). "No marks" is
-`_: [ ]` written down. The authority is handed a **bounded record**: `get <id> "imports"` and the node
-record's `parent` are presented to `graph.boundedBy` at the node the edge leaves, and a withheld
-edge is absent. The bounded record serves `node`, `get` and `allNodeIds` and **refuses by name**
-every other member, any relation but `imports`, and a record with no `parent`, so a delegate that
-reaches past that protocol through it is refused rather than read unbounded. `neededBy` uses **the
+★★ **`marks` IS REQUIRED ON BOTH, AND IT IS THE QUERY'S `bound`** (owner-ruled 2026-09-25,
+`den-hoag-wneo0`: ADR-0026's floor reaches injected-authority constructs). "No marks" is `_: [ ]`
+written down. The authority's `resolve` is handed it as `bound`, and classifies the `imports` edge and
+the node record's `parent` at the node the edge leaves; a withheld edge is absent, and the record's
+`withheld` names its marks. `bound` only narrows: the scope's own floor is never reachable from the
+query (den-hoag-gayc D2, D3). `neededBy` uses **the
 same forward bound** — an edge is withheld by the **importer's** marks — so it stays the inverse of
 what `referenceResolution` reads; `reference.test-neededby-is-the-inverse-of-what-referenceresolution-reads`
-pins the target-side reading red. σ and π read the **unbounded** record, re-read by id. The contract
+pins the target-side reading red. σ and π are the `dataFilter`, read off the node record. The contract
 checks are `refusal.nix`'s `marksContract`, one statement shared with `viewRelation`; `withheld` is
 a record accessor (`self → id → [ … ]`), not inside `compute`'s value, because the consumer reads
 that value as its datum.
@@ -281,7 +292,7 @@ first line of each):
   the whole of what it buys: a mark the query SETS is a mark the query can set to the identity and
   decline. The effective order at the competition is the lexicographic product of the mark with the
   definition's own `order`, **mark outer**, and it flattens back onto one ordinary `labelOrder` — so
-  `pathPrecedes` and `rankLess` are untouched and there is no pair-keyed comparator at step 6.
+  `pathPrecedes` is untouched and there is no pair-keyed comparator at step 6.
   `ci/tests/order-mark.nix` and `testsError.order-mark-refusals` are its oracle.
 - **The order mark's alphabet check is the SEAM's OWN and is inherited from nothing.**
   `viewDefinition`'s *"one definition has one L"* and `carrier`'s *"one carrier has one L"* are both
@@ -346,7 +357,7 @@ nix eval --json .#lib --apply builtins.attrNames
 Current output (verbatim):
 
 ```json
-["accumulatorOrder","accumulatorRelation","boundedWellDefinedSchedule","carrier","carrierElements","cell","combineArms","combines","compositionFields","compositions","dataOrder","dedupArms","dedups","definitionFields","directions","edgeLabels","edgeSortKey","hashTrace","headPositions","joinedTrace","labelOrder","labelWellFormedness","neededBy","neededByFields","orderedFoldOf","placement","readsOf","referenceResolution","referenceResolutionFields","relationEntries","relationLookup","relations","relatumLabels","renderEntry","renderTrace","scopeGraph","tieSetArms","tieSets","trace","traceEntryOf","transform","unit","viewDefinition","viewRelation","writesOf"]
+["accumulatorOrder","accumulatorRelation","boundedWellDefinedSchedule","carrier","carrierElements","cell","combineArms","combines","compositionFields","compositions","dataOrder","dedupArms","dedups","definitionFields","directions","edgeLabels","edgeSortKey","hashTrace","headPositions","joinedTrace","neededBy","neededByFields","orderedFoldOf","placement","readsOf","referenceResolution","referenceResolutionFields","relationEntries","relationLookup","relations","relatumLabels","renderEntry","renderTrace","scopeGraph","tieSetArms","tieSets","trace","traceEntryOf","transform","unit","viewDefinition","viewRelation","writesOf"]
 ```
 
 The command observes **export names only**. The layering above is a reading of that one list, not a

@@ -6,8 +6,9 @@
 # inventing a third name for the arrow would be presenting an unacquired term as acquired.
 #
 # ── WHAT THE MATERIALIZATION DOES, IN ORDER ─────────────────────────────────────────────────
-#  1. effective E = NODE MARKS ∩ DECLARED ADMISSION. The marks are applied AT THE ACCESSOR, which
-#     is where the calculus puts them, so the construction only ever REMOVES edges: WIDENING IS
+#  1. effective E = NODE MARKS ∩ DECLARED ADMISSION. The marks are the lifted scope's own, read by
+#     the calculus at the source of every edge it considers, so the construction only ever REMOVES
+#     edges: WIDENING IS
 #     NOT FORBIDDEN, IT IS UNSAYABLE — intersection has no inverse the author can reach, and there
 #     is no global dial to disagree with the derivation because the mark IS an input to it.
 #     ★ THIS IS THE CALCULUS'S OWN QUERY OVER A SUBGRAPH, NOT AN ADDITION TO IT. `G|M` — G less
@@ -23,7 +24,8 @@
 #     reverses direction rather than erasing it; reaching the plain transpose through a
 #     label-forgetting projection would erase precisely the component the walk reads.
 #  3. the walk — a witness-carrying enumeration constrained by E, so `WFL ⊢ p ok` holds of every
-#     answer by construction.
+#     answer by construction. It is the injected calculus's (`engine.resolve`, mode `witnesses`)
+#     over the graph lifted into an evaluated scope; this library steps no derivative.
 #  4. the projection — a MIN-FOLD OVER `distance` WITHIN EACH ⟨node, derivative-state⟩ CLASS.
 #     ★ A CARRIER KEYED FINER THAN THE DECLARATION IS NOT A MISMATCH, because the projection is
 #     part of the materialization and not a chore left to a consumer. The converse does not hold:
@@ -162,6 +164,10 @@ let
     args:
     let
       a = fields "viewRelation" [
+        # The resolution calculus (gen-scope), injected: the graph is lifted into its evaluated
+        # scope and walked by its `resolve` (den-hoag-gayc U2a, D14). REQUIRED, as every authority
+        # this library delegates to is: it reaches no evaluator of its own.
+        "engine"
         "definition"
         "graph"
         # REQUIRED, and "no marks" is `_: [ ]` written down. A defaulted mark accessor would make
@@ -177,53 +183,121 @@ let
       def = elementOf "viewRelation" "definition" "viewDefinition" a.definition;
       g = elementOf "viewRelation" "graph" "scopeGraph" a.graph;
       markOrder = elementOf "viewRelation" "orderMark" "labelOrder" a.orderMark;
-      # Restated from checked structure, never read off the element (den-hoag-dcvpi): the parsed
-      # admission, the channel's name, and L̂.
-      expr =
-        carrierLib.exprOf "viewRelation" "definition.admission." def.admission.alphabet
-          def.admission.expression;
+      engine =
+        if
+          builtins.isAttrs a.engine
+          && a.engine ? resolve
+          && prelude.isFunction a.engine.resolve
+          && a.engine ? wellFormed
+          && a.engine ? labelOrder
+          && a.engine ? buildRoots
+          && a.engine ? eval
+        then
+          a.engine
+        else
+          refuse "viewRelation" "field 'engine' must be the resolution calculus publishing `resolve`, `wellFormed`, `labelOrder`, `buildRoots` and `eval`; the lift, the walk, the admission and the order are its, and this construct steps no derivative of its own";
+      # Restated from checked structure, never read off the element (den-hoag-dcvpi): the
+      # admission through the authority's own constructor, the channel's name, and L̂.
+      #
+      # ★ THE ALPHABET IS HANDED OVER SORTED, because L IS A SET here (`edgeLabels` refuses a
+      # duplicate and nothing in this library gives the list an order) while the calculus walks the
+      # live letters in its alphabet's list order. Sorting makes the walk order a function of the
+      # set — codepoint order, the order the label-keyed accessor record has always enumerated.
+      wf = engine.wellFormed {
+        alphabet = sortNames def.admission.alphabet;
+        expression = def.admission.term;
+      };
       name = def.channel.channel;
 
+      # ── 1–3, OUTBOUND: THE GRAPH IS LIFTED INTO AN EVALUATED SCOPE AND THE CALCULUS WALKS IT ────
+      # (den-hoag-gayc U2a.) `scopes` are the nodes; a letter `parent` is the calculus's containment
+      # and becomes the node record's `.parent` (`buildRoots`' `parentGraph`), a letter `imports` its
+      # import relation, and every other letter `l` the attribute `edges-l`. Each is the graph's
+      # CHECKED accessor (`checkedEdgesOf`), so a target is refused by the graph's own law where the
+      # walk reads it. The marks are this relation's `marks` stamped as the scope's own (`marks`,
+      # the importer's stated policy, ADR-0026; D3), so effective E = node marks ∩ admission is the
+      # calculus's (ADR-0024: the query over `G|M`), and `withheld` is the record's.
+      checkedEdges = carrierLib.checkedEdgesOf "viewRelation" "graph." g.carrier g.scopes g.edges;
+      letters = g.carrier.labels.letters;
+      parentLetter = "parent";
+      importsLetter = "imports";
+      accessorOf = l: checkedEdges.${l} or (_: [ ]);
+      parentEdges = concatMap (
+        s:
+        let
+          ps = accessorOf parentLetter s;
+        in
+        if length ps > 1 then
+          refuse "viewRelation" "scope ${renderSubject s} has ${toString (length ps)} '${parentLetter}' targets (${quote ps}); the letter '${parentLetter}' is the calculus's containment, which is a function — a scope has at most one parent"
+        else
+          map (t: {
+            from = s;
+            to = t;
+          }) ps
+      ) g.scopes;
+      lifted =
+        engine.eval { parseParent = _: null; }
+          (
+            {
+              children = _: _: { };
+              marks = _self: id: marksOf.at a.marks id;
+            }
+            // (if elem importsLetter letters then { imports = _self: accessorOf importsLetter; } else { })
+            // builtins.listToAttrs (
+              map (l: {
+                name = "edges-${l}";
+                value = _self: accessorOf l;
+              }) (filter (l: l != parentLetter && l != importsLetter) letters)
+            )
+          )
+          (
+            engine.buildRoots {
+              parentGraph =
+                if elem parentLetter letters then
+                  engine.overlay (engine.vertices g.scopes) (engine.edges parentEdges)
+                else
+                  engine.vertices g.scopes;
+            }
+          );
+      outbound = engine.resolve {
+        inherit wf;
+        dataFilter = _: true;
+        mode = "witnesses";
+      } lifted def.root;
+
+      # ── 1–3, INBOUND: THE BODY BEFORE THE LIFT, UNTIL U2e ────────────────────────────────────
+      # The converse over the lift is the calculus's `direction = "inbound"`, but it refuses an
+      # alphabet carrying `parent` (containment's converse is `children`), and a letter of this
+      # library's L spelled `parent` is an ordinary letter. Which reading a lifted `parent` takes
+      # under the converse is an open design question (den-hoag-gayc U2e), so the inbound arm keeps
+      # its labelled-transpose walk: marks applied to the authored graph, THEN the converse of
+      # `edges(G|M)` (Mokhov 2017 §5.2), only L edges transposing.
       labeled = labeledOf "viewRelation" "graph." g.carrier g.scopes g.edges;
-
-      # 1 — effective E. `boundedBy` removes edges AT THE ACCESSOR and reports what it removed;
-      # the companion diagnostic is never empty where it fires, so silence and a boundary are
-      # never the same reading.
-      #
-      # The accessor's RESULT is checked where gen-graph consumes it, by the one statement of the
-      # marks contract this library carries (`refusal.nix`, `marksContract`), shared with
-      # `referenceResolution` and `neededBy`.
       bounded = graph.boundedBy (marksOf.at a.marks) labeled;
-
-      # 2 — direction: the converse of `edges(G|M)`, taken AFTER the bound. The mark classifies the
-      # edges leaving its node in the AUTHORED graph whichever way the query walks, so which edge
-      # it withholds is never conditional on a query-time field (ADR-0026). Only L edges transpose:
-      # an R edge's target is a datum, and `Edges ::= s l s` is what is closed under the converse,
-      # not `Data`.
-      directed =
-        if def.direction == "inbound" then
-          graph.labeledTranspose (
-            bounded
+      inboundAnswers =
+        map
+          (
+            ans:
+            ans
             // {
-              labeledEdges = id: filter (e: elem e.label g.carrier.labels.letters) (bounded.labeledEdges id);
+              state = graph.regex.stateKey (foldl' (st: step: graph.regex.deriv step.label st) wf.term ans.path);
             }
           )
-        else
-          bounded;
+          (
+            graph.query { mode = "paths"; } {
+              graph = graph.labeledTranspose (
+                bounded
+                // {
+                  labeledEdges = id: filter (e: elem e.label letters) (bounded.labeledEdges id);
+                }
+              );
+              from = def.root;
+              follow = wf.term;
+            }
+          );
 
-      # 3 — the walk. WFD does NOT run here: under (NR-Rel) the path is constrained by WFL and the
-      # DATUM by WFD, and collapsing the two would filter scopes by a predicate written for data
-      # terms. The walk's own predicate is therefore total.
-      answers =
-        graph.query
-          {
-            mode = "paths";
-          }
-          {
-            graph = directed;
-            from = def.root;
-            follow = expr;
-          };
+      inbound = def.direction == "inbound";
+      answers = if inbound then inboundAnswers else outbound.answers;
 
       # The distance rule's declared contract is `{ distance; from; label; to; } → int`
       # (`viewDefinition`), and step 4's `<`, `trace`'s order and `hashTrace` all read what it
@@ -237,36 +311,22 @@ let
         else
           refuse "viewRelation" "channel ${renderSubject name} declares a distance rule that returned ${renderValue d} for the step ${renderSubject step.label} from ${renderSubject step.from} to ${renderSubject step.to}; the rule is `{ distance; from; label; to; } → int`, and the projection compares the distances it returns";
 
-      # Distance and residual derivative state, folded along each witness. The residual state is
-      # the admission policy still in force at the arrival — the component the ⟨node,
-      # derivative-state⟩ collapse is keyed on. The walk steps gen-graph's kernel directly, as
-      # `graph.query` does, never the element's `step` or `stateKey` (den-hoag-l83dk).
-      measured = map (
-        ans:
-        let
-          walked =
-            foldl'
-              (acc: step: {
-                distance = distanceOf step (
-                  def.distance {
-                    inherit (acc) distance;
-                    inherit (step) label from to;
-                  }
-                );
-                state = graph.regex.deriv step.label acc.state;
-              })
-              {
-                distance = 0;
-                state = expr;
-              }
-              ans.path;
-        in
-        {
-          inherit (ans) node path;
-          inherit (walked) distance;
-          admission = graph.regex.stateKey walked.state;
-        }
-      ) answers;
+      # Distance, folded along each witness. The residual derivative state — the admission policy
+      # still in force at the arrival, the component the ⟨node, derivative-state⟩ collapse is keyed
+      # on — is the calculus's own `state` (den-hoag-gayc D13), never stepped here.
+      measured = map (ans: {
+        inherit (ans) node path;
+        distance = foldl' (
+          d: step:
+          distanceOf step (
+            def.distance {
+              distance = d;
+              inherit (step) label from to;
+            }
+          )
+        ) 0 ans.path;
+        admission = ans.state;
+      }) answers;
 
       # 4 — the projection. Min over `distance` within each ⟨node, derivative-state⟩ class; a tie
       # in distance keeps the first arrival in walk order, because the walk's order is the only
@@ -368,12 +428,13 @@ let
       # off the element (den-hoag-6vsvx), so a forged `rankOf` is inert and every rank is an int
       # by construction. `rankOf` answers for `$` as well as for every letter, so ONE function
       # covers L̂. Bound here, not inside `effectiveOrder`, because step 6's attribution reads them.
-      markRank =
-        carrierLib.orderLaw "viewRelation" "orderMark." markOrder.alphabet markOrder.layers
-          markOrder.endOfPath;
-      qRank =
-        carrierLib.orderLaw "viewRelation" "definition.order." def.order.alphabet def.order.layers
-          def.order.endOfPath;
+      rankUnder =
+        o:
+        (engine.labelOrder {
+          inherit (o) alphabet layers endOfPath;
+        }).rankOf;
+      markRank = rankUnder markOrder;
+      qRank = rankUnder def.order;
 
       effectiveOrder =
         let
@@ -390,13 +451,13 @@ let
             in
             x0 < y0 || (x0 == y0 && builtins.elemAt x 1 < builtins.elemAt y 1);
           distinct = foldl' (acc: k: if builtins.any (seen: seen == k) acc then acc else acc ++ [ k ]) [ ] (
-            map keyOf (q.alphabet.letters ++ [ "$" ])
+            map keyOf (q.alphabet ++ [ "$" ])
           );
           ranked = sort lexLess distinct;
           # A layer MAY BE EMPTY, and that is the representation doing its job rather than failing
           # at it: where `$` holds a composite rank no letter shares, the empty layer is how a rank
           # belonging to `$` alone gets written down in a declaration made of letters.
-          layers = map (k: filter (l: keyOf l == k) q.alphabet.letters) ranked;
+          layers = map (k: filter (l: keyOf l == k) q.alphabet) ranked;
           # L IS A SET — `edgeLabels` refuses a duplicate letter and nothing in this library gives
           # the list an ordering meaning — so the seam below compares the alphabets SORTED. The
           # rendering already is: `quote` sorts, so a raw-order predicate could print two identical
@@ -405,7 +466,7 @@ let
           # so the seam refuses it by name rather than aborting in the sort.
           asSet = sortNames;
         in
-        if asSet q.alphabet.letters != asSet g.carrier.labels.letters then
+        if asSet q.alphabet != asSet g.carrier.labels.letters then
           # ★★★ THE OTHER HALF OF THE SAME SEAM — THE DECLARATION AGAINST THE GRAPH IT IS COMPOSED
           # WITH. The check below compares the ORDER MARK against the definition; this one compares
           # the DEFINITION against the graph's carrier, and neither implies the other. Both
@@ -423,8 +484,8 @@ let
           # gather. A composition over the wrong graph is indistinguishable from one whose query
           # legitimately found only the root.
           refuse "viewRelation"
-            "the definition's alphabet is not the graph's (${quote q.alphabet.letters} vs ${quote g.carrier.labels.letters}); one composition has one L"
-        else if markOrder.alphabet.letters != q.alphabet.letters then
+            "the definition's alphabet is not the graph's (${quote q.alphabet} vs ${quote g.carrier.labels.letters}); one composition has one L"
+        else if markOrder.alphabet != q.alphabet then
           # ★★★ THE SEAM'S OWN REFUSAL, AND IT IS NOT INHERITED FROM ANYWHERE. The two checks that
           # look like they cover this are both INTRA-OBJECT: `viewDefinition` compares a
           # definition's OWN admission against its OWN order, and `carrier` compares a carrier's
@@ -436,9 +497,9 @@ let
           # enforcer that covered it. Without this, the product is taken over pairs in which one
           # component ranks letters the other has never heard of.
           refuse "viewRelation"
-            "orderMark is built over a different alphabet than the definition's `order` (${quote markOrder.alphabet.letters} vs ${quote q.alphabet.letters}); one competition has one L"
+            "orderMark is built over a different alphabet than the definition's `order` (${quote markOrder.alphabet} vs ${quote q.alphabet}); one competition has one L"
         else
-          carrierLib.labelOrder {
+          engine.labelOrder {
             inherit (q) alphabet;
             inherit layers;
             endOfPath = indexOf ranked (keyOf "$");
@@ -849,8 +910,8 @@ let
         map (w: {
           inherit scope;
           inherit (w) label target marks;
-        }) (bounded.withheld scope)
-      ) labeled.nodes;
+        }) ((if inbound then bounded else outbound).withheld scope)
+      ) g.scopes;
     in
     builtins.seq (marksOf.checked a.marks) (
       decided [ def g markOrder ] {

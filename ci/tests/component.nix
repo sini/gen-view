@@ -31,9 +31,9 @@
 # if declared" needs no declaration field and no check: what competes is exactly what is IN the
 # data component, and the only way a value gets there is for an author to write it there. AUTHORING
 # INTO THE COMPONENT *IS* THE DECLARATION.
-{ genView, ... }:
+{ genView, genScope, ... }:
 let
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   v = genView;
 
   refuses = thunk: !(builtins.tryEval (builtins.deepSeq thunk true)).success;
@@ -70,6 +70,7 @@ let
   relationOver =
     g:
     v.viewRelation {
+      engine = genScope;
       definition = f.mkDefinition { root = "child"; };
       graph = g;
       marks = f.noMarks;
@@ -595,6 +596,7 @@ in
               };
             in
             v.viewRelation {
+              engine = genScope;
               definition = f.mkDefinition { wellFormed = d: d == [ "admit" ]; };
               graph = g;
               marks = f.noMarks;
@@ -630,6 +632,7 @@ in
             midHasParent:
             map (c: c.scope)
               (v.viewRelation {
+                engine = genScope;
                 definition = f.mkDefinition { };
                 graph = v.scopeGraph {
                   carrier = f.carrier;

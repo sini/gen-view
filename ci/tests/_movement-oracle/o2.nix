@@ -23,7 +23,11 @@
 # ★ THE HASH HALF IS gen-view's OWN `hashTrace`. AC-7 ran this arm through a map into the frozen edge
 # record; spec §9.5 re-scoped that instrument to topology evidence and ADR-0010 §3 retired its
 # library, so the fingerprint read here is the destination's — the one the oracle cluster moved to.
-{ genView, fixture }:
+{
+  genView,
+  genScope,
+  fixture,
+}:
 let
   v = genView;
   f = fixture;
@@ -57,8 +61,8 @@ let
   # ── THE FIVE ARMS ───────────────────────────────────────────────────────────────────────────
   armA_wfl = f.mkRelation {
     definition = f.mkDefinition {
-      admission = v.labelWellFormedness {
-        alphabet = f.labels;
+      admission = genScope.wellFormed {
+        alphabet = f.labels.letters;
         expression = "parent*";
       };
       order = f.order;

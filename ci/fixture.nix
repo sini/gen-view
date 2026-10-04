@@ -13,7 +13,7 @@
 # names in R, and `include` is expressible as a letter without a fifth structural symbol being
 # added to carry containment. If this fixture could not be built, the ruling would have been
 # recorded and not built.
-{ genView }:
+{ genView, genScope }:
 let
   v = genView;
 
@@ -33,16 +33,16 @@ let
     ];
   };
 
-  admission = v.labelWellFormedness {
-    alphabet = labels;
+  admission = genScope.wellFormed {
+    alphabet = labels.letters;
     expression = "(parent|include)*";
   };
 
   # A NON-EMPTY label order: `include` outranks `parent`, so a containment reach shadows an
   # ancestor reach at the same competition key. This is the carrier instance no shipped
   # composition supplies.
-  order = v.labelOrder {
-    alphabet = labels;
+  order = genScope.labelOrder {
+    alphabet = labels.letters;
     layers = [
       [ "include" ]
       [ "parent" ]
@@ -52,8 +52,8 @@ let
 
   # The FLAT order — one layer holding every letter, so no letter outranks another. The contrast
   # between the two is what shows the order is read rather than decorative.
-  flatOrder = v.labelOrder {
-    alphabet = labels;
+  flatOrder = genScope.labelOrder {
+    alphabet = labels.letters;
     layers = [
       [
         "include"
@@ -238,8 +238,8 @@ let
   # whose subject is some other step still has to SAY that this one is vacuous. Under it the
   # lexicographic product degenerates to the identity and the effective order is the declaration's
   # own order exactly — which is what keeps every cell below measuring what it measured before.
-  identityMark = v.labelOrder {
-    alphabet = labels;
+  identityMark = genScope.labelOrder {
+    alphabet = labels.letters;
     layers = [
       [
         "include"
@@ -276,6 +276,7 @@ let
     args:
     v.viewRelation (
       {
+        engine = genScope;
         inherit definition graph;
         marks = noMarks;
         orderMark = identityMark;

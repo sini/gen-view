@@ -5,10 +5,10 @@
 # to, and a function or a plain set aborted past `tryEval`, taking the whole `renderTrace` with it.
 # The sort key is the other half of the split and refuses the same entries by name
 # (`ci/tests-error.nix`, `entry-refusals`).
-{ genView, ... }:
+{ genView, genScope, ... }:
 let
   v = genView;
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   e0 = v.traceEntryOf {
     contribution = builtins.head f.relation.contributions;
     inherit (f) placement;

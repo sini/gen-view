@@ -10,9 +10,14 @@
 # declared order", "no declared ACC flag" and "outside the whitelist" are all the tag check, and
 # the fifth (arrival order) is the one arm that needs a check of its own because its subject is a
 # value that is genuinely there.
-{ genPrelude, genView, ... }:
+{
+  genPrelude,
+  genView,
+  genScope,
+  ...
+}:
 let
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   v = genView;
 
   refuses = thunk: !(builtins.tryEval (builtins.deepSeq thunk true)).success;

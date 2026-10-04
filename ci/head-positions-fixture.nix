@@ -11,7 +11,11 @@
 # module system's `highestPrio`: nixpkgs is a ci-only dependency here, on the terms `flake.nix`
 # states, and the library under test never sees it. `innerOf` is opaque to the library, so what
 # these cells pin is the join's door and its reading of the trace, not the band read itself.
-{ genView, lib }:
+{
+  genView,
+  genScope,
+  lib,
+}:
 let
   v = genView;
   heads = [
@@ -92,14 +96,14 @@ let
         inherit labels;
         relations = v.relations { names = [ "gimp" ]; };
         relatumLabels = v.relatumLabels { names = [ ]; };
-        labelWellFormedness = v.labelWellFormedness {
-          alphabet = labels;
+        labelWellFormedness = genScope.wellFormed {
+          alphabet = labels.letters;
           inherit expression;
         };
         # `$` before every letter: the root's own shorter word beats one continuing on `tacks`,
         # "most specific wins". `endOfPath = 1` is the mutant where continuing beats stopping.
-        labelOrder = v.labelOrder {
-          alphabet = labels;
+        labelOrder = genScope.labelOrder {
+          alphabet = labels.letters;
           layers = [ letters ];
           inherit endOfPath;
         };
@@ -134,6 +138,7 @@ let
     }:
     data:
     v.headPositions {
+      engine = genScope;
       inherit heads data;
       structure = structure { inherit endOfPath scopes; };
       root = "r";
@@ -149,6 +154,7 @@ let
       dedup ? v.dedups.none,
     }:
     v.viewRelation {
+      engine = genScope;
       definition = v.compositions.movement {
         channel = "selvage";
         relation = "gimp";
@@ -263,6 +269,7 @@ let
     }:
     let
       pos = v.headPositions {
+        engine = genScope;
         inherit heads;
         structure = structure {
           scopes = [

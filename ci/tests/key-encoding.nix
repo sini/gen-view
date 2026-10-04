@@ -4,10 +4,10 @@
 # the separator shifted the field boundaries and two distinct tuples rendered one key. Each pair
 # below collided that way, and the schedule pair was REFUSED as a cycle it does not have: `cell` is
 # the join key of the flow-dependence relation, so a collision there changes an answer, not a label.
-{ genView, ... }:
+{ genView, genScope, ... }:
 let
   v = genView;
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   root =
     s: c:
     v.placement.targets.root {

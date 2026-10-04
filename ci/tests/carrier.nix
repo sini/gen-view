@@ -15,9 +15,14 @@
 # RECORDED: den's four binding kinds must be EXPRESSIBLE OVER THE PUBLISHED CARRIER as RELATIONS,
 # with `include` available as a structural letter and no fifth structural symbol added to carry
 # containment.
-{ genView, graph, ... }:
+{
+  genView,
+  genScope,
+  graph,
+  ...
+}:
 let
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   v = genView;
 
   # The layered order and the flat order differ in exactly one respect. Everything else about the
@@ -73,12 +78,14 @@ let
   };
   roleDefinition = f.mkDefinition { root = "leaf"; };
   roleRelation = v.viewRelation {
+    engine = genScope;
     definition = roleDefinition;
     graph = roleGraph;
     marks = f.noMarks;
     orderMark = f.identityMark;
   };
   plainRelation = v.viewRelation {
+    engine = genScope;
     definition = roleDefinition;
     graph = plainGraph;
     marks = f.noMarks;
@@ -250,10 +257,10 @@ in
     # flat ranking, and it is why "no specificity at all" is expressible rather than accidental.
     test-two-letters-in-one-layer-are-incomparable = {
       expr = {
-        forward = f.flatOrder.precedes "include" "parent";
-        backward = f.flatOrder.precedes "parent" "include";
-        layeredForward = f.order.precedes "include" "parent";
-        layeredBackward = f.order.precedes "parent" "include";
+        forward = (f.flatOrder.rankOf "include" < f.flatOrder.rankOf "parent");
+        backward = (f.flatOrder.rankOf "parent" < f.flatOrder.rankOf "include");
+        layeredForward = (f.order.rankOf "include" < f.order.rankOf "parent");
+        layeredBackward = (f.order.rankOf "parent" < f.order.rankOf "include");
       };
       expected = {
         forward = false;
@@ -289,8 +296,8 @@ in
     test-distinct-same-rank-labels-leave-the-paths-incomparable = {
       expr = {
         # the element already said so
-        elementForward = f.flatOrder.precedes "include" "parent";
-        elementBackward = f.flatOrder.precedes "parent" "include";
+        elementForward = (f.flatOrder.rankOf "include" < f.flatOrder.rankOf "parent");
+        elementBackward = (f.flatOrder.rankOf "parent" < f.flatOrder.rankOf "include");
         # ★ and now the LIFT says so too, in both directions — this is the pair that read `true`
         liftForward =
           f.flatOrder.pathPrecedes
@@ -359,8 +366,8 @@ in
     test-an-end-of-path-rank-equal-to-a-letters-rank-is-incomparable = {
       expr =
         let
-          tied = v.labelOrder {
-            alphabet = f.labels;
+          tied = genScope.labelOrder {
+            alphabet = f.labels.letters;
             layers = [
               [
                 "include"
@@ -392,64 +399,6 @@ in
       };
     };
 
-    # ★★ THE SEPARATOR — `pathPrecedes` SURVIVES `rankLess`'s MIGRATION AND IS NOT SUBSTITUTED FOR
-    # IT. `rankLess` is now `graph.wordLess` at a pin (gen-graph publishes the rank-word calculus);
-    # `pathPrecedes` is Fig. 1's visibility order and gen-graph has NO counterpart to it. The two
-    # are different orders, and this cell says so in the one shape a silent substitution fails:
-    # `rankLess` DECIDES a pair `pathPrecedes` leaves incomparable in BOTH directions. Substitute
-    # either for the other and a reading below flips.
-    #
-    # ★ THE TIE IS WHAT DISCRIMINATES, and a tie-free fixture would measure nothing. A total and a
-    # partial order agree on every pair of a singleton-layer order — measured, 0 disagreements over
-    # 100 pairs — so a cell written there passes under the very substitution this one exists to
-    # catch. Three letters with the first two TIED is the smallest shape that separates them:
-    # `[P·X]` and `[I·P]` differ at position 0 on labels of EQUAL rank, which is exactly where
-    # Fig. 2's recursion is unlicensed and the rank-word lift walks on.
-    test-rankLess-decides-a-pair-pathPrecedes-leaves-incomparable = {
-      expr =
-        let
-          tied = v.labelOrder {
-            alphabet = v.edgeLabels {
-              letters = [
-                "P"
-                "I"
-                "X"
-              ];
-            };
-            layers = [
-              [
-                "P"
-                "I"
-              ]
-              [ "X" ]
-            ];
-            endOfPath = -1;
-          };
-          px = [
-            { label = "P"; }
-            { label = "X"; }
-          ];
-          ip = [
-            { label = "I"; }
-            { label = "P"; }
-          ];
-        in
-        {
-          rankLessForward = tied.rankLess px ip;
-          rankLessBackward = tied.rankLess ip px;
-          pathPrecedesForward = tied.pathPrecedes px ip;
-          pathPrecedesBackward = tied.pathPrecedes ip px;
-        };
-      expected = {
-        # the sort key DECIDES the pair
-        rankLessForward = false;
-        rankLessBackward = true;
-        # the visibility order REFUSES it, both ways
-        pathPrecedesForward = false;
-        pathPrecedesBackward = false;
-      };
-    };
-
     # ══ Λ — THE RELATUM LABELS ARE PRESENT AND INERT, AND THE COLLISION IS WHAT IS REFUSED ══
     #
     # ★★★ THE LAW IS A THREE-WAY CONDITION: `L ∩ R = ∅` · `L ∩ Λ = ∅` · `R ∩ Λ = ∅` and
@@ -466,11 +415,10 @@ in
         # (i) PRESENT — the incidence edge is in the graph, reachable through the same accessor
         # every other edge is.
         present = builtins.any (e: e.label == "relatum-target") (roleGraph.labeled.labeledEdges "leaf");
-        # (ii) NOT WALKED — structurally, not by a filter: the derivative of the admission
-        # expression with respect to a role label is the EMPTY state, keyed as `regex.empty` is,
-        # so the walk prunes at that edge. That is the whole inertness argument, executed.
-        derivativeIsEmpty = f.admission.stateKey (f.admission.step "relatum-target" f.admission.expr);
-        # …and the scope on the far side of it is never reached.
+        # (ii) NOT WALKED — structurally, not by a filter: a role label is no letter of the
+        # admission's alphabet, so its derivative is the empty state and the calculus prunes there
+        # (the derivative is the calculus's, stepped in gen-scope and nowhere here, den-hoag-gayc
+        # D14): the scope on the far side of it is never reached.
         bindingReached = builtins.any (c: c.scope == "binding") roleRelation.contributions;
         # (iii) NEVER COMPETES — the answer is identical to the same graph with the role edge
         # removed, in value, in membership and in what was shadowed.
@@ -481,7 +429,6 @@ in
       };
       expected = {
         present = true;
-        derivativeIsEmpty = graph.regex.stateKey graph.regex.empty;
         bindingReached = false;
         sameValue = true;
         sameScopes = true;

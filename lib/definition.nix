@@ -81,7 +81,8 @@ let
     args:
     let
       a = fields "viewDefinition" required args;
-      admission = elementOf "viewDefinition" "admission" "labelWellFormedness" a.admission;
+      # E and < are gen-scope's `wellFormed` and `labelOrder` values (den-hoag-gayc D14).
+      admission = elementOf "viewDefinition" "admission" "wellFormed" a.admission;
       order = elementOf "viewDefinition" "order" "labelOrder" a.order;
       channel = elementOf "viewDefinition" "channel" "dataOrder" a.channel;
       # ★ THE FIVE ARMS OF THE CONSTRUCTION-TIME DISCIPLINE ARE ALL ELEMENT-TAG CHECKS, and that is
@@ -105,8 +106,8 @@ let
       refuse "viewDefinition" "field 'wellFormed' must be a predicate on data terms; it is WFD, the parameter that decides whether the datum at the path's end is the one being looked for"
     else if !(builtins.isFunction a.distance) then
       refuse "viewDefinition" "field 'distance' must be a function `{ distance; from; label; to; } → int`; it is required because the projection folds over the distance it returns, and a defaulted rule is a semantics nobody wrote down"
-    else if admission.alphabet.letters != order.alphabet.letters then
-      refuse "viewDefinition" "'admission' and 'order' are built over different alphabets (${quote admission.alphabet.letters} vs ${quote order.alphabet.letters}); one definition has one L"
+    else if admission.alphabet != order.alphabet then
+      refuse "viewDefinition" "'admission' and 'order' are built over different alphabets (${quote admission.alphabet} vs ${quote order.alphabet}); one definition has one L"
     # The three ARM checks are `elementOf`'s: its shape reads each arm through `choice` over the
     # declared arms, so a forged arm is refused at intake and never reaches a check here. The ACC
     # check below stays, because it is stricter than the shape (`acc` is a bool or null there).

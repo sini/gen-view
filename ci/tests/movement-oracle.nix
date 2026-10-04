@@ -23,11 +23,11 @@
 #
 # ★ EVERY CONTROL CELL IS NAMED `test-control-*`. NO CELL ASSERTS A THROW BY LETTING `expr` THROW:
 # expected refusals are measured through `builtins.tryEval`, so `expr` is always a forcible value.
-{ genView, ... }:
+{ genView, genScope, ... }:
 let
-  fixture = import ../fixture.nix { inherit genView; };
-  corpus = import ./_movement-oracle/corpus.nix { inherit genView; };
-  o2 = import ./_movement-oracle/o2.nix { inherit genView fixture; };
+  fixture = import ../fixture.nix { inherit genView genScope; };
+  corpus = import ./_movement-oracle/corpus.nix { inherit genView genScope; };
+  o2 = import ./_movement-oracle/o2.nix { inherit genView fixture genScope; };
   o3 = import ./_movement-oracle/o3.nix { inherit genView fixture corpus; };
   o94 = import ./_movement-oracle/o94.nix { inherit genView fixture; };
   c = corpus;

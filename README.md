@@ -17,10 +17,10 @@ This library publishes that calculus **raw** and the compositions **on top of it
 
 ## The two layers
 
-| layer            | what it publishes                                                                                                                                                                                                                                         |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **raw calculus** | `edgeLabels` (L) · `labelWellFormedness` (E) · `labelOrder` (\<) · `dataOrder` (k) · `relations` (R), plus `relatumLabels` (Λ — a **required** field of `carrier` and deliberately **not** a sixth element), `carrier`, `scopeGraph` and `relationLookup` |
-| **compositions** | `compositions.{ movement, channel, registry, topology, role }` — five names over one construction, at three key shapes                                                                                                                                    |
+| layer            | what it publishes                                                                                                                                                                                                                                                                                                            |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **raw calculus** | `edgeLabels` (L) · `dataOrder` (k) · `relations` (R), with E and < taken as gen-scope's `wellFormed` and `labelOrder` values (the calculus that walks them builds them), plus `relatumLabels` (Λ — a **required** field of `carrier` and deliberately **not** a sixth element), `carrier`, `scopeGraph` and `relationLookup` |
+| **compositions** | `compositions.{ movement, channel, registry, topology, role }` — five names over one construction, at three key shapes                                                                                                                                                                                                       |
 
 Publishing only the convenience composition **hides the calculus**, so a consumer needing a
 different instance has to re-implement one. Here the rule is doubly load-bearing: the constructs
@@ -76,9 +76,10 @@ term at any archived primary, so **no identifier here names it** — in particul
 let
   labels = view.edgeLabels { letters = [ "parent" "include" ]; };
   relations = view.relations { names = [ "import" "expose-in" "broadcast-in" "policy" ]; };
-  admission = view.labelWellFormedness { alphabet = labels; expression = "(parent|include)*"; };
-  order = view.labelOrder {
-    alphabet = labels;
+  # E and < are the resolution calculus's (gen-scope, here `scope`), over L's letters.
+  admission = scope.wellFormed { alphabet = labels.letters; expression = "(parent|include)*"; };
+  order = scope.labelOrder {
+    alphabet = labels.letters;
     layers = [ [ "include" ] [ "parent" ] ]; # containment outranks ancestry
     endOfPath = -1;                          # stopping outranks continuing
   };
@@ -97,6 +98,9 @@ let
   };
 in
 view.viewRelation {
+  # The calculus the graph is lifted into and walked by: `parent` is its containment (a function),
+  # `imports` its import relation, every other letter `l` its `edges-l` attribute.
+  engine = scope;
   inherit definition;
   graph = view.scopeGraph {
     inherit carrier;
@@ -110,8 +114,8 @@ view.viewRelation {
   # of this mark with the definition's own `order`, MARK OUTER — the query may refine INSIDE the
   # mark's ties and can never erase or reverse a pair the mark declares. The identity is the
   # one-layer order over L̂, as here, under which the effective order is the definition's exactly.
-  orderMark = view.labelOrder {
-    alphabet = labels;
+  orderMark = scope.labelOrder {
+    alphabet = labels.letters;
     layers = [ [ "include" "parent" ] ];
     endOfPath = 0;
   };
@@ -303,8 +307,8 @@ its two arms share shape and share discipline.
 one reaches the **evaluator's live node set** through the injected authority, from the id handed
 `compute` at force time.
 
-**The boundary marks compile at the authority's accessor, as the fail-closed floor of every query's reachability.** The authority walks a bounded
-record in which `graph.boundedBy` has classified each `imports` edge and each `parent` edge at the
+**The boundary marks are the query's narrowing, as the fail-closed floor of every query's reachability.** They are handed
+to the authority's `resolve` as `bound`, which classifies each `imports` edge and each `parent` edge at the
 node it leaves; what a mark refuses is absent, and `withheld self id` names the marks that withheld
 it. `neededBy` reads the same forward bound, so a mark at the importer removes it from the gather
 and a mark at the gathered node does not.
@@ -350,7 +354,7 @@ without passing `traceEntryOf`. They split on what each owes its reader:
 
 ## Head positions and the joined trace
 
-`headPositions { heads; structure; root; data; }` lifts a structural scope graph to one copy per
+`headPositions { engine; heads; structure; root; data; }` lifts a structural scope graph to one copy per
 declared **head letter**, so every datum's path word is a head letter followed by a structural
 word. Fig. 1's visibility order decides at the **first** position where two words differ, so a
 ranked letter at the head is compared before any structural letter and structure decides only

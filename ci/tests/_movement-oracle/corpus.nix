@@ -8,7 +8,7 @@
 #
 # den v1's own source is not opened: the six arms' answers are quoted from the 2026-08-06
 # measurement record and re-expressed, exactly as the movement spec's §12 does.
-{ genView }:
+{ genView, genScope }:
 let
   v = genView;
 
@@ -27,21 +27,21 @@ let
     ];
   };
   v1Roles = v.relatumLabels { names = [ ]; };
-  v1Admission = v.labelWellFormedness {
-    alphabet = v1Labels;
+  v1Admission = genScope.wellFormed {
+    alphabet = v1Labels.letters;
     expression = "parent*";
   };
   # ONE layer, so no letter outranks another; `endOfPath = -1` ranks stopping ABOVE continuing,
   # which is Fig. 1's rule 2 (`$ <l l ⊢ s <p s·l·p`) and is what makes the NEARER arrival win.
-  v1Order = v.labelOrder {
-    alphabet = v1Labels;
+  v1Order = genScope.labelOrder {
+    alphabet = v1Labels.letters;
     layers = [ [ "parent" ] ];
     endOfPath = -1;
   };
   # THE IDENTITY ORDER MARK over the arms' one letter: `$` tied with `parent`, so the lexicographic
   # product degenerates to `v1Order` and the arms measure the declaration's own order exactly.
-  v1Mark = v.labelOrder {
-    alphabet = v1Labels;
+  v1Mark = genScope.labelOrder {
+    alphabet = v1Labels.letters;
     layers = [ [ "parent" ] ];
     endOfPath = 0;
   };
@@ -100,6 +100,7 @@ let
       data,
     }:
     v.viewRelation {
+      engine = genScope;
       definition = v1Definition relation;
       graph = v1Graph data;
       marks = _: [ ];

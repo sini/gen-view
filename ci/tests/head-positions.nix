@@ -5,9 +5,14 @@
 #
 # ★ The expected values are the spec's, evaluated at hub 9e9ac2a through the prototype
 # (`zakjg-4tier-run-9e9ac2a-r3.tsv`), and here they come from the published units.
-{ genView, lib, ... }:
+{
+  genView,
+  genScope,
+  lib,
+  ...
+}:
 let
-  h = import ../head-positions-fixture.nix { inherit genView lib; };
+  h = import ../head-positions-fixture.nix { inherit genView lib genScope; };
   g4 = k: {
     inherit (h.run { } k) moved received;
   };
@@ -184,9 +189,15 @@ in
         endOfPath = 3;
       };
     };
+    # The lifted admission is composed from the published WFL constructors, so it is a TERM, and
+    # the calculus's parse of the spelled expression is the same term.
     test-the-admission-puts-the-head-alternation-first = {
-      expr = (h.run { } "k1").pos.admission.expression;
-      expected = "(force|set|default)(tacks?)";
+      expr = (h.run { } "k1").pos.admission.term;
+      expected =
+        (genScope.wellFormed {
+          alphabet = (h.run { } "k1").pos.admission.alphabet;
+          expression = "(force|set|default)(tacks?)";
+        }).term;
     };
 
     # ── THE JOIN: per surviving contribution, the contributor, its head letter and its own record ──

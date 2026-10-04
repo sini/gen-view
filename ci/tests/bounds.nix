@@ -19,9 +19,9 @@
 # DIAGNOSTIC — so the withheld set travels INSIDE the materialized result rather than beside it,
 # because a side channel a consumer may ignore is exactly the fail-open shape a boundary rule
 # cannot afford.
-{ genView, ... }:
+{ genView, genScope, ... }:
 let
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   v = genView;
 
   refuses = thunk: !(builtins.tryEval (builtins.deepSeq thunk true)).success;
@@ -38,6 +38,7 @@ in
     test-a-widening-field-does-not-construct = {
       expr = refuses (
         v.viewRelation {
+          engine = genScope;
           definition = f.definition;
           graph = f.graph;
           marks = f.noMarks;
@@ -108,7 +109,7 @@ in
     # removes it anyway.
     test-the-effective-policy-is-the-intersection-not-the-declaration = {
       expr = {
-        declarationAdmitsTheLetter = builtins.elem "include" f.definition.admission.literals;
+        declarationAdmitsTheLetter = builtins.any (c: c.scope == "inc") (f.mkRelation { }).contributions;
         andYetTheEdgeIsGone = builtins.filter (c: c.scope == "inc") marked.contributions == [ ];
       };
       expected = {

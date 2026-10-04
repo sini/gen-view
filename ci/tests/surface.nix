@@ -7,10 +7,14 @@
 # This suite is what makes "published" a checked fact: an element quietly demoted to an internal
 # binding, reachable only as a side effect of calling a composition, takes a cell red here rather
 # than being noticed at the fold.
-{ genView, ... }:
+{ genView, genScope, ... }:
 let
   v = genView;
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
+  # A carrier element's constructor is this library's export or the calculus's; gen-scope's are
+  # doors (functors), which `builtins.isFunction` reads as `false`.
+  callable = x: builtins.isFunction x || (builtins.isAttrs x && x ? __functor);
+  constructed = n: (v ? ${n} && callable v.${n}) || (genScope ? ${n} && callable genScope.${n});
 in
 {
   flake.tests.surface = {
@@ -39,8 +43,6 @@ in
         "hashTrace"
         "headPositions"
         "joinedTrace"
-        "labelOrder"
-        "labelWellFormedness"
         "neededBy"
         "neededByFields"
         "orderedFoldOf"
@@ -68,10 +70,12 @@ in
     };
 
     # ── THE RAW LAYER ──
-    # Each of the five carrier elements is a NAMED EXPORT and each is a constructor. The list is
-    # the library's own enumeration, so the quantifier and the surface move together.
+    # Each of the five carrier elements is a NAMED CONSTRUCTOR: `edgeLabels`, `dataOrder` and
+    # `relations` here, `wellFormed` and `labelOrder` in the resolution calculus that reads them
+    # (gen-scope, den-hoag-gayc D14). The list is the library's own enumeration, so the quantifier
+    # and the surface move together.
     test-the-five-carrier-elements-are-named-exports = {
-      expr = builtins.all (n: v ? ${n} && builtins.isFunction v.${n}) v.carrierElements;
+      expr = builtins.all constructed v.carrierElements;
       expected = true;
     };
 
@@ -79,7 +83,7 @@ in
       expr = v.carrierElements;
       expected = [
         "edgeLabels"
-        "labelWellFormedness"
+        "wellFormed"
         "labelOrder"
         "dataOrder"
         "relations"
@@ -91,9 +95,7 @@ in
     # this one fails on a name that is NOT an export, in the same run and through the same
     # predicate.
     test-control-the-named-export-check-discriminates = {
-      expr = builtins.all (n: v ? ${n} && builtins.isFunction v.${n}) (
-        v.carrierElements ++ [ "materialize" ]
-      );
+      expr = builtins.all constructed (v.carrierElements ++ [ "materialize" ]);
       expected = false;
     };
 

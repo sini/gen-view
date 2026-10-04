@@ -178,253 +178,14 @@ let
       member = l: elem l names;
     };
 
-  # ── E — label well-formedness ───────────────────────────────────────────────────────────────
-  # Fig. 1: `WFL ⊆ L*`, "defined as a regular expression". The expression is stepped by
-  # Brzozowski (1964) derivatives held in a normal form, so the derivative state set is finite and
-  # a cyclic graph terminates — Brzozowski Thm 5.2, over the similarity of his Def 5.2, whose
-  # ACI identities of ALTERNATION the normalization must PERFORM rather than merely satisfy
-  # ("it is the identity R + R = R which allows us to terminate the process", Appendix II).
-  # gen-graph's `regex` is that kernel and is CITED HERE RATHER THAN REINVENTED.
-  #
-  # ★ EVERY LITERAL IS CHECKED AGAINST THE ALPHABET, and that check is what makes "a content name
-  # can never enter the label word" true BY CONSTRUCTION rather than by discipline. Without it a
-  # relation name — or a relatum-role label, a third population that indexes nothing in this
-  # carrier — could be written into an expression, and the walk would simply never match it: a
-  # silent empty answer where a refusal belongs.
-  labelWellFormedness =
-    args:
-    let
-      a = fields "labelWellFormedness" [
-        "alphabet"
-        "expression"
-      ] args;
-      alphabet = elementOf "labelWellFormedness" "alphabet" "edgeLabels" a.alphabet;
-      expr = exprOf "labelWellFormedness" "" alphabet a.expression;
-      literals = literalsOf expr;
-    in
-    builtins.seq expr (
-      decided [ alphabet ] {
-        __element = "labelWellFormedness";
-        inherit alphabet literals expr;
-        inherit (a) expression;
-        # The three operations a walk needs, so a caller stepping the policy itself never has to
-        # reach past this element into the regex kernel.
-        step = label: state: graph.regex.deriv label state;
-        accepts = state: graph.regex.nullable state;
-        stateKey = state: graph.regex.stateKey state;
-      }
-    );
-
-  # The labels an expression names, once each. The parsed expression is a DAG — `plus r` holds one
-  # `r` twice — so a fold over its TREE is exponential in `(…)+` nesting (2^30 entries at 30
-  # levels); a closure keyed by gen-graph's canonical key visits each distinct subterm once.
-  literalsOf =
-    r:
-    let
-      children =
-        n:
-        if n.t == "star" then
-          [ n.r ]
-        else if n.t == "seq" || n.t == "alt" then
-          n.rs
-        else
-          [ ];
-      reached = builtins.genericClosure {
-        startSet = [
-          {
-            key = graph.regex.stateKey r;
-            n = r;
-          }
-        ];
-        operator =
-          x:
-          map (c: {
-            key = graph.regex.stateKey c;
-            n = c;
-          }) (children x.n);
-      };
-    in
-    map (x: x.n.l) (filter (x: x.n.t == "lit") reached);
-
-  # `exprOf site at alphabet expression` — the parsed admission expression, under the
-  # constructor's own law. The constructor and every reader run THIS, never an `expr` an element
-  # carries (den-hoag-dcvpi), so a forged `expr` is inert. O(|expression|), a constant in the data.
-  exprOf =
-    site: at: alphabet: expression:
-    let
-      expr = graph.regex.parse expression;
-      foreign = filter (l: !(elem l alphabet.letters)) (literalsOf expr);
-    in
-    if !(builtins.isString expression) then
-      refuse site "field '${at}expression' is ${renderValue expression}; it must be a path expression over the alphabet, written as a string"
-    else if foreign != [ ] then
-      refuse site "${
-        if at == "" then "the expression" else "field '${at}expression'"
-      } names '${head (sort builtins.lessThan foreign)}', which is not a letter of the alphabet (${quote alphabet.letters}); a path expression ranges over L and a name outside it would match nothing and say nothing"
-    else
-      expr;
-
-  # ── < — the label order ─────────────────────────────────────────────────────────────────────
-  # Fig. 1: `<l ⊆ L̂ × L̂`, a STRICT PARTIAL ORDER over the EXTENDED alphabet. The declaration is a
-  # list of LAYERS, most-specific first: layer 0 outranks layer 1, and two letters in one layer
-  # are incomparable. Layers rather than a flat list is what keeps this a partial order — a flat
-  # list can only express a total one, and "no specificity at all" would then be inexpressible
-  # except by accident.
-  #
-  # ★★ THE RANKING IS TOTAL OVER L̂, AND AN OMITTED LETTER IS REFUSED BY NAME. The shipped
-  # precedent this corrects ranks an unlisted label at `length labels` — a silent default that
-  # makes every unranked letter tie at the bottom, so a caller who forgets one gets an order that
-  # answers rather than one that objects. `$` is ranked by its own required field because the
-  # end-of-path rank decides whether stopping outranks continuing, which is a per-query decision
-  # and not a property of the alphabet.
-  #
-  # ── THE LIFT IS Fig. 1's VISIBILITY ORDER, RULE BY RULE, AND IT IS *NOT* LEXICOGRAPHIC OVER THE
-  # RANK WORD. ────────────────────────────────────────────────────────────────────────────────
-  # Fig. 1, printed 114:5, *Visibility Order* — four rules, transcribed:
-  #
-  #     <l ⊢ p1 <p p2                 $ <l l                 l <l $              l1 <l l2
-  #   ────────────────────      ──────────────────      ──────────────────   ─────────────────────
-  #   <l ⊢ s·l·p1 <p s·l·p2     <l ⊢ s <p s·l·p         <l ⊢ s·l·p <p s      <l ⊢ s·l1·p1 <p s·l2·p2
-  #
-  # Read off the rules: the congruence needs the labels EQUAL, and the fourth rule needs the two
-  # DIFFERING labels to be `<l`-COMPARABLE. Nothing licenses ordering two distinct labels that `<l`
-  # leaves incomparable — and the paper says so in prose at printed 114:6: *"The prefix order only
-  # orders paths that have a common prefix."*
-  #
-  # ★★★ SO EQUAL RANKS MAY NOT LICENSE CONTINUED RECURSION. A lift that recurses past a position
-  # where the labels DIFFER but their ranks are equal is treating incomparability as "comparable so
-  # far", and it is strictly FINER than `<p`: it shadows contributions the calculus keeps visible,
-  # and the loss lands in the materialized answer. Recursion is licensed by label EQUALITY and by
-  # nothing else; where the labels differ, this is the last position that will ever be read.
-  #
-  # ★ THE EXHAUSTION CASES ARE THE SAME RULE. `$` is a label of L̂ distinct from every letter, so a
-  # path that stops is compared against a path that continues by asking whether `$ <l l` — which is
-  # a rank comparison between two DISTINCT labels, exactly like the fourth rule. A low `endOfPath`
-  # makes stopping outrank everything, so a proper prefix beats its own extensions; a higher one
-  # lets continuation on lower-ranked labels beat stopping; and an `endOfPath` EQUAL to some
-  # letter's rank leaves stopping and continuing on that letter INCOMPARABLE, which is a sayable
-  # and meaningful declaration rather than an accident.
-  labelOrder =
-    args:
-    let
-      a = fields "labelOrder" [
-        "alphabet"
-        "layers"
-        "endOfPath"
-      ] args;
-      alphabet = elementOf "labelOrder" "alphabet" "edgeLabels" a.alphabet;
-      rankOf = orderLaw "labelOrder" "" alphabet a.layers a.endOfPath;
-    in
-    builtins.seq rankOf {
-      __element = "labelOrder";
-      inherit alphabet rankOf;
-      inherit (a) layers endOfPath;
-      # `<l` itself: the strict partial order over L̂ the figure defines. Two DISTINCT letters of
-      # one layer are incomparable — `precedes` is false in BOTH directions — and a letter is
-      # never `<l` itself. Same label ⇒ same rank, so the rank comparison already says this.
-      # A label outside L̂ is refused by name in `rankOf`.
-      precedes = x: y: rankOf x < rankOf y;
-
-      # ★ A PROJECTION FOR DIAGNOSTICS AND LAYERING, AND EXPLICITLY *NOT* THE BASIS OF THE
-      # COMPARISON. It is published because the ranks of a path's labels are worth reading; it is
-      # flagged because a reader who assumes `pathPrecedes` is `rankWord` compared
-      # lexicographically has the finer, wrong order in mind — which is exactly the defect this
-      # element was corrected for.
-      rankWord = path: map (step: rankOf step.label) path;
-
-      # Fig. 1's Visibility Order. Recursion is licensed by label EQUALITY; where the labels
-      # differ this is the last position read, and the two paths are ordered only if `<l` orders
-      # those two labels.
-      pathPrecedes =
-        pa: pb:
-        let
-          la = length pa;
-          lb = length pb;
-          labelAt = p: i: (builtins.elemAt p i).label;
-          go =
-            i:
-            if i >= la && i >= lb then
-              false # the same path: `<p` is strict
-            else if i >= la then
-              rankOf "$" < rankOf (labelAt pb i) # `$ <l l` ⇒ s <p s·l·p
-            else if i >= lb then
-              rankOf (labelAt pa i) < rankOf "$" # `l <l $` ⇒ s·l·p <p s
-            else if labelAt pa i == labelAt pb i then
-              go (i + 1) # the congruence, and the ONLY licence to recurse
-            else
-              # `l1 <l l2` ⇒ ordered; equal ranks on distinct labels ⇒ INCOMPARABLE, false both
-              # ways, and the walk stops here rather than reading a position the calculus never
-              # reaches.
-              rankOf (labelAt pa i) < rankOf (labelAt pb i);
-        in
-        go 0;
-
-      # ★★ A TOTAL ORDER ON RANK WORDS, PUBLISHED UNDER A NAME THAT SAYS WHAT IT IS: A SORT KEY.
-      # It is NOT the visibility order and must never be substituted for one — it is the finer
-      # order `pathPrecedes` was corrected away from. `<p` refines it — `a <p b` implies
-      # `rankLess a b`, because the first position where the rank words differ can only be a
-      # position where the LABELS differ (equal labels have equal ranks), and `<p` decides exactly
-      # there — so sorting by it puts every dominator ahead of everything it dominates. Step 6 no
-      # longer sorts: it decides minimality as a prefix minimum over LABEL words, and nothing in
-      # this library consumes this key; it stays published as the rank-word calculus's total order.
-      rankLess =
-        pa: pb:
-        let
-          w = p: map (step: rankOf step.label) p;
-        in
-        graph.wordLess a.endOfPath (w pa) (w pb);
-    };
-
-  # `orderLaw site at alphabet layers endOfPath` — `rankOf` under `labelOrder`'s own law, over a
-  # checked alphabet. The constructor and every reader run THIS, never a `rankOf` an element
-  # carries (den-hoag-6vsvx), so a forged `rankOf` is inert and a forged `layers`/`endOfPath` is
-  # refused by name where it is read. O(|L|²) in the alphabet, a constant in the data.
-  orderLaw =
-    site: at: alphabet: layers: endOfPath:
-    let
-      fld = n: if at == "" then n else "field '${at}${n}'";
-      # `strings` runs HERE, on the flattened declaration, so a letter ranked twice is refused by
-      # name rather than silently taking whichever layer the fold visited last.
-      flat = strings site "${at}layers" (concatMap (l: l) layers);
-      missing = filter (l: !(elem l flat)) alphabet.letters;
-      foreign = filter (l: !(elem l alphabet.letters)) flat;
-      ranks = foldl' (
-        acc: i:
-        acc
-        // builtins.listToAttrs (
-          map (l: {
-            name = attrKey l;
-            value = i;
-          }) (builtins.elemAt layers i)
-        )
-      ) { } (builtins.genList (i: i) (length layers));
-      # Every rank read goes through here, so a label outside L̂ is refused by name at every
-      # published reader: `ranks.${l}` aborts past `tryEval` on an unranked name and on a
-      # non-string. `ranks`' keys are exactly the alphabet (`missing` and `foreign` below).
-      rankOf =
-        l:
-        let
-          k = attrKey l;
-        in
-        if l == "$" then
-          endOfPath
-        else if builtins.isString l && ranks ? ${k} then
-          ranks.${k}
-        else
-          refuse "labelOrder" "${renderSubject l} is not a label of L̂ (${quote alphabet.letters}, or `$`)";
-    in
-    if !(builtins.isList layers) || any (l: !(builtins.isList l)) layers then
-      refuse site "${fld "layers"} must be a list of lists — each inner list is one rank, and two letters sharing a rank are incomparable, which is how a strict PARTIAL order is declared"
-    else if !(builtins.isInt endOfPath) then
-      refuse site "${fld "endOfPath"} must be an int; it is the rank of the extended label `$` and decides whether stopping outranks continuing"
-    else if foreign != [ ] then
-      refuse site "${fld "layers"} rank '${head (sort builtins.lessThan foreign)}', which is not a letter of the alphabet (${quote alphabet.letters})"
-    else if missing != [ ] then
-      refuse site "letter ${renderSubject (head (sortNames missing))} is not ranked${
-        if at == "" then "" else " in field '${at}layers'"
-      }; the label order is total over the alphabet, and an unranked letter would otherwise take a default rank nobody declared"
-    else
-      rankOf;
+  # ── E and < — label well-formedness and the label order are gen-scope's ─────────────────────
+  # Fig. 1's `WFL ⊆ L*` and `<l ⊆ L̂ × L̂` are the resolution calculus's own parameters, so they are
+  # constructed by the calculus that reads them (gen-scope `wellFormed` and `labelOrder`) and this
+  # library takes them as element values by their `__element` tag (den-hoag-gayc D14). Carrying a
+  # second constructor here would need a second derivative engine or a gen-scope input, and the
+  # calculus is injected (`engine`) wherever a walk is run, never imported. What stays here is the
+  # carrier's own law over them: one alphabet, the carrier's `L`, checked at `carrier`, and the
+  # label-word law over each element's alphabet, checked at intake (`elements.nix`).
 
   # ── k — the competition key, an instance of the data order ──────────────────────────────────
   # Fig. 1: `data order ≤d ⊆ D × D`, a partial order. gen's instance is a GROUPING: contributions
@@ -494,7 +255,8 @@ let
         "relatumLabels"
       ] args;
       labels = elementOf "carrier" "labels" "edgeLabels" a.labels;
-      wfl = elementOf "carrier" "labelWellFormedness" "labelWellFormedness" a.labelWellFormedness;
+      # E and < are gen-scope's element values (D14), read by their tags.
+      wfl = elementOf "carrier" "labelWellFormedness" "wellFormed" a.labelWellFormedness;
       ord = elementOf "carrier" "labelOrder" "labelOrder" a.labelOrder;
       key = elementOf "carrier" "dataOrder" "dataOrder" a.dataOrder;
       rels = elementOf "carrier" "relations" "relations" a.relations;
@@ -513,10 +275,10 @@ let
       llam = filter (l: elem l labels.letters) roles.names;
       rlam = filter (l: elem l rels.names) roles.names;
     in
-    if wfl.alphabet.letters != labels.letters then
-      refuse "carrier" "labelWellFormedness is built over a different alphabet than `labels` (${quote wfl.alphabet.letters} vs ${quote labels.letters}); one carrier has one L"
-    else if ord.alphabet.letters != labels.letters then
-      refuse "carrier" "labelOrder is built over a different alphabet than `labels` (${quote ord.alphabet.letters} vs ${quote labels.letters}); one carrier has one L"
+    if wfl.alphabet != labels.letters then
+      refuse "carrier" "labelWellFormedness is built over a different alphabet than `labels` (${quote wfl.alphabet} vs ${quote labels.letters}); one carrier has one L"
+    else if ord.alphabet != labels.letters then
+      refuse "carrier" "labelOrder is built over a different alphabet than `labels` (${quote ord.alphabet} vs ${quote labels.letters}); one carrier has one L"
     else if lr != [ ] then
       refuse "carrier" "${renderSubject (head (sortNames lr))} is both a letter of L and a name in R; the sorts are disjoint, because the walk steps only on structural letters and a content name reached at the path's end can never enter the label word"
     else if llam != [ ] then
@@ -595,7 +357,22 @@ let
   # wherever it is applied, so its refusal names `scopeGraph` at every door. A read costs
   # O(|scopes|) for `strings` and the scope index, plus O(|edge labels|·(|L|+|R|+|Λ|)) for
   # `unclassified`, a constant in the data.
+  #
+  # `checkedEdgesOf` is the same law returning the per-label accessors themselves, each result
+  # checked where it is read: what a lift into the calculus's evaluated scope hands its `edges-<l>`
+  # attributes (`relation.nix`), so the walk reads the graph's law and never a second copy of it.
   labeledOf =
+    site: at: c: scopes0: edges:
+    let
+      checked = checkedEdgesOf site at c scopes0 edges;
+    in
+    builtins.seq checked (
+      graph.labeledFrom checked (
+        strings site (if at == "" then "scopes" else "field '${at}scopes'") scopes0
+      )
+    );
+
+  checkedEdgesOf =
     site: at: c: scopes0: edges:
     let
       fieldName = n: if at == "" then n else "field '${at}${n}'";
@@ -607,7 +384,7 @@ let
       ) edgeLabelNames;
       patterned = sortNames (filter (l: formalsOf edges.${l} != [ ]) edgeLabelNames);
       nonAccessor = sort builtins.lessThan (filter (l: !(builtins.isFunction edges.${l})) edgeLabelNames);
-      labeled = graph.labeledFrom (builtins.mapAttrs (
+      checked = builtins.mapAttrs (
         l: acc: s:
         let
           out =
@@ -626,7 +403,7 @@ let
             else
               refuse "scopeGraph" "the edge accessor ${renderSubject l} at scope ${renderSubject s} returned the target ${renderValue t}, which is not a scope of this graph (${quote scopes}); an L edge is `s —l→ s′` between scopes of the graph"
           ) out
-      ) edges) scopes;
+      ) edges;
     in
     if !(builtins.isAttrs edges) then
       refuse site "${fieldName "edges"} must be an attrset of label → (scope → [ scope ]); it is the per-label accessor the walk steps"
@@ -641,7 +418,7 @@ let
         renderValue edges.${head nonAccessor}
       }; each label's value must be the accessor scope → [ scope ] the walk steps"
     else
-      builtins.seq (builtins.length scopes) labeled;
+      builtins.seq (builtins.length scopes) checked;
 
   # `dataLaw site at c scopes data` — the data component under the constructor's own law, returned
   # unchanged. The constructor and every reader run THIS and index what it returns (`indexData`),
@@ -805,14 +582,11 @@ in
     edgeLabels
     relations
     relatumLabels
-    labelWellFormedness
-    labelOrder
     dataOrder
     carrier
     scopeGraph
     labeledOf
-    exprOf
-    orderLaw
+    checkedEdgesOf
     entriesOf
     relationLookup
     relationEntries

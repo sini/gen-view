@@ -48,7 +48,6 @@ let
     elem
     head
     concatMap
-    concatStringsSep
     ;
   refusal = import ./refusal.nix { inherit prelude; };
   carrierLib = import ./carrier.nix { inherit prelude graph; };
@@ -69,6 +68,9 @@ let
     let
       site = "headPositions";
       a = fields site [
+        # The resolution calculus whose `wellFormed` and `labelOrder` build the lifted E and <
+        # (den-hoag-gayc D14). It is the same authority a `viewRelation` over the result is handed.
+        "engine"
         "heads"
         "structure"
         "root"
@@ -113,17 +115,22 @@ let
       ownerOf = id: owners.${attrKey id} or null;
 
       labels = carrierLib.edgeLabels { letters = heads ++ structural; };
-      admission = carrierLib.labelWellFormedness {
-        alphabet = labels;
-        expression = "(${concatStringsSep "|" heads})(${c.labelWellFormedness.expression})";
+      # The head step then the structure's own E, built from the published WFL constructors over the
+      # structure's term: the expression may be a string or a term, so it is composed, never spliced.
+      admission = a.engine.wellFormed {
+        alphabet = labels.letters;
+        expression = a.engine.wfl.seq [
+          (a.engine.wfl.alt (map a.engine.wfl.lit heads))
+          c.labelWellFormedness.term
+        ];
       };
-      order = carrierLib.labelOrder {
-        alphabet = labels;
+      order = a.engine.labelOrder {
+        alphabet = labels.letters;
         layers = [ heads ] ++ c.labelOrder.layers;
         endOfPath = c.labelOrder.endOfPath + 1;
       };
-      orderMark = carrierLib.labelOrder {
-        alphabet = labels;
+      orderMark = a.engine.labelOrder {
+        alphabet = labels.letters;
         layers = map (h: [ h ]) heads ++ [ structural ];
         endOfPath = builtins.length heads;
       };
@@ -169,7 +176,11 @@ let
           };
 
       checked =
-        if clash != [ ] then
+        if
+          !(builtins.isAttrs a.engine && a.engine ? wellFormed && a.engine ? labelOrder && a.engine ? wfl)
+        then
+          refuse site "field 'engine' must be the resolution calculus publishing `wellFormed`, `labelOrder` and `wfl`; the lifted admission and order are built by it, and this construct builds neither of its own"
+        else if clash != [ ] then
           refuse site "head letter ${renderSubject (head clash)} is also a letter of the structural alphabet (${quote structural}); a head letter labels only the root's edge to a position, and a structural edge carrying it would place a ranked letter inside the word, where the first differing structural letter decides before it is read"
         else if nonLetterEdges != [ ] then
           refuse site "the structure's edges carry the label ${renderSubject (head nonLetterEdges)}, which is not a structural letter (${quote structural}); a datum enters a position only through field 'data', under a head letter"

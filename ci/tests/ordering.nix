@@ -20,7 +20,7 @@
   ...
 }:
 let
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   v = genView;
 
   refuses = thunk: !(builtins.tryEval (builtins.deepSeq thunk true)).success;
@@ -591,6 +591,7 @@ in
             (
               sc:
               v.viewRelation {
+                engine = genScope;
                 definition = f.mkDefinition {
                   root = "r";
                   order = f.flatOrder;

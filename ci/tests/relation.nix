@@ -3,9 +3,14 @@
 #
 # Each cell here measures ONE step of the construction the oracles quantify over, so a failure
 # names the step rather than the whole pipeline.
-{ genView, graph, ... }:
+{
+  genView,
+  genScope,
+  graph,
+  ...
+}:
 let
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   # the canonical key of a residual admission expression, as the walk records it
   admissionKey = e: graph.regex.stateKey (graph.regex.parse e);
   v = genView;
@@ -14,25 +19,27 @@ let
 
   # ── A DIAMOND WITH A SHORTCUT, for the projection ──
   # `a` is reachable from `d` in ONE hop and in TWO, and both arrivals sit in the SAME derivative
-  # state — `parent*` steps to `parent*` — so they share a ⟨node, derivative-state⟩ class and the
+  # state — `up*` steps to `up*` — so they share a ⟨node, derivative-state⟩ class and the
   # projection has something to fold.
-  dLabels = v.edgeLabels { letters = [ "parent" ]; };
+  # The letter is `up`, not `parent`: `parent` is the calculus's containment, a function, and `d`
+  # has two ancestors here (den-hoag-gayc U2a lift).
+  dLabels = v.edgeLabels { letters = [ "up" ]; };
   dRelations = v.relations { names = [ "import" ]; };
-  dAdmission = v.labelWellFormedness {
-    alphabet = dLabels;
-    expression = "parent*";
+  dAdmission = genScope.wellFormed {
+    alphabet = dLabels.letters;
+    expression = "up*";
   };
-  dOrder = v.labelOrder {
-    alphabet = dLabels;
-    layers = [ [ "parent" ] ];
+  dOrder = genScope.labelOrder {
+    alphabet = dLabels.letters;
+    layers = [ [ "up" ] ];
     endOfPath = -1;
   };
   # The diamond's OWN identity mark. `f.identityMark` is built over the fixture's two letters and
   # this carrier has one, so the shared mark cannot be reused here — the alphabet seam refuses it,
   # which is the refusal doing its job on the first fixture that could have tripped over it.
-  dMark = v.labelOrder {
-    alphabet = dLabels;
-    layers = [ [ "parent" ] ];
+  dMark = genScope.labelOrder {
+    alphabet = dLabels.letters;
+    layers = [ [ "up" ] ];
     endOfPath = 0;
   };
   dKey = v.dataOrder {
@@ -55,7 +62,7 @@ let
       "d"
     ];
     edges = {
-      parent =
+      up =
         id:
         {
           d = [
@@ -76,6 +83,7 @@ let
     };
   };
   diamondRelation = v.viewRelation {
+    engine = genScope;
     definition = v.compositions.topology {
       channel = "d";
       relation = "import";
@@ -136,6 +144,7 @@ let
   divergentWith =
     order:
     v.viewRelation {
+      engine = genScope;
       definition = f.mkDefinition {
         inherit order;
         root = "S";
@@ -186,6 +195,7 @@ let
   siblingWith =
     order:
     v.viewRelation {
+      engine = genScope;
       definition = f.mkDefinition {
         root = "origin";
         inherit order;
@@ -247,8 +257,8 @@ let
       ];
     };
   };
-  continueOrder = v.labelOrder {
-    alphabet = f.labels;
+  continueOrder = genScope.labelOrder {
+    alphabet = f.labels.letters;
     layers = [
       [
         "include"
@@ -260,6 +270,7 @@ let
   tiedWith =
     order:
     v.viewRelation {
+      engine = genScope;
       definition = f.mkDefinition {
         root = "r";
         inherit order;
@@ -316,12 +327,12 @@ let
       on "g${toString g}" s ++ on "d${toString g}" (s ++ [ (builtins.head s) ])
     ) (builtins.length exSubsets)
   );
-  exAdmission = v.labelWellFormedness {
-    alphabet = exLabels;
+  exAdmission = genScope.wellFormed {
+    alphabet = exLabels.letters;
     expression = "(a|b|c)*";
   };
-  exFlat = v.labelOrder {
-    alphabet = exLabels;
+  exFlat = genScope.labelOrder {
+    alphabet = exLabels.letters;
     layers = [ exLetters ];
     endOfPath = 0;
   };
@@ -373,8 +384,8 @@ let
         map
           (
             endOfPath:
-            v.labelOrder {
-              alphabet = exLabels;
+            genScope.labelOrder {
+              alphabet = exLabels.letters;
               inherit layers endOfPath;
             }
           )
@@ -467,6 +478,7 @@ let
     order:
     let
       r = v.viewRelation {
+        engine = genScope;
         definition = v.compositions.registry {
           channel = "settings";
           relation = "import";
@@ -508,6 +520,7 @@ let
   dupWith =
     dedup:
     v.viewRelation {
+      engine = genScope;
       definition = v.viewDefinition (
         f.definitionArgs
         // {
@@ -611,6 +624,7 @@ let
     data:
     map (d: d.key)
       (v.viewRelation {
+        engine = genScope;
         definition = coercionDef { dedup = v.dedups.byDatum; };
         graph = coercionGraph data;
         marks = f.noMarks;
@@ -658,6 +672,7 @@ let
     dedup: data:
     dedupOracle (
       v.viewRelation {
+        engine = genScope;
         definition = coercionDef { inherit dedup; };
         graph = coercionGraph data;
         marks = f.noMarks;
@@ -683,8 +698,8 @@ let
   # (e.g. `f.order`, gen-view's own shipped default) shadows one arrival at step 6 before 6a/6b ever
   # sees two — every declaration below states `f.flatOrder` explicitly, `ci/fixture.nix`'s existing
   # flat binding, never a custom one.
-  diamondAdmission = v.labelWellFormedness {
-    alphabet = f.labels;
+  diamondAdmission = genScope.wellFormed {
+    alphabet = f.labels.letters;
     expression = "parent(include)*|include(parent)*";
   };
 
@@ -824,8 +839,11 @@ let
     "p"
     "q"
   ];
+  # Each producer one `include` hop from `leaf`: `parent` is the calculus's containment, a function,
+  # so two targets of one scope cannot ride it (den-hoag-gayc U2a lift).
   pqEdges = {
-    parent =
+    parent = _: [ ];
+    include =
       id:
       if id == "leaf" then
         [
@@ -834,7 +852,6 @@ let
         ]
       else
         [ ];
-    include = _: [ ];
   };
   pqData = [
     {
@@ -884,6 +901,7 @@ let
   runOn =
     graph: definition:
     v.viewRelation {
+      engine = genScope;
       inherit definition graph;
       marks = f.noMarks;
       orderMark = f.identityMark;
@@ -902,12 +920,12 @@ let
   # bucket (encoding) order is the REVERSE of walk order, so a construction that emits `kept` or
   # `dropped` by bucket, or keeps the last duplicate, reads differently from the pinned rule.
   orderLabels = v.edgeLabels { letters = [ "parent" ]; };
-  orderAdmission = v.labelWellFormedness {
-    alphabet = orderLabels;
+  orderAdmission = genScope.wellFormed {
+    alphabet = orderLabels.letters;
     expression = "parent*";
   };
-  orderFlat = v.labelOrder {
-    alphabet = orderLabels;
+  orderFlat = genScope.labelOrder {
+    alphabet = orderLabels.letters;
     layers = [ [ "parent" ] ];
     endOfPath = 0;
   };
@@ -918,6 +936,7 @@ let
   orderRelation =
     entries: dedup:
     v.viewRelation {
+      engine = genScope;
       definition = v.viewDefinition {
         channel = orderKey;
         inherit dedup;
@@ -976,17 +995,17 @@ let
   # what the walk reached. `chainOf adj` builds the graph over any adjacency, so a cell can set the
   # construction beside the calculus's own query over a HAND-WRITTEN converse or subgraph.
   chainLabels = v.edgeLabels { letters = [ "parent" ]; };
-  chainAdmission = v.labelWellFormedness {
-    alphabet = chainLabels;
+  chainAdmission = genScope.wellFormed {
+    alphabet = chainLabels.letters;
     expression = "parent*";
   };
-  chainOrder = v.labelOrder {
-    alphabet = chainLabels;
+  chainOrder = genScope.labelOrder {
+    alphabet = chainLabels.letters;
     layers = [ [ "parent" ] ];
     endOfPath = -1;
   };
-  chainIdentityMark = v.labelOrder {
-    alphabet = chainLabels;
+  chainIdentityMark = genScope.labelOrder {
+    alphabet = chainLabels.letters;
     layers = [ [ "parent" ] ];
     endOfPath = 0;
   };
@@ -1042,6 +1061,7 @@ let
   chainRun =
     root: direction: graph: marks:
     v.viewRelation {
+      engine = genScope;
       definition = v.compositions.topology {
         channel = "topo";
         relation = "import";
@@ -1100,7 +1120,7 @@ in
         {
           scope = "a";
           distance = 1;
-          word = [ "parent" ];
+          word = [ "up" ];
         }
       ];
     };
@@ -1120,7 +1140,7 @@ in
               {
                 graph = diamond.labeled;
                 from = "d";
-                follow = dAdmission.expr;
+                follow = dAdmission.term;
               };
           atA = builtins.filter (ans: ans.node == "a") answers;
         in
@@ -1128,12 +1148,12 @@ in
           witnesses = builtins.length atA;
           lengths = builtins.sort builtins.lessThan (map (ans: builtins.length ans.path) atA);
           # And both sit in the SAME derivative state, which is what makes them one class rather
-          # than two: `parent*` steps to `parent*`, at one hop and at two.
+          # than two: `up*` steps to `up*`, at one hop and at two.
           states = builtins.sort builtins.lessThan (
             map (
               ans:
-              dAdmission.stateKey (
-                builtins.foldl' (st: step: dAdmission.step step.label st) dAdmission.expr ans.path
+              graph.regex.stateKey (
+                builtins.foldl' (st: step: graph.regex.deriv step.label st) dAdmission.term ans.path
               )
             ) atA
           );
@@ -1145,8 +1165,8 @@ in
           2
         ];
         states = [
-          (admissionKey "parent*")
-          (admissionKey "parent*")
+          (admissionKey "up*")
+          (admissionKey "up*")
         ];
       };
     };
@@ -1748,12 +1768,12 @@ in
       expr =
         let
           labels = v.edgeLabels { letters = [ "parent" ]; };
-          admission = v.labelWellFormedness {
-            alphabet = labels;
+          admission = genScope.wellFormed {
+            alphabet = labels.letters;
             expression = "parent*";
           };
-          flat = v.labelOrder {
-            alphabet = labels;
+          flat = genScope.labelOrder {
+            alphabet = labels.letters;
             layers = [ [ "parent" ] ];
             endOfPath = 0;
           };
@@ -1788,6 +1808,7 @@ in
                 }) (builtins.length ks);
               };
               r = v.viewRelation {
+                engine = genScope;
                 definition = v.viewDefinition {
                   channel = key;
                   inherit admission;
@@ -1905,6 +1926,54 @@ in
         "mid"
       ];
     };
+
+    # ── THE LIFT: THE CALCULUS OVER THE LIFTED SCOPE WALKS WHAT THE LABELLED GRAPH WALKS ──
+    # (den-hoag-gayc U2a.) The outbound walk is the calculus's `witnesses` over the graph lifted into
+    # an evaluated scope; the reference is the labelled graph's own NR-Cons walk from the same root
+    # under the same admission, read where a datum sits. ★ CONTROL: the same graph with its one
+    # `include` edge planted away answers differently, so agreement is a verdict, not two dead arms.
+    test-the-lift-answers-what-the-labelled-graph-answers =
+      let
+        scopesOf =
+          g:
+          map (c: c.scope)
+            (f.mkRelation {
+              definition = v.viewDefinition (f.definitionArgs // { channel = f.perScopeKey; });
+              graph = g;
+            }).contributions;
+        labelled = builtins.filter (n: n != "leaf") (
+          map (a: a.node) (
+            graph.query { mode = "paths"; } {
+              graph = f.graph.labeled;
+              from = "leaf";
+              follow = f.admission.term;
+            }
+          )
+        );
+        planted = v.scopeGraph {
+          inherit (f) carrier scopes;
+          edges = f.edges // {
+            include = _: [ ];
+          };
+          data = f.authored f.datums;
+        };
+      in
+      {
+        expr = {
+          lifted = scopesOf f.graph;
+          agrees = scopesOf f.graph == labelled;
+          plantedAgrees = scopesOf planted == labelled;
+        };
+        expected = {
+          lifted = [
+            "inc"
+            "mid"
+            "root"
+          ];
+          agrees = true;
+          plantedAgrees = false;
+        };
+      };
 
     # ── DIRECTION: THE INBOUND ARM WALKS THE LABELLED TRANSPOSE ──
     # Transpose REVERSES direction rather than erasing it: the label is carried BY the edge, so
@@ -2328,13 +2397,13 @@ in
               {
                 graph = diamondGraph.labeled;
                 from = "leaf";
-                follow = diamondAdmission.expr;
+                follow = diamondAdmission.term;
               };
           atTop = builtins.filter (ans: ans.node == "top") answers;
           stateOf =
             ans:
-            diamondAdmission.stateKey (
-              builtins.foldl' (st: step: diamondAdmission.step step.label st) diamondAdmission.expr ans.path
+            graph.regex.stateKey (
+              builtins.foldl' (st: step: graph.regex.deriv step.label st) diamondAdmission.term ans.path
             );
         in
         {

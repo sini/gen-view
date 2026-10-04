@@ -13,13 +13,14 @@
 #                    builds, over every declared arm, passes every door it can reach.
 {
   genView,
+  genScope,
   genPrelude,
   graph,
   ...
 }:
 let
   v = genView;
-  f = import ./fixture.nix { inherit genView; };
+  f = import ./fixture.nix { inherit genView genScope; };
   carrierLib = import ../lib/carrier.nix {
     prelude = genPrelude;
     inherit graph;
@@ -188,8 +189,8 @@ let
       }
     );
   };
-  emptyWord = v.labelWellFormedness {
-    alphabet = f.labels;
+  emptyWord = genScope.wellFormed {
+    alphabet = f.labels.letters;
     expression = "";
   };
   scenarios = {
@@ -300,28 +301,14 @@ in
 {
   config = {
     flake.testsError.forged-intake = {
-      test-labelWellFormedness-alphabet-member =
-        refused
-          (v.labelWellFormedness {
-            alphabet = f.labels // {
-              member = 42;
-            };
-            expression = "(parent|include)*";
-          })
-          "^gen-view\\.labelWellFormedness: field 'alphabet\\.member' is 42; a edgeLabels element's 'member' is a function\\..*$";
-      test-labelOrder-alphabet-letters =
-        refused
-          (v.labelOrder {
-            alphabet = f.labels // {
-              letters = 42;
-            };
-            layers = [
-              [ "include" ]
-              [ "parent" ]
-            ];
-            endOfPath = -1;
-          })
-          "^gen-view\\.labelOrder: field 'alphabet\\.letters' is 42; a edgeLabels element's 'letters' is a list\\..*$";
+      test-labelOrder-alphabet-letters = refused (genScope.labelOrder {
+        alphabet = 42;
+        layers = [
+          [ "include" ]
+          [ "parent" ]
+        ];
+        endOfPath = -1;
+      }) "^gen-scope\\.labelOrder: alphabet is a int, not a list of letters$";
       test-carrier-labels = refused (v.carrier (
         carrierArgs
         // {
@@ -340,15 +327,18 @@ in
               };
             }
           ))
-          "^gen-view\\.carrier: field 'labelWellFormedness\\.alphabet' is not a edgeLabels carrier element \\(found a int\\).*$";
-      test-carrier-labelOrder = refused (v.carrier (
-        carrierArgs
-        // {
-          labelOrder = f.order // {
-            alphabet = 42;
-          };
-        }
-      )) "^gen-view\\.carrier: field 'labelOrder\\.alphabet' is not a edgeLabels carrier element .*$";
+          "^gen-view\\.carrier: field 'labelWellFormedness\\.alphabet' is 42; a wellFormed element's 'alphabet' is a list\\..*$";
+      test-carrier-labelOrder =
+        refused
+          (v.carrier (
+            carrierArgs
+            // {
+              labelOrder = f.order // {
+                alphabet = 42;
+              };
+            }
+          ))
+          "^gen-view\\.carrier: field 'labelOrder\\.alphabet' is 42; a labelOrder element's 'alphabet' is a list\\..*$";
       test-carrier-dataOrder =
         refused
           (v.carrier (
@@ -402,12 +392,15 @@ in
               alphabet = 42;
             };
           })
-          "^gen-view\\.viewDefinition: field 'admission\\.alphabet' is not a edgeLabels carrier element .*$";
-      test-viewDefinition-order = refused (vd {
-        order = f.order // {
-          alphabet = 42;
-        };
-      }) "^gen-view\\.viewDefinition: field 'order\\.alphabet' is not a edgeLabels carrier element .*$";
+          "^gen-view\\.viewDefinition: field 'admission\\.alphabet' is 42; a wellFormed element's 'alphabet' is a list\\..*$";
+      test-viewDefinition-order =
+        refused
+          (vd {
+            order = f.order // {
+              alphabet = 42;
+            };
+          })
+          "^gen-view\\.viewDefinition: field 'order\\.alphabet' is 42; a labelOrder element's 'alphabet' is a list\\..*$";
       test-viewDefinition-channel = refused (vd {
         channel = f.key // {
           channel = 42;

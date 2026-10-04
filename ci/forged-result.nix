@@ -19,12 +19,13 @@
 # aborted past `tryEval`, which the batch asserter behind `checks.default` would crash on.
 {
   genView,
+  genScope,
   genPrelude,
   ...
 }:
 let
   v = genView;
-  f = import ./fixture.nix { inherit genView; };
+  f = import ./fixture.nix { inherit genView genScope; };
   inherit (import ../lib/elements.nix { prelude = genPrelude; }) shapes;
 
   read = rel: {
@@ -67,14 +68,14 @@ let
   # an alphabet forged at `member` only, carried by every element built over L
   admissionOver =
     labels:
-    v.labelWellFormedness {
-      alphabet = labels;
+    genScope.wellFormed {
+      alphabet = labels.letters;
       expression = "(parent|include)*";
     };
   orderOver =
     labels:
-    v.labelOrder {
-      alphabet = labels;
+    genScope.labelOrder {
+      alphabet = labels.letters;
       layers = [
         [ "include" ]
         [ "parent" ]
@@ -112,17 +113,11 @@ let
     "edgeLabels.member" = "restated";
     "relations.member" = "restated";
     "relatumLabels.member" = "restated";
-    "labelWellFormedness.step" = "restated";
-    "labelWellFormedness.stateKey" = "restated";
     "labelOrder.rankOf" = "restated";
     "dataOrder.keyOf" = "checked";
     "viewDefinition.wellFormed" = "checked";
     "viewDefinition.distance" = "checked";
-    "labelWellFormedness.accepts" = "unapplied";
-    "labelOrder.precedes" = "unapplied";
-    "labelOrder.rankWord" = "unapplied";
     "labelOrder.pathPrecedes" = "unapplied";
-    "labelOrder.rankLess" = "unapplied";
     "combine.op" = "restated";
     "dedup.keyOf" = "content";
   };
@@ -131,7 +126,7 @@ let
     edgeLabels = f.labels;
     relations = f.relations;
     relatumLabels = f.roles;
-    labelWellFormedness = f.admission;
+    wellFormed = f.admission;
     labelOrder = f.order;
     dataOrder = f.key;
     carrier = f.carrier;
@@ -201,11 +196,9 @@ let
     "dedup.arm" = "declared";
     "edgeLabels.extended" = "restated";
     "edgeLabels.letters" = "checked";
+    "labelOrder.alphabet" = "checked";
     "labelOrder.endOfPath" = "checked";
     "labelOrder.layers" = "checked";
-    "labelWellFormedness.expr" = "restated";
-    "labelWellFormedness.expression" = "checked";
-    "labelWellFormedness.literals" = "unread";
     "relations.names" = "checked";
     "relatumLabels.names" = "checked";
     "scopeGraph.data" = "checked";
@@ -225,6 +218,9 @@ let
     "viewDefinition.relation" = "declared";
     "viewDefinition.root" = "declared";
     "viewRelation.name" = "restated";
+    "wellFormed.alphabet" = "checked";
+    "wellFormed.expression" = "declared";
+    "wellFormed.term" = "checked";
   };
   valueFields = builtins.concatMap (
     k:
@@ -294,8 +290,8 @@ let
     ++ map (l: [ l ]) extra;
   orderWith =
     extra:
-    v.labelOrder {
-      alphabet = forgedL extra;
+    genScope.labelOrder {
+      alphabet = (forgedL extra).letters;
       layers = layersWith extra;
       endOfPath = -1;
     };
@@ -306,10 +302,10 @@ let
     // {
       labels = forgedL extra;
       labelWellFormedness = f.admission // {
-        alphabet = forgedL extra;
+        alphabet = (forgedL extra).letters;
       };
       labelOrder = f.order // {
-        alphabet = forgedL extra;
+        alphabet = (forgedL extra).letters;
       };
     };
 in
@@ -330,10 +326,6 @@ in
     test-a-forged-letters-member-is-inert-through-admission-order-carrier-and-graph = inert (
       relOverLabels badLabels
     );
-    test-a-forged-letters-member-is-inert-at-labelWellFormedness = {
-      expr = (admissionOver badLabels).literals;
-      expected = f.admission.literals;
-    };
     test-a-forged-letters-member-is-inert-at-labelOrder = {
       expr = (orderOver badLabels).layers;
       expected = f.order.layers;
@@ -462,13 +454,15 @@ in
     # refused-list — the lists the restatement reads meet their constructor's law at intake
     test-a-forged-letters-carrying-the-end-marker-is-refused-at-labelOrder =
       refused (orderWith [ "$" ]).rankOf
-        "^gen-view\\.labelOrder: field 'alphabet\\.letters' carries the reserved letter '\\$' .*$";
+        "^gen-scope\\.labelOrder: alphabet carries the reserved letter '\\$' .*$";
     test-a-forged-letters-carrying-the-wildcard-is-refused-at-labelOrder =
       refused (orderWith [ "_" ]).rankOf
-        "^gen-view\\.labelOrder: field 'alphabet\\.letters' carries the reserved letter '_' .*$";
+        "^gen-scope\\.labelOrder: alphabet carries the reserved letter '_' .*$";
+    # The label-word law is this library's, not the calculus's (gen-scope admits any distinct string),
+    # so it is read at this library's intake of the order (den-hoag-gayc D14).
     test-a-forged-letters-carrying-a-metacharacter-is-refused-at-labelOrder =
-      refused (orderWith [ "a|b" ]).rankOf
-        "^gen-view\\.labelOrder: field 'alphabet\\.letters' carries the letter 'a\\|b', which is outside the label word alphabet.*$";
+      refused (v.viewDefinition (f.definitionArgs // { order = orderWith [ "a|b" ]; }))
+        "^gen-view\\.viewDefinition: field 'order\\.alphabet' carries the letter 'a\\|b', which is outside the label word alphabet.*$";
     test-a-forged-letters-carrying-the-end-marker-is-refused-at-scopeGraph =
       refused
         (v.scopeGraph {
@@ -479,7 +473,7 @@ in
           };
           data = f.authored f.datums;
         }).labeled
-        "^gen-view\\.scopeGraph: field 'carrier\\.labelOrder\\.alphabet\\.letters' carries the reserved letter '\\$' .*$";
+        "^gen-view\\.scopeGraph: field 'carrier\\.labelOrder\\.alphabet' carries the reserved letter '\\$' .*$";
     # The refusal names the ONE field path that carries the letter, so a door reaching L by several
     # paths says which declaration to fix: here only the admission's alphabet is forged.
     test-a-forged-letters-refusal-names-the-field-that-carries-it =
@@ -487,13 +481,13 @@ in
         (v.scopeGraph {
           carrier = f.carrier // {
             labelWellFormedness = f.admission // {
-              alphabet = forgedL [ "$" ];
+              alphabet = (forgedL [ "$" ]).letters;
             };
           };
           inherit (f) scopes edges;
           data = f.authored f.datums;
         }).labeled
-        "^gen-view\\.scopeGraph: field 'carrier\\.labelWellFormedness\\.alphabet\\.letters' carries the reserved letter '\\$' .*$";
+        "^gen-view\\.scopeGraph: field 'carrier\\.labelWellFormedness\\.alphabet' carries the reserved letter '\\$' .*$";
     test-a-forged-empty-relations-is-refused-at-the-carrier = refused (v.carrier (
       carrierArgs
       // {
@@ -511,8 +505,8 @@ in
         // {
           labels = L;
           labelWellFormedness = admissionOver L;
-          labelOrder = v.labelOrder {
-            alphabet = L;
+          labelOrder = genScope.labelOrder {
+            alphabet = L.letters;
             layers = layersWith [ "import" ];
             endOfPath = -1;
           };
@@ -581,17 +575,10 @@ in
     test-a-forged-expr-is-inert = inert (viaDef {
       admission = f.admission // {
         expr =
-          (v.labelWellFormedness {
-            alphabet = f.labels;
+          (genScope.wellFormed {
+            alphabet = f.labels.letters;
             expression = "parent*";
           }).expr;
-      };
-    });
-    test-a-forged-extended-is-inert = inert (viaDef {
-      order = f.order // {
-        alphabet = f.labels // {
-          extended = f.labels.letters;
-        };
       };
     });
     test-a-forged-definition-name-is-inert = inert (viaDef {
@@ -689,18 +676,15 @@ in
         }
       )
     );
-    test-forged-layers-are-refused-by-name-at-viewRelation =
-      refused
-        (viaDef {
-          order = f.order // {
-            layers = [
-              [ "include" ]
-              [ "parent" ]
-              [ "nope" ]
-            ];
-          };
-        })
-        "^gen-view\\.viewRelation: field 'definition\\.order\\.layers' rank 'nope', which is not a letter of the alphabet.*$";
+    test-forged-layers-are-refused-by-name-at-viewRelation = refused (viaDef {
+      order = f.order // {
+        layers = [
+          [ "include" ]
+          [ "parent" ]
+          [ "nope" ]
+        ];
+      };
+    }) "^gen-scope\\.labelOrder: layers rank 'nope', which is not a letter of the alphabet.*$";
 
     test-forged-unapplied-functions-are-inert = inert (viaDef {
       admission = f.admission // {

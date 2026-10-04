@@ -24,9 +24,9 @@
 # own oracle. The cluster's SIXTH construct, `hashTrace`, is not one of the sixteen — the export map
 # does not name it — so it is measured at the foot of this file on its own property rather than
 # joining a roster that is about the map.
-{ genView, ... }:
+{ genView, genScope, ... }:
 let
-  f = import ../fixture.nix { inherit genView; };
+  f = import ../fixture.nix { inherit genView genScope; };
   v = genView;
 
   refuses = thunk: !(builtins.tryEval (builtins.deepSeq thunk true)).success;
@@ -37,20 +37,20 @@ let
   # shadowed; the containment edge out of `leaf` is withheld by a named mark.
   tLabels = v.edgeLabels {
     letters = [
-      "parent"
+      "up"
       "include"
     ];
   };
   tRelations = v.relations { names = [ "import" ]; };
-  tAdmission = v.labelWellFormedness {
-    alphabet = tLabels;
-    expression = "(parent|include)*";
+  tAdmission = genScope.wellFormed {
+    alphabet = tLabels.letters;
+    expression = "(up|include)*";
   };
-  tFlat = v.labelOrder {
-    alphabet = tLabels;
+  tFlat = genScope.labelOrder {
+    alphabet = tLabels.letters;
     layers = [
       [
-        "parent"
+        "up"
         "include"
       ]
     ];
@@ -78,7 +78,7 @@ let
       "inc"
     ];
     edges = {
-      parent =
+      up =
         id:
         {
           leaf = [
@@ -117,6 +117,13 @@ let
       ];
     };
   };
+  # `parent` is the calculus's containment, a function, and `leaf` has two ancestors here, so this
+  # graph's ancestor letter is `up` (den-hoag-gayc U2a lift) and its identity mark is its own.
+  tIdentityMark = genScope.labelOrder {
+    alphabet = tLabels.letters;
+    layers = [ tLabels.letters ];
+    endOfPath = 0;
+  };
   tMark =
     id:
     if id == "leaf" then
@@ -146,20 +153,22 @@ let
   tRelation =
     dedup:
     v.viewRelation {
+      engine = genScope;
       definition = tDefinition dedup;
       graph = tGraph;
       marks = tMark;
-      orderMark = f.identityMark;
+      orderMark = tIdentityMark;
     };
   # The SAME graph with no isolation bound. The trace cases use this one because its WALK order
   # (`inc` first, the containment edge being walked before the ancestor edges) differs from its
   # SORT-KEY order (`a`, `b`, `inc`) — and a mutant that leaves the entries in walk order can only
   # be rejected on a fixture where the two orders actually differ.
   tUnbounded = v.viewRelation {
+    engine = genScope;
     definition = tDefinition v.dedups.none;
     graph = tGraph;
     marks = f.noMarks;
-    orderMark = f.identityMark;
+    orderMark = tIdentityMark;
   };
 
   # ── TWO PRESENTATIONS OF ONE EDGE SET, AND ONE SET SHORT OF IT ──
@@ -544,18 +553,20 @@ let
         plain =
           map (c: c.scope)
             (v.viewRelation {
+              engine = genScope;
               definition = tDefinition v.dedups.none;
               graph = tGraph;
               marks = f.noMarks;
-              orderMark = f.identityMark;
+              orderMark = tIdentityMark;
             }).contributions;
         deduped =
           map (c: c.scope)
             (v.viewRelation {
+              engine = genScope;
               definition = tDefinition v.dedups.byDatum;
               graph = tGraph;
               marks = f.noMarks;
-              orderMark = f.identityMark;
+              orderMark = tIdentityMark;
             }).contributions;
         isolated = map (c: c.scope) (tRelation v.dedups.none).contributions;
       };
@@ -564,18 +575,20 @@ let
         plain =
           map (c: c.scope)
             (v.viewRelation {
+              engine = genScope;
               definition = tDefinition v.dedups.none;
               graph = tGraph;
               marks = f.noMarks;
-              orderMark = f.identityMark;
+              orderMark = tIdentityMark;
             }).contributions;
         deduped =
           map (c: c.scope)
             (v.viewRelation {
+              engine = genScope;
               definition = tDefinition v.dedups.none;
               graph = tGraph;
               marks = f.noMarks;
-              orderMark = f.identityMark;
+              orderMark = tIdentityMark;
             }).contributions;
         isolated = map (c: c.scope) (tRelation v.dedups.none).contributions;
       };

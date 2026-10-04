@@ -31,8 +31,10 @@
 # weight and the container carries none. A PUBLISHED CALCULUS MOVES INTACT; a composition-only
 # surface would have to be rebuilt at the fold.
 #
-#   RAW      `edgeLabels` (L) · `labelWellFormedness` (E) · `labelOrder` (<) · `dataOrder` (k) ·
-#            `relations` (R) — the five, plus `carrier`, `scopeGraph` and `relationLookup`
+#   RAW      `edgeLabels` (L) · `dataOrder` (k) · `relations` (R), plus `carrier`, `scopeGraph` and
+#            `relationLookup`. E and < are the resolution calculus's own parameters and are built
+#            by it (gen-scope `wellFormed`, `labelOrder`; den-hoag-gayc D14), so the five are three
+#            constructors here and two element values taken by tag
 #   COMPOSED `compositions.{ movement, channel, registry, topology, role }` — FIVE NAMES over ONE
 #            construction, instantiated at THREE key shapes (the channel, the scope, a
 #            caller-supplied coordinate). `movement` and `channel` are the same instantiation and
@@ -118,8 +120,6 @@ in
   # ── THE RAW CALCULUS ────────────────────────────────────────────────────────────────────────
   inherit (carrierLib)
     edgeLabels
-    labelWellFormedness
-    labelOrder
     dataOrder
     relations
     carrier
@@ -137,10 +137,13 @@ in
 
   # THE ENUMERATION OF THE FIVE, as a checkable list rather than a count in a comment. A sixth
   # element cannot join the carrier without this list and the cells that quantify over it moving
-  # in the same commit, which is the failure a number in prose cannot see.
+  # in the same commit, which is the failure a number in prose cannot see. Each name is the element's
+  # `__element` tag and its constructor's name: `edgeLabels`, `dataOrder` and `relations` are built
+  # here, `wellFormed` and `labelOrder` by the resolution calculus that reads them (gen-scope,
+  # den-hoag-gayc D14).
   carrierElements = [
     "edgeLabels"
-    "labelWellFormedness"
+    "wellFormed"
     "labelOrder"
     "dataOrder"
     "relations"
