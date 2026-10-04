@@ -1046,6 +1046,15 @@ let
     mid = [ "root" ];
   };
   chain = chainOf chainAdjacency;
+  twoParentChain = chainOf (
+    chainAdjacency
+    // {
+      leaf = [
+        "mid"
+        "root"
+      ];
+    }
+  );
   # The mark at `mid` refusing `parent`: in G it withholds the authored edge `mid -parent-> root`.
   midMark =
     id:
@@ -2038,8 +2047,10 @@ in
       expected = [ "root" ];
     };
 
-    # The diagnostic enumerates every node, so it cannot depend on the root; a mark that is a
-    # property of G's edges reports the same withheld edge, by the mark's name, either way round.
+    # The diagnostic is walk-scoped in both directions: it lists the edges the walk considered and
+    # the marks withheld. Inbound from `root` and outbound from `leaf` both consider the authored
+    # edge `mid -parent-> root`, so a mark that is a property of G's edges reports it by the mark's
+    # name either way round.
     test-inbound-withheld-is-direction-invariant = {
       expr = {
         inbound = (chainRun "root" "inbound" chain midMark).withheld;
@@ -2060,6 +2071,40 @@ in
           inbound = w;
           outbound = w;
         };
+    };
+
+    # Inbound from `leaf` the walk never stands on `root`, so it never considers `mid`'s authored
+    # edge into it, and reports nothing (den-hoag-gayc U2e): the diagnostic names what the walk
+    # considered, as outbound's has since U2a. Armed by the walk from `root`, which lists it.
+    test-inbound-withheld-is-walk-scoped = {
+      expr = {
+        unreached = (chainRun "leaf" "inbound" chain midMark).withheld;
+        control = map (w: w.scope) (chainRun "root" "inbound" chain midMark).withheld;
+      };
+      expected = {
+        unreached = [ ];
+        control = [ "mid" ];
+      };
+    };
+
+    # `parent` is containment, a function, and the lift serves both arms: a scope with two
+    # `parent` targets is refused inbound as outbound (den-hoag-gayc U2e). Armed by the one-target
+    # chain, which answers inbound.
+    test-inbound-refuses-a-scope-with-two-parent-targets = {
+      expr = {
+        inbound = throws (chainRun "root" "inbound" twoParentChain f.noMarks).value;
+        outbound = throws (chainRun "leaf" "outbound" twoParentChain f.noMarks).value;
+        control = (chainRun "root" "inbound" chain f.noMarks).value;
+      };
+      expected = {
+        inbound = true;
+        outbound = true;
+        control = [
+          "root"
+          "mid"
+          "leaf"
+        ];
+      };
     };
 
     # ★ THE CONTROL: the outbound arm under the same mark is untouched by the step order, which is

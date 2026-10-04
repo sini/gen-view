@@ -80,9 +80,10 @@ containment (a function — a scope with two `parent` targets is refused at the 
 `imports` its import relation, every other letter `l` an `edges-l` attribute reading the graph's
 checked accessor, and `marks` the scope's own. The walk is `resolve`'s `witnesses`, the alphabet
 handed over sorted because L is a set here; step 4 keys on the answer's `state`; outbound
-`withheld` is the record's, so it names what the walk considered. The **inbound** arm keeps its
-labelled-transpose walk until U2e: the calculus's converse refuses an alphabet carrying `parent`,
-and what a lifted `parent` means under the converse is an open design question.
+`withheld` is the record's, so it names what the walk considered. The **inbound** arm is the same
+`resolve` over the same lift with `direction = "inbound"` (U2e, ADR-0024): `parent`'s converse steps
+to the scopes a scope contains, D9 refuses a parent cycle the walk reads, and inbound `withheld` is
+walk-scoped as outbound's is.
 
 ★★ **`relatumLabels` IS A PUBLISHED CONSTRUCTOR AND IS NOT A SIXTH CARRIER ELEMENT** — do not read
 `carrierElements` as the whole raw layer, and do not "complete" the enumeration by adding it. `Λ` is

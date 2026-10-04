@@ -91,7 +91,7 @@ let
     renderValue
     sortNames
     ;
-  inherit (carrierLib) elementOf labeledOf;
+  inherit (carrierLib) elementOf;
 
   # The marks contract, stated once in `refusal.nix` and read here at this construct's site.
   marksOf = marksContract "viewRelation" "scope";
@@ -265,39 +265,22 @@ let
         mode = "witnesses";
       } lifted def.root;
 
-      # ── 1–3, INBOUND: THE BODY BEFORE THE LIFT, UNTIL U2e ────────────────────────────────────
-      # The converse over the lift is the calculus's `direction = "inbound"`, but it refuses an
-      # alphabet carrying `parent` (containment's converse is `children`), and a letter of this
-      # library's L spelled `parent` is an ordinary letter. Which reading a lifted `parent` takes
-      # under the converse is an open design question (den-hoag-gayc U2e), so the inbound arm keeps
-      # its labelled-transpose walk: marks applied to the authored graph, THEN the converse of
-      # `edges(G|M)` (Mokhov 2017 §5.2), only L edges transposing.
-      labeled = labeledOf "viewRelation" "graph." g.carrier g.scopes g.edges;
-      bounded = graph.boundedBy (marksOf.at a.marks) labeled;
-      inboundAnswers =
-        map
-          (
-            ans:
-            ans
-            // {
-              state = graph.regex.stateKey (foldl' (st: step: graph.regex.deriv step.label st) wf.term ans.path);
-            }
-          )
-          (
-            graph.query { mode = "paths"; } {
-              graph = graph.labeledTranspose (
-                bounded
-                // {
-                  labeledEdges = id: filter (e: elem e.label letters) (bounded.labeledEdges id);
-                }
-              );
-              from = def.root;
-              follow = wf.term;
-            }
-          );
+      # ── 1–3, INBOUND: THE CONVERSE OVER THE SAME LIFT ──────────────────────────────────────
+      # (den-hoag-gayc U2e; ADR-0024.) The calculus's `direction = "inbound"` over `lifted`: from a
+      # scope each letter steps to the scopes whose authored edge names it, the marks are read at
+      # the AUTHORED source before the converse is taken, and `withheld` is the record's. `parent`
+      # reads `.parent`, so its converse steps to the scopes a scope contains (a relation, not a
+      # containment), and a parent cycle the walk reads is refused by name (D9) as outbound. The
+      # lift serves both arms, so a scope with two `parent` targets is refused in either direction.
+      inboundRec = engine.resolve {
+        inherit wf;
+        dataFilter = _: true;
+        mode = "witnesses";
+        direction = "inbound";
+      } lifted def.root;
 
       inbound = def.direction == "inbound";
-      answers = if inbound then inboundAnswers else outbound.answers;
+      answers = (if inbound then inboundRec else outbound).answers;
 
       # The distance rule's declared contract is `{ distance; from; label; to; } → int`
       # (`viewDefinition`), and step 4's `<`, `trace`'s order and `hashTrace` all read what it
@@ -910,7 +893,7 @@ let
         map (w: {
           inherit scope;
           inherit (w) label target marks;
-        }) ((if inbound then bounded else outbound).withheld scope)
+        }) ((if inbound then inboundRec else outbound).withheld scope)
       ) g.scopes;
     in
     builtins.seq (marksOf.checked a.marks) (

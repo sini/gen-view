@@ -3393,6 +3393,20 @@ in
               graph = twoParents;
             }).value
             "^gen-view\\.viewRelation: scope 'leaf' has 2 'parent' targets \\(mid, root\\); the letter 'parent' is the calculus's containment, which is a function.*$";
+        # The lift serves both arms (den-hoag-gayc U2e), so the inbound walk refuses it too.
+        test-a-scope-with-two-parent-targets-is-refused-at-the-lift-inbound =
+          refused
+            (f.mkRelation {
+              graph = twoParents;
+              definition = v.viewDefinition (
+                f.definitionArgs
+                // {
+                  root = "root";
+                  direction = "inbound";
+                }
+              );
+            }).value
+            "^gen-view\\.viewRelation: scope 'leaf' has 2 'parent' targets \\(mid, root\\); the letter 'parent' is the calculus's containment, which is a function.*$";
         test-an-engine-that-is-not-the-calculus-is-refused-by-name =
           refused
             (f.mkRelation {
