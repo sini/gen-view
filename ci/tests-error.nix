@@ -2226,7 +2226,11 @@ in
             msg = "^gen-scope\\.labelOrder: 'nope' is not a label of L̂ \\(\\[\"parent\",\"include\"\\], or `\\$`\\)$";
           };
         };
-        step = label: { inherit label; };
+        step = label: {
+          inherit label;
+          from = "r";
+          to = label;
+        };
       in
       {
         test-a-schedule-node-carrying-context-reaches-the-admission-check = {

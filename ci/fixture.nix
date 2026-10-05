@@ -293,6 +293,92 @@ let
 
   relation = mkRelation { };
 
+  # ONE LABEL INTO TWO SCOPES (den-hoag-vvu9r). `s —i→ x` and `s —i→ y —i→ z`, `x` and `z` each
+  # contributing to entity "k" under `$ < i`. The two paths share the label `i` and part at the
+  # scope, so van Antwerpen 2018 Fig. 1's `<p` leaves them unordered and both survive step 6, where
+  # a label-word reading has `i·$` shadow `i·i·$`. `sc` spells every scope id (a context twin).
+  partedRelation =
+    sc:
+    let
+      pLabels = v.edgeLabels { letters = [ "i" ]; };
+      pAdmission = genScope.wellFormed {
+        alphabet = pLabels.letters;
+        expression = "i*";
+      };
+      pOrder = genScope.labelOrder {
+        alphabet = pLabels.letters;
+        layers = [ [ "i" ] ];
+        endOfPath = -1;
+      };
+    in
+    v.viewRelation {
+      engine = genScope;
+      definition = v.compositions.registry {
+        channel = "settings";
+        relation = "import";
+        root = sc "s";
+        direction = "outbound";
+        admission = pAdmission;
+        order = pOrder;
+        wellFormed = admitAll;
+        tieSet = v.tieSets.union;
+        empty = [ ];
+        combine = v.combines.listAppend;
+        dedup = v.dedups.none;
+        entityOf = c: builtins.head c.datum;
+      };
+      graph = v.scopeGraph {
+        carrier = v.carrier {
+          labels = pLabels;
+          inherit relations;
+          relatumLabels = roles;
+          labelWellFormedness = pAdmission;
+          labelOrder = pOrder;
+          dataOrder = v.dataOrder {
+            channel = "settings";
+            keyOf = c: builtins.head c.datum;
+          };
+        };
+        scopes = map sc [
+          "s"
+          "x"
+          "y"
+          "z"
+        ];
+        edges.i =
+          id:
+          if id == "s" then
+            map sc [
+              "x"
+              "y"
+            ]
+          else if id == "y" then
+            [ (sc "z") ]
+          else
+            [ ];
+        data =
+          map
+            (s: {
+              scope = sc s;
+              relation = "import";
+              datum = [
+                "k"
+                s
+              ];
+            })
+            [
+              "x"
+              "z"
+            ];
+      };
+      marks = noMarks;
+      orderMark = genScope.labelOrder {
+        alphabet = pLabels.letters;
+        layers = [ pLabels.letters ];
+        endOfPath = 0;
+      };
+    };
+
   placement = v.placement.place {
     mode = "merge";
     path = [ "settings" ];
@@ -330,6 +416,7 @@ in
     admitAllMark
     mkRelation
     relation
+    partedRelation
     placement
     ;
 }

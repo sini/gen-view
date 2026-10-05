@@ -275,10 +275,24 @@ in
     test-the-end-of-path-rank-makes-a-prefix-beat-its-extensions = {
       expr =
         f.order.pathPrecedes
-          [ { label = "parent"; } ]
           [
-            { label = "parent"; }
-            { label = "parent"; }
+            {
+              label = "parent";
+              from = "o";
+              to = "a";
+            }
+          ]
+          [
+            {
+              label = "parent";
+              from = "o";
+              to = "a";
+            }
+            {
+              label = "parent";
+              from = "a";
+              to = "b";
+            }
           ];
       expected = true;
     };
@@ -301,18 +315,46 @@ in
         # ★ and now the LIFT says so too, in both directions — this is the pair that read `true`
         liftForward =
           f.flatOrder.pathPrecedes
-            [ { label = "include"; } ]
             [
-              { label = "parent"; }
-              { label = "parent"; }
+              {
+                label = "include";
+                from = "o";
+                to = "i";
+              }
+            ]
+            [
+              {
+                label = "parent";
+                from = "o";
+                to = "a";
+              }
+              {
+                label = "parent";
+                from = "a";
+                to = "b";
+              }
             ];
         liftBackward =
           f.flatOrder.pathPrecedes
             [
-              { label = "parent"; }
-              { label = "parent"; }
+              {
+                label = "parent";
+                from = "o";
+                to = "a";
+              }
+              {
+                label = "parent";
+                from = "a";
+                to = "b";
+              }
             ]
-            [ { label = "include"; } ];
+            [
+              {
+                label = "include";
+                from = "o";
+                to = "i";
+              }
+            ];
       };
       expected = {
         elementForward = false;
@@ -333,26 +375,68 @@ in
         # because the divergence is at exhaustion and `$` is a label of its own distinct rank.
         prefixUnderFlatOrder =
           f.flatOrder.pathPrecedes
-            [ { label = "parent"; } ]
             [
-              { label = "parent"; }
-              { label = "parent"; }
+              {
+                label = "parent";
+                from = "o";
+                to = "a";
+              }
+            ]
+            [
+              {
+                label = "parent";
+                from = "o";
+                to = "a";
+              }
+              {
+                label = "parent";
+                from = "a";
+                to = "b";
+              }
             ];
         # `l1 <l l2` ⇒ ordered, where the ranking makes the two labels comparable
         comparableDivergence =
           f.order.pathPrecedes
-            [ { label = "include"; } ]
             [
-              { label = "parent"; }
-              { label = "parent"; }
+              {
+                label = "include";
+                from = "o";
+                to = "i";
+              }
+            ]
+            [
+              {
+                label = "parent";
+                from = "o";
+                to = "a";
+              }
+              {
+                label = "parent";
+                from = "a";
+                to = "b";
+              }
             ];
         comparableDivergenceReversed =
           f.order.pathPrecedes
             [
-              { label = "parent"; }
-              { label = "parent"; }
+              {
+                label = "parent";
+                from = "o";
+                to = "a";
+              }
+              {
+                label = "parent";
+                from = "a";
+                to = "b";
+              }
             ]
-            [ { label = "include"; } ];
+            [
+              {
+                label = "include";
+                from = "o";
+                to = "i";
+              }
+            ];
       };
       expected = {
         prefixUnderFlatOrder = true;
@@ -380,18 +464,46 @@ in
         {
           forward =
             tied.pathPrecedes
-              [ { label = "parent"; } ]
               [
-                { label = "parent"; }
-                { label = "parent"; }
+                {
+                  label = "parent";
+                  from = "o";
+                  to = "a";
+                }
+              ]
+              [
+                {
+                  label = "parent";
+                  from = "o";
+                  to = "a";
+                }
+                {
+                  label = "parent";
+                  from = "a";
+                  to = "b";
+                }
               ];
           backward =
             tied.pathPrecedes
               [
-                { label = "parent"; }
-                { label = "parent"; }
+                {
+                  label = "parent";
+                  from = "o";
+                  to = "a";
+                }
+                {
+                  label = "parent";
+                  from = "a";
+                  to = "b";
+                }
               ]
-              [ { label = "parent"; } ];
+              [
+                {
+                  label = "parent";
+                  from = "o";
+                  to = "a";
+                }
+              ];
         };
       expected = {
         forward = false;

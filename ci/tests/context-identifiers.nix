@@ -220,6 +220,26 @@ in
     # Every door that reaches a keying site string-checks its input first, so the key's own
     # `isString` guard is read here directly: the discard COERCES an `outPath` set to its text, and
     # a key formed that way would admit the set as a name.
+    # Step 6's trie node is a step prefix, so it holds scope ids: keyed by text, a context-carrying
+    # scope competes as its twin does (den-hoag-vvu9r).
+    test-the-competition-keys-a-context-carrying-step-prefix = {
+      expr =
+        map (sc: map (c: builtins.unsafeDiscardStringContext c.scope) (f.partedRelation sc).contributions)
+          [
+            ctx
+            (s: s)
+          ];
+      expected = [
+        [
+          "x"
+          "z"
+        ]
+        [
+          "x"
+          "z"
+        ]
+      ];
+    };
     test-a-non-string-key-is-not-coerced = {
       expr = (import ../../lib/refusal.nix { prelude = genPrelude; }).attrKey { outPath = "include"; };
       expected = {

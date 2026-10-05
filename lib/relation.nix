@@ -500,28 +500,33 @@ let
       # THE SURVIVING-MAXIMAL SET IS THEREFORE COMPUTED AS MINIMALITY: a contribution survives iff
       # NOTHING in its group strictly precedes it.
       #
-      # ★★ MINIMALITY IS A PREFIX MINIMUM OVER LABEL WORDS, AND THAT IS WHAT IS COMPUTED. Write
-      # `ŵ = w·$` for a member's label word. `$` occurs only last and `edgeLabels` refuses it as a
-      # letter, so the ŵ are prefix-free: two distinct ones first differ at a position `i` inside
-      # both, below a shared prefix `u`, and `pathPrecedes` decides `a <p b` exactly there, by
-      # `rankOf â[i] < rankOf b̂[i]`. So `c` is minimal iff at EVERY node `u = ĉ[0..i)` of its word
-      # the symbol `ĉ[i]` has the minimum rank among the symbols the group's members take at `u`.
-      # Not minimal ⇒ dropped: a `d <p c` diverges from `c` at some `i`, so `d` is at `ĉ[0..i)`
-      # with a lower-ranked symbol and `c` misses that node's minimum. Dropped ⇒ not minimal: a `d`
-      # at `ĉ[0..i)` whose symbol ranks below `ĉ[i]` takes a DIFFERENT symbol — `rankOf` is a
-      # function, so unequal ranks are unequal symbols — hence `i` is their first divergence and
-      # `d <p c`. The minimum is taken over every member at the node, dominated ones included,
-      # because minimality quantifies over the whole group.
+      # ★★ MINIMALITY IS A PREFIX MINIMUM OVER STEP WORDS, AND THAT IS WHAT IS COMPUTED. Write
+      # `ŵ = w·$` for a member's step word, each step its label and the scope it reaches. Every
+      # member starts at one root, and van Antwerpen 2018 Fig. 1's `<p` recurses only through an
+      # equal step: rules 2–4 share one head scope, and rule 1 continues from the scope the shared
+      # `l`-edge reaches. `$` occurs only last and `edgeLabels` refuses it as a letter, so the ŵ
+      # are prefix-free: two distinct ones first differ at a position `i` inside both, below a
+      # shared step prefix `u`, and `<p` decides `a <p b` exactly there, by the ranks of the two
+      # symbols' labels. So `c` is minimal iff at EVERY node `u = ĉ[0..i)` of its word the symbol
+      # `ĉ[i]` has the minimum label rank among the symbols the group's members take at `u`. Not
+      # minimal ⇒ dropped: a `d <p c` diverges from `c` at some `i` with a lower-ranked label, so
+      # `d` is at `ĉ[0..i)` and `c` misses that node's minimum. Dropped ⇒ not minimal: a `d` at
+      # `ĉ[0..i)` whose symbol ranks below `ĉ[i]` takes a DIFFERENT label, so `i` is their first
+      # divergence and `d <p c`. Two symbols with one label into different scopes rank equal, both
+      # attain the minimum, and part into different children, which is Fig. 1's "unordered". The
+      # minimum is taken over every member at the node, dominated ones included, because
+      # minimality quantifies over the whole group.
       #
-      # ★★ THE NODE IS THE LABEL PREFIX, NEVER THE RANK PREFIX. Two DISTINCT labels of ONE rank
-      # both attain the minimum at their shared node and then split into DIFFERENT children, where
-      # they are never compared again — Fig. 1's prefix order only orders paths that share a
-      # prefix. A node keyed by ranks would merge those children, and a third path extending one
-      # of them would shadow the other: that drops a genuine survivor
-      # (`test-a-rank-tie-between-distinct-labels-does-not-share-survival` pins it). The address is
-      # `toJSON` of a list of letters, injective on lists of strings, so two members share a node
-      # iff their label prefixes are `==`; survival is still decided by `<` on ranks, never by the
-      # address.
+      # ★★ THE NODE IS THE STEP PREFIX, NEVER THE LABEL PREFIX OR THE RANK PREFIX. Two DISTINCT
+      # symbols of ONE rank both attain the minimum at their shared node and then split into
+      # DIFFERENT children, where they are never compared again — Fig. 1's prefix order only orders
+      # paths that share a prefix. A node keyed by ranks would merge those children, and a third
+      # path extending one of them would shadow the other: that drops a genuine survivor
+      # (`test-a-rank-tie-between-distinct-labels-does-not-share-survival` pins it). A node keyed by
+      # labels merges two scopes reached by one label the same way. The address is `toJSON` of a
+      # list of `[ label scope ]` pairs, injective on lists of strings, and read through `attrKey`
+      # because a scope id may carry string context; two members share a node iff their step
+      # prefixes are `==`, and survival is still decided by `<` on ranks, never by the address.
       #
       # The cost is Θ(Σ ℓ²) over the group's members, ℓ a member's path length (each prefix address
       # is rebuilt), so it is linear in the number of members, scopes and distinct words; nothing
@@ -546,11 +551,16 @@ let
               branchesOf =
                 c:
                 let
-                  s = map (step: step.label) c.path ++ [ "$" ];
+                  s =
+                    map (step: [
+                      step.label
+                      step.to
+                    ]) c.path
+                    ++ [ [ "$" ] ];
                 in
                 builtins.genList (i: {
-                  node = builtins.toJSON (builtins.genList (j: builtins.elemAt s j) i);
-                  rank = effectiveOrder.rankOf (builtins.elemAt s i);
+                  node = attrKey (builtins.toJSON (builtins.genList (j: builtins.elemAt s j) i));
+                  rank = effectiveOrder.rankOf (head (builtins.elemAt s i));
                 }) (length s);
               minRank = builtins.mapAttrs (
                 _: bs: foldl' (m: b: if b.rank < m then b.rank else m) (head bs).rank bs
@@ -565,15 +575,20 @@ let
               pairsOf =
                 c:
                 let
-                  s = map (step: step.label) c.path ++ [ "$" ];
+                  s =
+                    map (step: [
+                      step.label
+                      step.to
+                    ]) c.path
+                    ++ [ [ "$" ] ];
                 in
                 builtins.genList (
                   i:
                   let
-                    l = builtins.elemAt s i;
+                    l = head (builtins.elemAt s i);
                   in
                   {
-                    node = builtins.toJSON (builtins.genList (j: builtins.elemAt s j) i);
+                    node = attrKey (builtins.toJSON (builtins.genList (j: builtins.elemAt s j) i));
                     m = markRank l;
                     q = qRank l;
                   }

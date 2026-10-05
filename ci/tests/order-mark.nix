@@ -287,12 +287,14 @@ let
     ];
     endOfPath = -1;
   };
+  # A path from the root `r` taking the letters in turn, each step into a scope named for its letter.
   asPath =
     ls:
-    map (l: {
-      label = l;
-      target = l;
-    }) ls;
+    builtins.genList (i: {
+      label = builtins.elemAt ls i;
+      from = if i == 0 then "r" else builtins.elemAt ls (i - 1);
+      to = builtins.elemAt ls i;
+    }) (builtins.length ls);
 
   # ── THE ATTRIBUTION's PROJECTION — `project`'s whole answer, plus what every shadowed member
   # names under `orders`, plus whether ANY visible member carries the field. Read through `inherit`,

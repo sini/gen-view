@@ -2340,7 +2340,7 @@ in
       expected = true;
     };
 
-    # ★ THE SURVIVAL CLASS IS THE LABEL WORD, NEVER THE RANK WORD. `A` and `P` have one rank word
+    # ★ THE SURVIVAL CLASS IS THE STEP WORD, NEVER THE RANK WORD. `A` and `P` have one rank word
     # and different label words; `AA` shadows `A` through the `$` branch, and `P` survives because
     # nothing diverges from it on a lower-ranked label. Pinned by scope, so a construction that
     # shares fate across a rank tie (drops `P`) or forgets the end-of-path branch (keeps `A`) reds
@@ -2356,6 +2356,24 @@ in
           "P"
         ];
         shadowed = [ "A" ];
+      };
+    };
+
+    # ★ AND NEVER THE LABEL WORD (den-hoag-vvu9r). `s·i·x` and `s·i·y·i·z` share the label `i` and
+    # part at the scope, so van Antwerpen 2018 Fig. 1's `<p` leaves them unordered: both survive,
+    # where a node keyed by the label prefix has `i·$` shadow `i·i·$` (visible `[ "x" ]`, shadowed
+    # `[ "z" ]`). The rank-tie cell above is the control: one label per scope, unmoved.
+    test-one-label-into-two-scopes-leaves-both-survivors = {
+      expr = {
+        visible = scopesOf (f.partedRelation (s: s));
+        shadowed = map (c: c.scope) (f.partedRelation (s: s)).shadowed;
+      };
+      expected = {
+        visible = [
+          "x"
+          "z"
+        ];
+        shadowed = [ ];
       };
     };
 
