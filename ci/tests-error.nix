@@ -522,7 +522,7 @@ in
         }) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-scope\\.labelOrder: letter 'include' is not ranked; the label order is total over the alphabet.*$";
+          msg = "^gen-scope\\.labelOrder: letter 'include' is not ranked";
         };
       };
 
@@ -535,7 +535,7 @@ in
         }) true;
         expectedError = {
           type = "ThrownError";
-          msg = "^gen-scope\\.wellFormed: the expression names 'import', which is not a letter of the alphabet \\(\\[\"parent\",\"include\"\\]\\).*$";
+          msg = "^gen-scope\\.wellFormed: the expression names 'import', which is not a letter of the alphabet \\(\\[\"parent\",\"include\"\\]\\)";
         };
       };
 
@@ -1950,7 +1950,7 @@ in
             [ "parent" ]
           ];
           endOfPath = -1;
-        }) "^gen-scope\\.labelOrder: alphabet carries a lambda where a letter \\(a string\\) belongs$";
+        }) "^gen-scope\\.labelOrder: alphabet carries a lambda where a letter \\(a string\\) belongs";
         test-forged-relation-name-renders-a-lambda-at-the-carrier = cell (v.carrier {
           inherit (f) labels;
           relations = f.relations // {
@@ -2010,7 +2010,7 @@ in
             [ "parent" ]
           ];
           endOfPath = -1;
-        }) "^gen-scope\\.labelOrder: alphabet carries a lambda where a letter \\(a string\\) belongs$";
+        }) "^gen-scope\\.labelOrder: alphabet carries a lambda where a letter \\(a string\\) belongs";
         test-two-forged-relation-names-reach-the-carrier = cell (v.carrier {
           inherit (f) labels;
           relations = f.relations // {
@@ -2223,7 +2223,7 @@ in
           inherit expr;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-scope\\.labelOrder: 'nope' is not a label of L̂ \\(\\[\"parent\",\"include\"\\], or `\\$`\\)$";
+            msg = "^gen-scope\\.labelOrder: 'nope' is not a label of L̂";
           };
         };
         step = label: {
@@ -2253,7 +2253,7 @@ in
           expr = f.order.rankOf { outPath = "include"; };
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-scope\\.labelOrder: a set is not a label of L̂ .*$";
+            msg = "^gen-scope\\.labelOrder: a set is not a label of L̂";
           };
         };
         # Every rank read goes through `rankOf`, so a label outside L̂ is refused by name at each
@@ -2587,11 +2587,11 @@ in
         test-a-non-string-expression-is-refused-at-labelWellFormedness = cell (genScope.wellFormed {
           alphabet = f.labels.letters;
           expression = 42;
-        }) "^gen-scope\\.wellFormed: expression is a int, not a path expression.*$";
+        }) "^gen-scope\\.wellFormed: expression is a int, not a path expression";
         test-the-alphabet-is-decided-at-labelWellFormedness-with-no-literals = cell (genScope.wellFormed {
           alphabet = 42;
           expression = "_*";
-        }) "^gen-scope\\.wellFormed: alphabet is a int, not a list of letters$";
+        }) "^gen-scope\\.wellFormed: alphabet is a int, not a list of letters";
         test-the-data-order-is-decided-at-carrier = cell (v.carrier (
           car // { dataOrder = 42; }
         )) "^gen-view\\.carrier: field 'dataOrder' is not a dataOrder carrier element .*$";

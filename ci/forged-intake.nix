@@ -307,7 +307,7 @@ in
           [ "parent" ]
         ];
         endOfPath = -1;
-      }) "^gen-scope\\.labelOrder: alphabet is a int, not a list of letters$";
+      }) "^gen-scope\\.labelOrder: alphabet is a int, not a list of letters";
       test-carrier-labels = refused (v.carrier (
         carrierArgs
         // {

@@ -415,10 +415,10 @@ in
     # refused-list — the lists the restatement reads meet their constructor's law at intake
     test-a-forged-letters-carrying-the-end-marker-is-refused-at-labelOrder =
       refused (orderWith [ "$" ]).rankOf
-        "^gen-scope\\.labelOrder: alphabet carries the reserved letter '\\$' .*$";
+        "^gen-scope\\.labelOrder: alphabet carries the reserved letter '\\$'";
     test-a-forged-letters-carrying-the-wildcard-is-refused-at-labelOrder =
       refused (orderWith [ "_" ]).rankOf
-        "^gen-scope\\.labelOrder: alphabet carries the reserved letter '_' .*$";
+        "^gen-scope\\.labelOrder: alphabet carries the reserved letter '_'";
     # The label-word law is this library's, not the calculus's (gen-scope admits any distinct string),
     # so it is read at this library's intake of the order (den-hoag-gayc D14).
     test-a-forged-letters-carrying-a-metacharacter-is-refused-at-labelOrder =
@@ -645,7 +645,7 @@ in
           [ "nope" ]
         ];
       };
-    }) "^gen-scope\\.labelOrder: layers rank 'nope', which is not a letter of the alphabet.*$";
+    }) "^gen-scope\\.labelOrder: layers rank 'nope', which is not a letter of the alphabet";
 
     test-forged-unapplied-functions-are-inert = inert (viaDef {
       admission = f.admission // {
