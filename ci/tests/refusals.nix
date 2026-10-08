@@ -323,7 +323,6 @@ in
           "project"
           "marks"
           "localShadowsImport"
-          "importShadowsParent"
           "transitiveImports"
         ];
       };
@@ -382,9 +381,6 @@ in
           nonBoolLocalShadowsImport = refuses (
             v.referenceResolution (r.referenceArgs // { localShadowsImport = "yes"; })
           );
-          nonBoolImportShadowsParent = refuses (
-            v.referenceResolution (r.referenceArgs // { importShadowsParent = null; })
-          );
           nonBoolTransitiveImports = refuses (
             v.referenceResolution (r.referenceArgs // { transitiveImports = 0; })
           );
@@ -395,7 +391,6 @@ in
           nonFunctionWellFormed = true;
           nonFunctionProject = true;
           nonBoolLocalShadowsImport = true;
-          nonBoolImportShadowsParent = true;
           nonBoolTransitiveImports = true;
         };
       };

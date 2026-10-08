@@ -278,8 +278,8 @@ referenceResolution {
   name; wellFormed;      # the result name, and σ
   project;               # π
   marks;                 # required: node id → [ { name; admits; } ]; `_: [ ]` for none
-  localShadowsImport; importShadowsParent; transitiveImports;  # name a preset: `neron`, or I < D < P;
-                         # `importShadowsParent = false` is refused (it named no order)
+  localShadowsImport; transitiveImports;  # name a preset: `neron`, or I < D < P; any other
+                         # order is stated through the authority's `labelOrder`
 }                        # ⇒ ONE datum (`single`), or the authority's AMBIGUITY refusal
 
 neededBy {

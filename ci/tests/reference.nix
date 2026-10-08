@@ -121,7 +121,7 @@ in
       };
     };
 
-    # ★ THE FLAG TRIPLE NAMES A PRESET, AND THE PRESET DECIDES (den-hoag-gayc design §2, the flag
+    # ★ THE FLAG PAIR NAMES A PRESET, AND THE PRESET DECIDES (den-hoag-gayc design §2, the flag
     # table): a node carrying a datum of its own and importing another answers its own under D < I < P
     # and the import's under `localShadowsImport = false`. Each arm is the other's control.
     test-the-shadowing-flag-names-the-label-order = {

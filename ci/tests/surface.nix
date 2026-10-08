@@ -161,7 +161,6 @@ in
           "project"
           "marks"
           "localShadowsImport"
-          "importShadowsParent"
           "transitiveImports"
         ];
         notACarrierElement = false;

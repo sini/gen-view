@@ -288,17 +288,15 @@ let
   # branches, so the refusal names WHICH flag without three near-copies of one message.
   flagFields = [
     "localShadowsImport"
-    "importShadowsParent"
     "transitiveImports"
   ];
 
-  # ★★ THE FLAG TRIPLE NAMES A PRESET; IT DECIDES NOTHING HERE (den-hoag-gayc design §2, the flag
+  # ★★ THE FLAG PAIR NAMES A PRESET; IT DECIDES NOTHING HERE (den-hoag-gayc design §2, the flag
   # table). `transitiveImports` picks the well-formedness (`parent* imports?` or `parent* imports*`),
   # `localShadowsImport` the label order (`neron`'s D < I < P, or I < D < P: `$` ranked strictly
   # between `imports` and `parent` through an empty middle rank). Every value is the authority's
-  # own constructor's, so the order and the walk stay the delegate's. `importShadowsParent = false`
-  # was inert under the retired operator — it yielded I < P whatever its name said — so it is
-  # refused by name rather than carried as a flag that changes nothing.
+  # own constructor's, so the order and the walk stay the delegate's. Any other order is stated
+  # through the authority's `resolve` and `labelOrder` directly.
   presetOf = e: a: {
     wf =
       if a.transitiveImports then
@@ -379,8 +377,6 @@ let
       refuse "referenceResolution" "field 'project' must be a function from the authority's node record to the datum this view carries; it is π, and it is a field of its own because a predicate that also projects cannot be split into the two operators"
     else if badFlags != [ ] then
       refuse "referenceResolution" "field '${head badFlags}' is ${renderValue a.${head badFlags}}, which is not a boolean; the shadowing discipline and the import closure are DECLARED here rather than left to the authority's defaults"
-    else if !a.importShadowsParent then
-      refuse "referenceResolution" "field 'importShadowsParent' is false, which names no order: the retired flag yielded imports-before-parent whatever its value, so it is not carried as a flag that changes nothing. state the order you want through the authority's `resolve` and `labelOrder` directly"
     else
       builtins.seq marks {
         __element = "referenceResolution";
@@ -390,7 +386,6 @@ let
           project
           marks
           localShadowsImport
-          importShadowsParent
           transitiveImports
           ;
 

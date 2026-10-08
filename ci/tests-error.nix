@@ -350,23 +350,34 @@ in
         # would leave the caller to find out which.
         test-a-non-boolean-discipline-flag-names-which-one = {
           expr = builtins.deepSeq (v.referenceResolution (
-            r.referenceArgs // { importShadowsParent = null; }
+            r.referenceArgs // { localShadowsImport = null; }
           )) true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.referenceResolution: field 'importShadowsParent' is null, which is not a boolean.*DECLARED here rather than left to the authority's defaults.*$";
+            msg = "^gen-view\\.referenceResolution: field 'localShadowsImport' is null, which is not a boolean.*DECLARED here rather than left to the authority's defaults.*$";
           };
         };
 
-        # `importShadowsParent = false` names no order: the retired flag yielded imports-before-parent
-        # whatever its value, so it is refused by name rather than carried inert.
-        test-a-false-importshadowsparent-is-named = {
+        # The two flags `localShadowsImport` and `transitiveImports` name the preset, so a third
+        # flag is not a field of the construct: whatever its value, it meets the closed field set's
+        # refusal, which names the field and the set and says nothing else. A declaration without it
+        # is the fixture every other cell here admits.
+        test-an-importshadowsparent-true-is-not-a-field = {
+          expr = builtins.deepSeq (v.referenceResolution (
+            r.referenceArgs // { importShadowsParent = true; }
+          )) true;
+          expectedError = {
+            type = "ThrownError";
+            msg = "^gen-view\\.referenceResolution: field 'importShadowsParent' is not a field of this construct; the field set is closed \\(required: engine, localShadowsImport, marks, name, project, transitiveImports, wellFormed\\)$";
+          };
+        };
+        test-an-importshadowsparent-false-is-not-a-field = {
           expr = builtins.deepSeq (v.referenceResolution (
             r.referenceArgs // { importShadowsParent = false; }
           )) true;
           expectedError = {
             type = "ThrownError";
-            msg = "^gen-view\\.referenceResolution: field 'importShadowsParent' is false, which names no order.*$";
+            msg = "^gen-view\\.referenceResolution: field 'importShadowsParent' is not a field of this construct; the field set is closed \\(required: engine, localShadowsImport, marks, name, project, transitiveImports, wellFormed\\)$";
           };
         };
 
@@ -1768,11 +1779,10 @@ in
               wellFormed = _: true;
               project = n: n;
               marks = _: [ ];
-              localShadowsImport = true;
-              importShadowsParent = fn;
+              localShadowsImport = fn;
               transitiveImports = true;
             })
-            "^gen-view\\.referenceResolution: field 'importShadowsParent' is <a lambda>, which is not a boolean.*$";
+            "^gen-view\\.referenceResolution: field 'localShadowsImport' is <a lambda>, which is not a boolean.*$";
         test-transitive-renders-a-lambda = cell (v.neededBy {
           inherit engine;
           name = "r";

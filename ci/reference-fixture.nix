@@ -120,7 +120,6 @@ let
     project = n: n.decls.provided;
     marks = noMarks;
     localShadowsImport = true;
-    importShadowsParent = true;
     transitiveImports = false;
   };
 
@@ -143,7 +142,7 @@ let
     };
   };
 
-  # ── THE FLAG TRIPLE NAMES THE ORDER ──
+  # ── THE FLAG PAIR NAMES THE ORDER ──
   # `req` declares a datum of its own AND imports `prov`, which declares another: D < I < P answers
   # the local datum, and `localShadowsImport = false` (I < D < P) the imported one.
   shadowSelf = mkSelf {
@@ -283,7 +282,6 @@ let
     project = n: n.decls.${field};
     marks = noMarks;
     localShadowsImport = true;
-    importShadowsParent = true;
     transitiveImports = false;
   };
 
