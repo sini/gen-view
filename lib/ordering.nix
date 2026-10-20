@@ -79,6 +79,7 @@ let
     refuse
     fields
     decided
+    destructures
     formalsOf
     choice
     strings
@@ -414,9 +415,9 @@ let
   # refused by name at the door. `builtins.isFunction` narrows the class but does not CLOSE it —
   # a curried or wrong-return-type `admitsCycle` still satisfies it and would otherwise reach
   # `builtins.all` and abort uncatchably; the applied-result check below closes those. A lambda
-  # destructuring NAMED formals is decidable at the door (`builtins.functionArgs ({ x }: 1)` is
-  # `{ x = false; }`), and since `admitsCycle` is applied to a string it is refused there by name
-  # (`formalsOf`, den-hoag-0gpyq). `den-hoag-g8lo`'s
+  # with a SET PATTERN (`{ x }:`, `{ ... }:`, `{ }:`) is decidable at the door (`prelude.patternOf`
+  # reads `kind = "set"`), and since `admitsCycle` is applied to a string it is refused there by name
+  # (`destructures`, den-hoag-0gpyq, den-hoag-gtwxg). `den-hoag-g8lo`'s
   # SHIPPED predicate — its landed state, not the orchestrator's round-4 ruling this header used to
   # quote, which the bead's own record retires as wrong in its specifics — is
   # `isFunction v || (isAttrs v && v ? __functor)`. THIS DOOR IS DELIBERATELY NARROWER, lambda-only:
@@ -424,7 +425,7 @@ let
   # refused BY NAME rather than admitted. ★ THE EXEMPLAR IS `isRegistered`, NOT `mkNodeRef`, AND
   # THE DIFFERENCE IS MEASURED: at gen-graph `978f618` — the rev both `flake.lock` and
   # `ci/flake.lock` pin — `mkNodeRef` is a RECORD door (`args:` under gen-prelude's
-  # `checkRequired`), so `builtins.functionArgs graph.mkNodeRef` is `{ }` and the `formalsOf` door
+  # `checkRequired`), so its call pattern is `args:`, not a set pattern, and the `destructures` door
   # cannot see it. Its shape is still `{ isRegistered } -> id -> <nodeRef>`, whose ultimate codomain
   # is a SET and not a bool; it satisfies `isFunction`, and applied to a node identifier by
   # `illTypedAdmissions` it is refused catchably by gen-graph's own door (`gen-graph.mkNodeRef: the
@@ -446,17 +447,14 @@ let
   # member of `nodes`, and `condensation` partitions `nodes` — no application site inside
   # `badSccs` is outside the checked set.
   #
-  # ★ IT DOES NOT CLOSE A PATTERN FORMAL THAT `functionArgs` CANNOT SEE (`{ ... }: true`,
-  # `{ }: true` report no formals; `{ x }:` and `{ x, ... }:` are refused by name at the door
-  # above), NOR AN `admitsCycle` WHOSE BODY ABORTS. Such a value still satisfies `isFunction`, and
-  # applying it to a string node
-  # identifier aborts UNCATCHABLY while the result is computed, before any check ON that result can
-  # run, escaping `builtins.tryEval`. No check on a value can see a failure that happens COMPUTING
-  # the value; and a body that throws or aborts of its own accord raises the CALLER's error, which
-  # is not this construct's to name. Both residues are pinned as falsifier cells in
-  # `ci/tests-error.nix` rather than claimed closed. Making the check total WIDENS THEIR REACH
-  # rather than narrowing it: they now fire on an acyclic relation too, where the same value was
-  # previously admitted in silence.
+  # ★ IT DOES NOT CLOSE AN `admitsCycle` WHOSE BODY ABORTS (every set pattern, `{ ... }:` and
+  # `{ }:` included, is refused by name at the door above). Such a value still satisfies
+  # `isFunction`, and applying it to a string node identifier aborts UNCATCHABLY while the result is
+  # computed, before any check ON that result can run, escaping `builtins.tryEval`. No check on a
+  # value can see a failure that happens COMPUTING the value; and a body that throws or aborts of
+  # its own accord raises the CALLER's error, which is not this construct's to name. Making the
+  # check total WIDENS THAT RESIDUE'S REACH rather than narrowing it: it now fires on an acyclic
+  # relation too, where the same value was previously admitted in silence.
   #
   # COST. This construct is QUADRATIC in `|nodes|`, and it INHERITS that term rather than
   # introducing it: `den-hoag-o29j` already prices `gen-graph.condensation` at a documented
@@ -519,9 +517,8 @@ let
       );
       # ★ THE APPLIED-RESULT CHECK, HOISTED OUT OF THE CYCLE TEST — see the header above. `filter`
       # forces its predicate over EVERY member of `nodes`, so every admission is typed here
-      # whatever shape the declared relation has, and a pattern formal the door cannot see
-      # (`{ ... }:`) aborts here rather than being short-circuited into silence on an acyclic
-      # relation.
+      # whatever shape the declared relation has, and a body that aborts on a string aborts here
+      # rather than being short-circuited into silence on an acyclic relation.
       illTypedAdmissions = filter (n: !(builtins.isBool admissions.${attrKey n})) nodes;
       # `builtins.all` still SHORT-CIRCUITS at the first `false`, but it can no longer swallow a
       # type refusal: every member of `nodes` is typed above before this is forced, and every SCC
@@ -535,8 +532,8 @@ let
       refuse "boundedWellDefinedSchedule" "field 'nodes' does not contain the declared relation's endpoint(s) ${quote missingEndpoints}; a schedule's precondition is a declared edge set complete at registration, so every source and target `declaredDependencies` names must be a member of `nodes`"
     else if !(builtins.isFunction a.admitsCycle) then
       refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must be a function from a node identifier to a bool (`isRegistered`'s shape — the membership authority `mkNodeRef` itself takes); received a ${builtins.typeOf a.admitsCycle}"
-    else if formalsOf a.admitsCycle != [ ] then
-      refuse "boundedWellDefinedSchedule" "field 'admitsCycle' destructures an attrset (formals: ${quote (formalsOf a.admitsCycle)}); it is applied to a node identifier, a string, so it can never be applied"
+    else if destructures a.admitsCycle then
+      refuse "boundedWellDefinedSchedule" "field 'admitsCycle' destructures an attrset (formals: ${formalsOf a.admitsCycle}); it is applied to a node identifier, a string, so it can never be applied"
     else if illTypedAdmissions != [ ] then
       refuse "boundedWellDefinedSchedule" "field 'admitsCycle' must return a bool for every node identifier; for `${builtins.head illTypedAdmissions}` it returned a ${
         builtins.typeOf admissions.${attrKey (builtins.head illTypedAdmissions)}

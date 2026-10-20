@@ -35,8 +35,8 @@ let
     decided
     renderValue
     returned
+    destructures
     formalsOf
-    quote
     ;
 
   refold =
@@ -135,8 +135,8 @@ let
     in
     if !(builtins.isFunction a.f) then
       refuse "over" "field 'f' must be a function from the contribution sequence to a new sequence"
-    else if formalsOf a.f != [ ] then
-      refuse "over" "field 'f' destructures an attrset (formals: ${quote (formalsOf a.f)}); it is applied to the contribution sequence, a list, so it can never be applied"
+    else if destructures a.f then
+      refuse "over" "field 'f' destructures an attrset (formals: ${formalsOf a.f}); it is applied to the contribution sequence, a list, so it can never be applied"
     else if !(builtins.isList out) then
       refuse "over" "the rewrite returned a ${builtins.typeOf out}; `over` produces a contribution SEQUENCE, and a result that is not one cannot be folded or traced"
     else

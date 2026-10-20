@@ -168,6 +168,21 @@ in
     expected = [ ];
   };
 
+  # gen's one `builtins.toXML` reading is gen-prelude's `patternOf` (den-hoag-a48xt arm (a)). This
+  # library reads a function's pattern through it (`destructures`, lib/refusal.nix) and calls
+  # `toXML` nowhere (den-hoag-gtwxg gate C4).
+  flake.tests.purity.test-the-library-calls-no-toxml = {
+    expr = builtins.length (hitsIn sources "toXML");
+    expected = 0;
+  };
+
+  # ★ THE CONTROL: the same predicate over the unstripped text finds the comment beside
+  # `destructures` that names `toXML`.
+  flake.tests.purity.test-positive-control-the-unstripped-library-names-toxml = {
+    expr = builtins.length (lib.filter (src: genPrelude.hasInfix "toXML" src.text) rawSources) > 0;
+    expected = true;
+  };
+
   # A SECOND POSITIVE CONTROL, coupled to `sources` itself rather than to a synthetic corpus.
   # `test-control-the-scan-can-find-a-token-that-is-there` below shows `hasInfix` can fire, and
   # `test-walk-descends-into-subdirectories` plants a real violation through the real

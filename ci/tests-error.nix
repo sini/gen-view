@@ -1565,14 +1565,12 @@ in
         };
       };
 
-      # ══ C-4 — A PATTERN FORMAL. A NON-EMPTY formal set is refused by name at the door
-      # (`formalsOf`, den-hoag-0gpyq): `admitsCycle` is applied to a string, so it can never apply.
-      # The RESIDUE is `{ ... }:`, which `functionArgs` reports as `{ }`: it passes the
-      # `isFunction` door and aborts UNCATCHABLY building `admissions`, escaping `builtins.tryEval`
-      # (den-hoag-6poeg landing gate 3, C-4). That is NOT a `ThrownError`: Nix's own evaluator
-      # raises it computing `a.admitsCycle n`, before `illTypedAdmissions`' bool check runs, so the
-      # falsifier's message is unanchored on purpose — it is the evaluator's own rendering, not
-      # authored text this library controls.
+      # ══ C-4 — A PATTERN FORMAL. Every set pattern is refused by name at the door
+      # (`destructures`, den-hoag-0gpyq): `admitsCycle` is applied to a string, so it can never
+      # apply. `{ ... }:`, which `functionArgs` reports as `{ }`, was the residue: it passed the
+      # `isFunction` door and aborted UNCATCHABLY building `admissions` (den-hoag-6poeg landing gate
+      # 3, C-4). `prelude.patternOf` reads its pattern, so it is refused at the door too
+      # (den-hoag-gtwxg U2c).
       test-admitsCycle-pattern-formal-is-named = {
         expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
           wdsScheduleArgs // { admitsCycle = { x }: true; }
@@ -1582,13 +1580,13 @@ in
           msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' destructures an attrset \\(formals: x\\); .*$";
         };
       };
-      test-admitsCycle-ellipsis-formal-aborts = {
+      test-admitsCycle-ellipsis-formal-is-named = {
         expr = builtins.deepSeq (v.boundedWellDefinedSchedule (
           wdsScheduleArgs // { admitsCycle = { ... }: true; }
         )) true;
         expectedError = {
-          type = "TypeError";
-          msg = "expected a set but found a string";
+          type = "ThrownError";
+          msg = "^gen-view\\.boundedWellDefinedSchedule: field 'admitsCycle' destructures an attrset \\(formals: \\{ \\.\\.\\. \\}\\); .*$";
         };
       };
 
@@ -2948,9 +2946,32 @@ in
               include = { x }: [ ];
             }))
             "^gen-view\\.scopeGraph: the edge accessor 'include' destructures an attrset \\(formals: x\\); .*$";
-        test-an-edge-accessor-ellipsis-formal-aborts = residue "TypeError" (read (edged {
-          include = { ... }: [ ];
-        })) "expected a set but found a string";
+        test-an-edge-accessor-ellipsis-formal-is-named =
+          cell
+            (read (edged {
+              include = { ... }: [ ];
+            }))
+            "^gen-view\\.scopeGraph: the edge accessor 'include' destructures an attrset \\(formals: \\{ \\.\\.\\. \\}\\); .*$";
+        # den-hoag-gtwxg U2c: a functor is read through the lambda its `__functor` applies, so one
+        # destructuring is refused as a pattern, ahead of the lambda-only `nonAccessor` refusal it
+        # met before. A functor `__functionArgs` that is not an attrset of booleans is outside
+        # `prelude.patternOf`'s domain, and its named refusal propagates through this door.
+        test-an-edge-accessor-functor-pattern-formal-is-named =
+          cell
+            (read (edged {
+              include.__functor = _: { x }: [ ];
+            }))
+            "^gen-view\\.scopeGraph: the edge accessor 'include' destructures an attrset \\(formals: x\\); .*$";
+        test-an-edge-accessor-functor-with-malformed-functionArgs-meets-the-prelude-refusal = cell (read
+          (edged {
+            include = {
+              __functor = _: _: [ ];
+              __functionArgs = {
+                x = 1;
+              };
+            };
+          })
+        ) "^gen-prelude\\.patternOf: the functor's `__functionArgs` is not an attrset of booleans$";
         # CONTROL: the target check is L's only (`s —l→ s`). An R edge's target is a datum
         # (`s —r→ d`) and a Λ edge's a binding node; both are admitted as inert, not narrowed.
         test-control-an-R-or-Lambda-edge-target-outside-the-scopes-is-admitted = {
@@ -3022,9 +3043,9 @@ in
         test-a-marks-pattern-formal-is-named = cell (read (
           marked ({ x }: [ ])
         )) "^gen-view\\.viewRelation: field 'marks' destructures an attrset \\(formals: x\\); .*$";
-        test-a-marks-ellipsis-formal-aborts = residue "TypeError" (read (
-          marked ({ ... }: [ ])
-        )) "expected a set but found a string";
+        test-a-marks-ellipsis-formal-is-named =
+          cell (read (marked ({ ... }: [ ])))
+            "^gen-view\\.viewRelation: field 'marks' destructures an attrset \\(formals: \\{ \\.\\.\\. \\}\\); .*$";
         test-an-admits-pattern-formal-is-named =
           cell
             (read (
@@ -3036,23 +3057,42 @@ in
               ])
             ))
             "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark whose 'admits' is <a lambda> destructuring an attrset \\(formals: x\\); .*$";
-        # RESIDUE: `formalsOf` is `[ ]` for every functor, so a callable `admits` whose `__functor`
-        # destructures passes the door and aborts on application to a label.
-        test-an-admits-functor-pattern-formal-aborts = residue "TypeError" (read (
+        # A callable `admits` whose `__functor` destructures is read through that lambda
+        # (den-hoag-gtwxg U2c); `functionArgs` alone could not see it, and it aborted on application.
+        test-an-admits-functor-pattern-formal-is-named =
+          cell
+            (read (
+              marked (_: [
+                {
+                  name = "m";
+                  admits = {
+                    __functor =
+                      _:
+                      {
+                        y ? 1,
+                      }:
+                      true;
+                  };
+                }
+              ])
+            ))
+            "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark whose 'admits' is <a set> destructuring an attrset \\(formals: y\\); .*$";
+        # A functor `admits` whose `__functionArgs` is not an attrset of booleans applies (its
+        # `__functor` takes a label), but it is outside `prelude.patternOf`'s domain, and the
+        # reader's named refusal propagates through the door: the error is not read as a verdict.
+        test-an-admits-functor-with-malformed-functionArgs-meets-the-prelude-refusal = cell (read (
           marked (_: [
             {
               name = "m";
               admits = {
-                __functor =
-                  _:
-                  {
-                    y ? 1,
-                  }:
-                  true;
+                __functor = _: _: true;
+                __functionArgs = {
+                  x = 1;
+                };
               };
             }
           ])
-        )) "expected a set but found a string";
+        )) "^gen-prelude\\.patternOf: the functor's `__functionArgs` is not an attrset of booleans$";
         # CONTROL: a callable `admits` that is not a lambda still applies (den-hoag-g8lo F-K).
         test-control-a-functor-admits-applies = {
           expr =
@@ -3164,22 +3204,45 @@ in
               f = acc: if acc == [ ] then c: acc ++ c.datum else 42;
             }).value
             "^gen-view\\.scan: the step, on the accumulator before contribution 1, returned 42; .*$";
-        test-an-admits-ellipsis-formal-aborts = residue "TypeError" (read (
-          marked (_: [
-            {
-              name = "m";
-              admits = { ... }: true;
-            }
-          ])
-        )) "expected a set but found a string";
+        test-an-admits-ellipsis-formal-is-named =
+          cell
+            (read (
+              marked (_: [
+                {
+                  name = "m";
+                  admits = { ... }: true;
+                }
+              ])
+            ))
+            "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark whose 'admits' is <a lambda> destructuring an attrset \\(formals: \\{ \\.\\.\\. \\}\\); .*$";
 
         # S14 — `over`'s elements, and its pattern formal (applied to a list)
         test-an-over-pattern-formal-is-named =
           cell (over ({ x }: [ ])).value
             "^gen-view\\.over: field 'f' destructures an attrset \\(formals: x\\); .*$";
-        test-an-over-ellipsis-formal-aborts =
-          residue "TypeError" (over ({ ... }: [ ])).value
-            "expected a set but found a list";
+        test-an-over-ellipsis-formal-is-named =
+          cell (over ({ ... }: [ ])).value
+            "^gen-view\\.over: field 'f' destructures an attrset \\(formals: \\{ \\.\\.\\. \\}\\); .*$";
+        test-an-over-empty-set-formal-is-named =
+          cell (over ({ }: [ ])).value
+            "^gen-view\\.over: field 'f' destructures an attrset \\(formals: \\{ \\}\\); .*$";
+        # den-hoag-gtwxg U2c: `prelude.patternOf` reads a bounded prefix of the rendering, so a
+        # function whose head does not close inside it is refused by the reader's own name, and
+        # the refusal propagates through the door. A positional lambda with a 1100-character name
+        # applied, and was admitted, before.
+        test-an-over-function-with-a-head-outside-the-prelude-prefix-meets-the-prelude-refusal =
+          cell
+            (over (
+              import (
+                builtins.toFile "long-name.nix" (
+                  let
+                    n = builtins.concatStringsSep "" (builtins.genList (_: "x") 1100);
+                  in
+                  "${n}: ${n}"
+                )
+              )
+            )).value
+            "^gen-prelude\\.patternOf: the head of the function's XML rendering is not inside its first 1024 characters$";
         test-an-over-element-that-is-not-a-contribution-is-named =
           cell (over (_: [ 42 ])).value
             "^gen-view\\.over: the rewrite returned a sequence carrying 42; .*$";

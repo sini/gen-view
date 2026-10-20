@@ -148,9 +148,11 @@ if nothing reads it (`decided`, `lib/refusal.nix`). A caller-supplied function's
 exist at construction, so it is checked where it is consumed instead (`returned`, beside
 `decided`): a competition key, an edge accessor's list and its L-edge targets, a marks list, each
 mark and its `admits` verdict, WFD's and σ's verdicts, and `over`'s elements are refused by name,
-naming the function's role, its input and what it returned. A function destructuring named
-formals where it is applied to a string or a list is refused at its door (`formalsOf`); `{ ... }:`
-and a destructuring functor stay the evaluator's own abort.
+naming the function's role, its input and what it returned. A function with a set pattern
+(`{ x }:`, `{ ... }:`, `{ }:`, or a functor whose `__functor` destructures) where it is applied to a
+string or a list is refused at its door (`destructures`, read by gen-prelude's `patternOf`). A value
+outside that reader's domain, such as a functor whose `__functionArgs` is not an attrset of booleans,
+meets `gen-prelude.patternOf`'s own named refusal there.
 
 The closed enumerations: `tieSets.{ union, refuse, orderedFold }` · `combines.{ listAppend, attrsShallow, setUnion }` (a set-semilattice combine declares its **ACC flag**, because that
 condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, byKey }` ·

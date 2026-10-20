@@ -79,15 +79,33 @@ let
     site: role: contract: ok: v:
     if ok v then v else refuse site "${role} returned ${renderValue v}; ${contract}";
 
-  # `formalsOf v` — the formals a function destructures (`{ x }: …` has `[ "x" ]`), `[ ]` for a
-  # plain lambda or a non-function. Where a construct applies `v` to a STRING, a non-empty list
-  # means `v` can never be applied, and the site refuses that by name before the application
-  # aborts past `tryEval`. It refuses only a value that can satisfy NO APPLICATION of its contract;
-  # the door sits at construction, so such a value is refused even on a read that never applies it
-  # (as the `nonAccessor` door already refuses a non-function there). Sound, not complete:
-  # `{ ... }:` and `{ }:` report no formals and still abort, and `formalsOf` is `[ ]` for every
-  # functor, so a functor whose `__functor` destructures passes; those are pinned as falsifier cells.
-  formalsOf = v: if builtins.isFunction v then builtins.attrNames (builtins.functionArgs v) else [ ];
+  # `destructures v` — `v` is a function whose pattern is a set pattern (`{ x }:`, `{ x, ... }:`,
+  # `{ ... }:`, `{ }:`, `args@{ … }:`), read by `prelude.patternOf` (den-hoag-gtwxg), which is
+  # functor-aware the way `prelude.functionArgs` is: a functor is read through the lambda its
+  # `__functor` applies. Where a construct applies `v` to a STRING or a LIST, a set pattern can
+  # never be applied, and the site refuses that by name before the application aborts past
+  # `tryEval`. It refuses only a value that can satisfy NO APPLICATION of its contract; the door
+  # sits at construction, so such a value is refused even on a read that never applies it (as the
+  # `nonAccessor` door already refuses a non-function there). A value outside `patternOf`'s domain
+  # (a functor with a malformed `__functionArgs`, a rendering it cannot parse) meets
+  # `gen-prelude.patternOf:`'s own named refusal here, which this library propagates rather than
+  # reads as a verdict. The reader holds gen's one `builtins.toXML` parse (den-hoag-a48xt arm (a));
+  # this library calls `toXML` nowhere (`ci/tests/purity.nix`).
+  destructures = v: prelude.isFunction v && (prelude.patternOf v).kind == "set";
+
+  # `formalsOf v` — a set pattern's formals as a refusal names them: the names, or `{ ... }` / `{ }`
+  # for a pattern that names none.
+  formalsOf =
+    v:
+    let
+      p = prelude.patternOf v;
+    in
+    if p.formals != { } then
+      quote (attrNames p.formals)
+    else if p.ellipsis then
+      "{ ... }"
+    else
+      "{ }";
 
   # `marksContract site unit` — THE BOUNDARY-MARKS ACCESSOR'S CONTRACT (ADR-0026), stated ONCE for
   # every construct that takes one, so two constructs carrying one contract cannot drift into two.
@@ -108,12 +126,9 @@ let
           refuse site "field 'marks' at ${unit} ${renderSubject s} returned a mark that is ${renderValue m}${
             if builtins.isAttrs m then " (fields: ${quote (builtins.attrNames m)})" else ""
           }; a mark is `{ name; admits; }`, and `withheld` reports it by its name"
-        else if !(callable m.admits) || formalsOf m.admits != [ ] then
+        else if !(callable m.admits) || destructures m.admits then
           refuse site "field 'marks' at ${unit} ${renderSubject s} returned a mark whose 'admits' is ${renderValue m.admits}${
-            if formalsOf m.admits != [ ] then
-              " destructuring an attrset (formals: ${quote (formalsOf m.admits)})"
-            else
-              ""
+            if callable m.admits then " destructuring an attrset (formals: ${formalsOf m.admits})" else ""
           }; it is applied to a label, a string, so it must be a predicate taking one"
         else
           m
@@ -131,8 +146,8 @@ let
         marks:
         if !(builtins.isFunction marks) then
           refuse site "field 'marks' is ${renderValue marks}; it must be a function from a ${unit} id to the list of boundary marks at it"
-        else if formalsOf marks != [ ] then
-          refuse site "field 'marks' destructures an attrset (formals: ${quote (formalsOf marks)}); it is applied to a ${unit} id, a string, so it can never be applied"
+        else if destructures marks then
+          refuse site "field 'marks' destructures an attrset (formals: ${formalsOf marks}); it is applied to a ${unit} id, a string, so it can never be applied"
         else
           marks;
       at =
@@ -249,6 +264,7 @@ in
     fields
     decided
     returned
+    destructures
     formalsOf
     marksContract
     choice

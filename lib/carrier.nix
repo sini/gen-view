@@ -71,6 +71,7 @@ let
     fields
     decided
     returned
+    destructures
     formalsOf
     strings
     attrKey
@@ -369,7 +370,7 @@ let
       unclassified = filter (
         l: !(elem l c.labels.letters || elem l c.relations.names || elem l c.relatumLabels.names)
       ) edgeLabelNames;
-      patterned = sortNames (filter (l: formalsOf edges.${l} != [ ]) edgeLabelNames);
+      patterned = sortNames (filter (l: destructures edges.${l}) edgeLabelNames);
       nonAccessor = sort builtins.lessThan (filter (l: !(builtins.isFunction edges.${l})) edgeLabelNames);
       checked = builtins.mapAttrs (
         l: acc: s:
@@ -398,7 +399,7 @@ let
       refuse site "${fieldName "edges"} carry the label '${head (sort builtins.lessThan unclassified)}', which is in none of the three populations — L (${quote c.labels.letters}), R (${quote c.relations.names}) or Λ (${quote c.relatumLabels.names}); the classification of an edge label is total, and a label outside all three would be walked by nothing and classified as nothing"
     else if patterned != [ ] then
       refuse site "the edge accessor ${renderSubject (head patterned)} destructures an attrset (formals: ${
-        quote (formalsOf edges.${head patterned})
+        formalsOf edges.${head patterned}
       }); it is applied to a scope id, a string, so it can never be applied"
     else if nonAccessor != [ ] then
       refuse site "${fieldName "edges"} carry the label '${head nonAccessor}' bound to ${
