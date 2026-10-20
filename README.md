@@ -172,7 +172,8 @@ attributes besides its coercion is refused by name, whatever those attributes ca
 reads attribute names, and `type` only of a set with an `outPath`; it forces no other sibling's
 value, and it follows an `outPath` that is itself a set. A set typed
 `"derivation"` with an `outPath` is exempt: it is compared by its `outPath`. `combines.setUnion`
-collapses its elements under `==` too, and a STRING element carries its twins' contexts.
+collapses its elements under `==` too, and a STRING element carries its twins' contexts. Both sites run gen-prelude's `absorb`, the
+rule's one home in the roster, and pass it their full door name, so a refusal reads `gen-view.<door>: …`.
 
 ### Dedup and string context: the stated boundaries
 

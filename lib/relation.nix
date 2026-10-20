@@ -868,7 +868,7 @@ let
                   )
                 );
                 d = enums.absorb {
-                  fn = "viewRelation";
+                  fn = "gen-view.viewRelation";
                   subject = "channel ${renderSubject name}";
                   at = " at scope ${renderSubject t.c.scope}";
                 } datum twins;

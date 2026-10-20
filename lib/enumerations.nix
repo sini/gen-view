@@ -22,7 +22,6 @@ let
     decided
     strings
     renderSubject
-    quote
     ;
 
   # ── COMBINES ────────────────────────────────────────────────────────────────────────────────
@@ -176,7 +175,7 @@ let
     };
 
   unionSite = {
-    fn = "combines.setUnion";
+    fn = "gen-view.combines.setUnion";
     subject = "the set union";
     at = "";
   };
@@ -190,81 +189,9 @@ let
   # context") are where an edge is dropped silently. den-hoag-gkrtw replaces this with the general
   # quotient, and its refusals and boundaries retire.
 
-  # `edgesOf v` — the dependency edges of `v`, as one empty string carrying their union. It stops
-  # at a coercion, where step 8's bucket address (`toJSON`) stops, and in `toJSON`'s priority: a
-  # `__toString` set is read through its string, else a set with `outPath` through it (so a
-  # derivation, which refers to itself, is never walked). Functions, paths, numbers, bools and null
-  # carry no context.
-  edgesOf =
-    v:
-    if builtins.isString v then
-      builtins.substring 0 0 v
-    else if builtins.isList v then
-      builtins.concatStringsSep "" (map edgesOf v)
-    else if builtins.isAttrs v then
-      if v ? __toString then
-        builtins.substring 0 0 (toString v)
-      else if v ? outPath then
-        edgesOf v.outPath
-      else
-        builtins.concatStringsSep "" (map (n: edgesOf v.${n}) (builtins.attrNames v))
-    else
-      "";
-
-  # `uncertified v` — whether `v` holds a coercible set that is not a derivation and has attributes
-  # besides its coercion. `edgesOf` stops at the coercion, so a context in such a sibling is an edge
-  # it cannot read, and no collapse of `v` can certify that it carries it. The coercion is the one
-  # `edgesOf` reads, in `toJSON`'s priority, so the `outPath` of a set that also has `__toString` is
-  # a sibling like any other, and an `outPath` that is itself a set is followed, as `edgesOf`
-  # follows it. A derivation is a set typed `"derivation"` WITH an `outPath` (Nix `==` compares one
-  # by its `outPath`); its other attributes are not read, so a context held beside a derivation's
-  # `outPath` is dropped silently, a stated boundary. Reading a sibling instead is not total (a
-  # flake input recurses, a pointer-shared cyclic set overflows, both uncatchably). ★ A SHAPE
-  # CHECK, run only at step 8 `byDatum`, whose bucket address has already walked the datum: it
-  # reads attribute NAMES, and `type` only of a set with an `outPath` (the read Nix `==` makes to
-  # decide a derivation); it forces no other sibling's value.
-  uncertified =
-    v:
-    if builtins.isList v then
-      builtins.any uncertified v
-    else if builtins.isAttrs v then
-      if v ? outPath && (v.type or null) == "derivation" then
-        false
-      else if v ? __toString then
-        builtins.attrNames (removeAttrs v [ "__toString" ]) != [ ]
-      else if v ? outPath then
-        builtins.attrNames (removeAttrs v [ "outPath" ]) != [ ] || uncertified v.outPath
-      else
-        builtins.any (n: uncertified v.${n}) (builtins.attrNames v)
-    else
-      false;
-
-  # `absorb site kept twins` — `kept` carrying its `==`-equal `twins`' edges, or a named refusal.
-  # A string carries the union by its context, which is Nix's own concatenation. A non-string
-  # cannot, so a collapse that would lose an edge is refused; so is any collapse holding a shape
-  # whose edges cannot be read (`uncertified`), whatever it carries.
-  absorb =
-    {
-      fn,
-      subject,
-      at,
-    }:
-    kept: twins:
-    let
-      lost = builtins.concatStringsSep "" (map edgesOf twins);
-    in
-    if twins == [ ] then
-      kept
-    else if uncertified kept then
-      refuse fn "${subject} collapses a datum${at} holding a coercible set that is not a derivation and has attributes besides its coercion; a store dependency there is an edge the collapse cannot read, so it cannot carry it"
-    else if !(builtins.hasContext lost) then
-      kept
-    else if builtins.isString kept then
-      builtins.appendContext kept (builtins.getContext lost)
-    else if builtins.getContext (edgesOf kept + lost) == builtins.getContext (edgesOf kept) then
-      kept
-    else
-      refuse fn "${subject} collapses a non-string datum${at} with ${toString (builtins.length twins)} `==`-equal twin(s) whose store dependencies it does not carry (${quote (builtins.attrNames (removeAttrs (builtins.getContext lost) (builtins.attrNames (builtins.getContext (edgesOf kept)))))}); a collapse keeps its twins' dependency edges, and only a string can carry the union";
+  # `absorb` is gen-prelude's (den-hoag-izo7a): the rule's one home, beside every other member that
+  # collapses under `==`. Each site here passes its FULL door name, which the refusal throws verbatim.
+  inherit (prelude) absorb;
 
   # `combineOf combine` — the combine record its checked `arm` decides, read from the whitelist
   # table. `op`, `unit`, `associative` and `setSemilattice` are the ARM's, so every reader runs
