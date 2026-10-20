@@ -150,9 +150,10 @@ exist at construction, so it is checked where it is consumed instead (`returned`
 mark and its `admits` verdict, WFD's and σ's verdicts, and `over`'s elements are refused by name,
 naming the function's role, its input and what it returned. A function with a set pattern
 (`{ x }:`, `{ ... }:`, `{ }:`, or a functor whose `__functor` destructures) where it is applied to a
-string or a list is refused at its door (`destructures`, read by gen-prelude's `patternOf`). A value
-outside that reader's domain, such as a functor whose `__functionArgs` is not an attrset of booleans,
-meets `gen-prelude.patternOf`'s own named refusal there.
+string or a list is refused at its door (`destructures`, read by gen-prelude's `patternOf`). The
+door reads only the pattern's `kind`, which that reader decides from the lambda the call applies, so
+a functor's `__functionArgs` does not decide it; a rendering the reader cannot parse meets
+`gen-prelude.patternOf`'s own named refusal there.
 
 The closed enumerations: `tieSets.{ union, refuse, orderedFold }` · `combines.{ listAppend, attrsShallow, setUnion }` (a set-semilattice combine declares its **ACC flag**, because that
 condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, byKey }` ·

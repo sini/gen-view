@@ -86,10 +86,10 @@ let
   # never be applied, and the site refuses that by name before the application aborts past
   # `tryEval`. It refuses only a value that can satisfy NO APPLICATION of its contract; the door
   # sits at construction, so such a value is refused even on a read that never applies it (as the
-  # `nonAccessor` door already refuses a non-function there). A value outside `patternOf`'s domain
-  # (a functor with a malformed `__functionArgs`, a rendering it cannot parse) meets
-  # `gen-prelude.patternOf:`'s own named refusal here, which this library propagates rather than
-  # reads as a verdict. The reader holds gen's one `builtins.toXML` parse (den-hoag-a48xt arm (a));
+  # `nonAccessor` door already refuses a non-function there). It reads only the pattern's `kind`,
+  # which gen-prelude decides from the applied lambda, so a functor's `__functionArgs` is not read
+  # here; a rendering the reader cannot parse meets `gen-prelude.patternOf:`'s own named refusal,
+  # which this library propagates rather than reads as a verdict. The reader holds gen's one `builtins.toXML` parse (den-hoag-a48xt arm (a));
   # this library calls `toXML` nowhere (`ci/tests/purity.nix`).
   destructures = v: prelude.isFunction v && (prelude.patternOf v).kind == "set";
 
@@ -113,7 +113,10 @@ let
   # construction-time door on the field itself, `at marks id` the accessor's RESULT at one id,
   # checked where gen-scope's `resolve` consumes it: a list, of marks carrying a `name` and a
   # callable `admits`, and each `admits` verdict a bool. Only that shape is forced; a mark's `name`
-  # is carried unforced into `withheld`.
+  # is carried unforced into `withheld`. COST of `at`: about +23.5 thunks and +10 µs per (node,
+  # mark) over the bare accessor result, at one mark per node (upstream Nix, 100000 nodes), about
+  # half of it the `patternOf` read behind `destructures`; it cannot be hoisted, since the value
+  # checked is an element of the caller's `marks s`.
   marksContract =
     site: unit:
     let

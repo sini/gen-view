@@ -2954,24 +2954,26 @@ in
             "^gen-view\\.scopeGraph: the edge accessor 'include' destructures an attrset \\(formals: \\{ \\.\\.\\. \\}\\); .*$";
         # den-hoag-gtwxg U2c: a functor is read through the lambda its `__functor` applies, so one
         # destructuring is refused as a pattern, ahead of the lambda-only `nonAccessor` refusal it
-        # met before. A functor `__functionArgs` that is not an attrset of booleans is outside
-        # `prelude.patternOf`'s domain, and its named refusal propagates through this door.
+        # met before. The pattern's `kind` does not read a functor's `__functionArgs`
+        # (den-hoag-590wt), so one whose claim is malformed and whose lambda does not destructure
+        # meets the `nonAccessor` refusal, by this library's own name.
         test-an-edge-accessor-functor-pattern-formal-is-named =
           cell
             (read (edged {
               include.__functor = _: { x }: [ ];
             }))
             "^gen-view\\.scopeGraph: the edge accessor 'include' destructures an attrset \\(formals: x\\); .*$";
-        test-an-edge-accessor-functor-with-malformed-functionArgs-meets-the-prelude-refusal = cell (read
-          (edged {
-            include = {
-              __functor = _: _: [ ];
-              __functionArgs = {
-                x = 1;
+        test-an-edge-accessor-functor-with-malformed-functionArgs-is-a-non-accessor =
+          cell
+            (read (edged {
+              include = {
+                __functor = _: _: [ ];
+                __functionArgs = {
+                  x = 1;
+                };
               };
-            };
-          })
-        ) "^gen-prelude\\.patternOf: the functor's `__functionArgs` is not an attrset of booleans$";
+            }))
+            "^gen-view\\.scopeGraph: edges carry the label 'include' bound to <a set>; each label's value must be the accessor .*$";
         # CONTROL: the target check is L's only (`s —l→ s`). An R edge's target is a datum
         # (`s —r→ d`) and a Λ edge's a binding node; both are admitted as inert, not narrowed.
         test-control-an-R-or-Lambda-edge-target-outside-the-scopes-is-admitted = {
@@ -3078,21 +3080,25 @@ in
             ))
             "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark whose 'admits' is <a set> destructuring an attrset \\(formals: y\\); .*$";
         # A functor `admits` whose `__functionArgs` is not an attrset of booleans applies (its
-        # `__functor` takes a label), but it is outside `prelude.patternOf`'s domain, and the
-        # reader's named refusal propagates through the door: the error is not read as a verdict.
-        test-an-admits-functor-with-malformed-functionArgs-meets-the-prelude-refusal = cell (read (
-          marked (_: [
-            {
-              name = "m";
-              admits = {
-                __functor = _: _: true;
-                __functionArgs = {
-                  x = 1;
-                };
-              };
-            }
-          ])
-        )) "^gen-prelude\\.patternOf: the functor's `__functionArgs` is not an attrset of booleans$";
+        # `__functor` takes a label), and the door reads only the pattern's `kind`, which does not
+        # read that claim (den-hoag-590wt), so it is admitted and its verdict counts.
+        test-an-admits-functor-with-malformed-functionArgs-applies = {
+          expr =
+            (read (
+              marked (_: [
+                {
+                  name = "m";
+                  admits = {
+                    __functor = _: _: true;
+                    __functionArgs = {
+                      x = 1;
+                    };
+                  };
+                }
+              ])
+            )).contributions != [ ];
+          expected = true;
+        };
         # CONTROL: a callable `admits` that is not a lambda still applies (den-hoag-g8lo F-K).
         test-control-a-functor-admits-applies = {
           expr =
@@ -3226,12 +3232,11 @@ in
         test-an-over-empty-set-formal-is-named =
           cell (over ({ }: [ ])).value
             "^gen-view\\.over: field 'f' destructures an attrset \\(formals: \\{ \\}\\); .*$";
-        # den-hoag-gtwxg U2c: `prelude.patternOf` reads a bounded prefix of the rendering, so a
-        # function whose head does not close inside it is refused by the reader's own name, and
-        # the refusal propagates through the door. A positional lambda with a 1100-character name
-        # applied, and was admitted, before.
-        test-an-over-function-with-a-head-outside-the-prelude-prefix-meets-the-prelude-refusal =
-          cell
+        # `prelude.patternOf` reads a pattern past any length of name (den-hoag-590wt), so a
+        # positional lambda with a 1100-character name is admitted, and it applies as the identity
+        # it is.
+        test-an-over-function-with-a-long-name-applies = {
+          expr =
             (over (
               import (
                 builtins.toFile "long-name.nix" (
@@ -3241,8 +3246,9 @@ in
                   "${n}: ${n}"
                 )
               )
-            )).value
-            "^gen-prelude\\.patternOf: the head of the function's XML rendering is not inside its first 1024 characters$";
+            )).value == (over (x: x)).value;
+          expected = true;
+        };
         test-an-over-element-that-is-not-a-contribution-is-named =
           cell (over (_: [ 42 ])).value
             "^gen-view\\.over: the rewrite returned a sequence carrying 42; .*$";
