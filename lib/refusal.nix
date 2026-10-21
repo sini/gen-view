@@ -95,11 +95,9 @@ let
 
   # `formalsOf v` — a set pattern's formals as a refusal names them: the names, or `{ ... }` / `{ }`
   # for a pattern that names none.
-  formalsOf =
-    v:
-    let
-      p = prelude.patternOf v;
-    in
+  formalsOf = v: formalsOfPattern (prelude.patternOf v);
+  formalsOfPattern =
+    p:
     if p.formals != { } then
       quote (attrNames p.formals)
     else if p.ellipsis then
@@ -113,25 +111,39 @@ let
   # construction-time door on the field itself, `at marks id` the accessor's RESULT at one id,
   # checked where gen-scope's `resolve` consumes it: a list, of marks carrying a `name` and a
   # callable `admits`, and each `admits` verdict a bool. Only that shape is forced; a mark's `name`
-  # is carried unforced into `withheld`. COST of `at`: about +23.5 thunks and +10 µs per (node,
-  # mark) over the bare accessor result, at one mark per node (upstream Nix, 100000 nodes), about
-  # half of it the `patternOf` read behind `destructures`; it cannot be hoisted, since the value
-  # checked is an element of the caller's `marks s`.
+  # is carried unforced into `withheld`. COST of `at`, per (node, mark) over the bare accessor
+  # result (baseline 7.0 thunks and about 1.3 µs per node), at one mark per node over 100000 nodes,
+  # half lambda and half functor `admits`: about +26.0 thunks, and about +10.5 µs (Nix 2.34) / +11.8
+  # µs (Determinate 3.23). A functor `admits` pays the applicability walk (+5 thunks); the rest is
+  # mostly the `patternOf` read. It cannot be hoisted, since the value checked is an element of the
+  # caller's `marks s`.
   marksContract =
     site: unit:
     let
-      callable =
+      # What Nix can apply (gen-prelude `isApplicable`, den-hoag-b6nyh). A callable `admits` is read
+      # for its pattern on the function the label meets (`applicablePatternOf`), asked only after
+      # `isApplicable` holds, since outside that domain the read aborts.
+      callable = prelude.isApplicable;
+      admitsPattern = prelude.applicablePatternOf;
+      # A functor whose walk exhausts the bound renders as `<a set>`; name the bound after it.
+      exhausted =
         v:
-        builtins.isFunction v || (builtins.isAttrs v && v ? __functor && builtins.isFunction v.__functor);
+        let
+          k = prelude.applicableKindOf v;
+        in
+        if k == "a ${builtins.typeOf v}" then "" else " (${k})";
       markAt =
         s: m:
         if !(builtins.isAttrs m && m ? name && m ? admits) then
           refuse site "field 'marks' at ${unit} ${renderSubject s} returned a mark that is ${renderValue m}${
             if builtins.isAttrs m then " (fields: ${quote (builtins.attrNames m)})" else ""
           }; a mark is `{ name; admits; }`, and `withheld` reports it by its name"
-        else if !(callable m.admits) || destructures m.admits then
+        else if !(callable m.admits) || (admitsPattern m.admits).kind == "set" then
           refuse site "field 'marks' at ${unit} ${renderSubject s} returned a mark whose 'admits' is ${renderValue m.admits}${
-            if callable m.admits then " destructuring an attrset (formals: ${formalsOf m.admits})" else ""
+            if callable m.admits then
+              " destructuring an attrset (formals: ${formalsOfPattern (admitsPattern m.admits)})"
+            else
+              exhausted m.admits
           }; it is applied to a label, a string, so it must be a predicate taking one"
         else
           m

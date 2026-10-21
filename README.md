@@ -154,6 +154,10 @@ string or a list is refused at its door (`destructures`, read by gen-prelude's `
 door reads only the pattern's `kind`, which that reader decides from the lambda the call applies, so
 a functor's `__functionArgs` does not decide it; a rendering the reader cannot parse meets
 `gen-prelude.patternOf`'s own named refusal there.
+A mark's `admits` is admitted by what Nix can apply (gen-prelude `isApplicable`, the fuelled
+`__functor` walk), and its pattern is read on the function the label meets (`applicablePatternOf`): a
+nested functor is served, a functor Nix cannot apply is refused by name, and one whose walk exhausts
+the bound is refused naming it.
 
 The closed enumerations: `tieSets.{ union, refuse, orderedFold }` · `combines.{ listAppend, attrsShallow, setUnion }` (a set-semilattice combine declares its **ACC flag**, because that
 condition is undecidable from an arbitrary combine) · `dedups.{ none, byDatum, byKey }` ·

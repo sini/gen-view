@@ -2818,6 +2818,11 @@ in
             };
           };
         marked = marks: f.mkRelation { inherit marks; };
+        markOf = admits: {
+          name = "m";
+          inherit admits;
+        };
+        chain = n: leaf: if n == 0 then leaf else { __functor = _: chain (n - 1) leaf; };
         fromLeaf = targets: id: if id == "leaf" then targets else [ ];
         refRead =
           args:
@@ -3114,6 +3119,60 @@ in
             )).contributions != [ ];
           expected = true;
         };
+
+        # den-hoag-b6nyh: `admits` is admitted by what Nix can apply (gen-prelude `isApplicable`, the
+        # fuelled `__functor` walk) and its pattern read on the function the label meets. A functor
+        # Nix cannot apply is refused by name, catchably, before its application aborts.
+        test-an-admits-functor-returning-a-non-function-is-named =
+          cell (read (marked (_: [ (markOf { __functor = _: 5; }) ])))
+            "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark whose 'admits' is <a set>; .*$";
+        test-an-admits-functor-returning-a-non-function-is-catchable = {
+          expr =
+            (builtins.tryEval (builtins.deepSeq (read (marked (_: [ (markOf { __functor = _: 5; }) ]))) true))
+            .success;
+          expected = false;
+        };
+        test-a-self-returning-admits-functor-is-named-by-the-bound =
+          cell
+            (read (
+              marked (_: [
+                (markOf (
+                  let
+                    s = {
+                      __functor = self: self;
+                    };
+                  in
+                  s
+                ))
+              ])
+            ))
+            "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark whose 'admits' is <a set> \\(a functor that reaches no function within 32 `__functor` steps\\); .*$";
+        test-a-33-level-admits-functor-is-named-by-the-bound =
+          cell (read (marked (_: [ (markOf (chain 33 (_: true))) ])))
+            "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark whose 'admits' is <a set> \\(a functor that reaches no function within 32 `__functor` steps\\); .*$";
+        test-a-nested-admits-functor-destructuring-is-named-with-its-formals =
+          cell (read (marked (_: [ (markOf { __functor = _: { __functor = _: { x }: true; }; }) ])))
+            "^gen-view\\.viewRelation: field 'marks' at scope 'leaf' returned a mark whose 'admits' is <a set> destructuring an attrset \\(formals: x\\); .*$";
+        # Served as their lambda twin: what Nix applies, the door admits.
+        test-applicable-admits-functors-are-served-as-their-lambda =
+          let
+            served = admits: (read (marked (_: [ (markOf admits) ]))).contributions;
+          in
+          {
+            expr = map served [
+              { __functor = _: { __functor = _: _: true; }; }
+              {
+                __functor = {
+                  __functor =
+                    _: _: _:
+                    true;
+                };
+              }
+              (chain 32 (_: true))
+              (lib.setFunctionArgs (lib.setFunctionArgs (_: true) { }) { })
+            ];
+            expected = builtins.genList (_: served (_: true)) 4;
+          };
 
         # S5 — WFD's verdict (relationEntries, and viewRelation through it)
         test-a-wellFormed-verdict-that-is-not-a-bool-is-named =
